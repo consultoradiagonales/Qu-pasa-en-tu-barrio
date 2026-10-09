@@ -1,0 +1,72 @@
+// build.gradle (app level) — ¿Qué pasa en tu barrio?
+//
+// CONFIGURACIÓN DE FIRMA (para release en Play Store):
+//   1. Generar keystore:
+//      keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA \
+//              -keysize 2048 -validity 10000 -alias upload
+//   2. Crear android/key.properties con:
+//      storePassword=TU_STORE_PASSWORD
+//      keyPassword=TU_KEY_PASSWORD
+//      keyAlias=upload
+//      storeFile=PATH_COMPLETO/upload-keystore.jks
+//   3. Agregar android/key.properties a .gitignore
+//   4. El bloque signingConfigs más abajo lee ese archivo
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace "com.tuorganizacion.quepasaentubarrio"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.tuorganizacion.quepasaentubarrio"
+        minSdk 24          // Android 7.0 — cubre el 97% de dispositivos activos
+        targetSdk 35       // requerido por Google Play desde agosto 2025
+        versionCode 1
+        versionName "1.0.0"
+
+        // Google Maps API Key
+        // Configurar en Google Cloud Console > APIs y servicios > Credenciales
+        // Restringir la clave al package name y SHA-1 de la app
+        manifestPlaceholders["MAPS_API_KEY"] = "TU_GOOGLE_MAPS_API_KEY"
+    }
+
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+}

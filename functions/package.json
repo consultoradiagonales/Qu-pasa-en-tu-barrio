@@ -1,0 +1,13 @@
+{
+  "name": "que-pasa-en-tu-barrio-functions",
+  "private": true,
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "scripts": {
+    "check": "node --check index.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0"
+  }
+}

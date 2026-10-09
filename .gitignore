@@ -1,0 +1,36 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+functions/node_modules/
+functions/.env*
+maqueta/data/
+*.lock
+
+# Android
+android/key.properties          # credenciales de firma — NUNCA commitear
+android/.gradle/
+android/local.properties
+android/app/google-services.json  # mover a .gitignore si el repo es público
+
+# iOS
+ios/Pods/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/GoogleService-Info.plist    # mover a .gitignore si el repo es público
+
+# Firebase
+lib/firebase_options.dart       # contiene API keys — ver nota en el archivo
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Misc
+*.DS_Store
+android/.kotlin/
+maqueta/Demo-para-inversores.zip
+maqueta/solicitud-cuota-firebase.png
