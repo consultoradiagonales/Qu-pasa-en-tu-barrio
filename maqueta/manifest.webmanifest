@@ -1,0 +1,14 @@
+{
+  "name": "¿Qué pasa en tu barrio?",
+  "short_name": "Mi Barrio",
+  "description": "Reportes ciudadanos y seguimiento de soluciones urbanas.",
+  "lang": "es-AR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f9f8",
+  "theme_color": "#123e68",
+  "icons": [
+    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
