@@ -8,7 +8,7 @@ $FLUTTER = "C:\flutter\bin\flutter.bat"
 Push-Location $PROJECT
 
 Write-Host "==> Compilando Flutter Web..." -ForegroundColor Cyan
-& $FLUTTER build web --release --base-href "/Qu-pasa-en-tu-barrio/"
+& $FLUTTER build web --release --base-href "/Qu-pasa-en-tu-barrio/" --no-tree-shake-icons
 
 Write-Host "==> Subiendo a gh-pages..." -ForegroundColor Cyan
 # Guarda el estado actual

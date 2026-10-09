@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "650673979964",
+    "project_id": "que-pasa-en-tu-barrio",
+    "storage_bucket": "que-pasa-en-tu-barrio.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:650673979964:android:c9cb7350c01d0277d3b939",
+        "android_client_info": {
+          "package_name": "com.quepasaentubarrio.que_pasa_en_tu_barrio"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "650673979964-f4olob6e51k6g8jfmq802ncfkjnj4l7k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeBjOxDmiZSAjGi00I7TD5UED6UmEVkJg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "650673979964-f4olob6e51k6g8jfmq802ncfkjnj4l7k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
