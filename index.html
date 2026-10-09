@@ -1,281 +1,46 @@
-<!doctype html>
-<html lang="es-AR">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#123e68">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Mi Barrio">
-  <title>¿Qué pasa en tu barrio? · Demo interactiva</title>
-  <style>
-:root{font-family:'Segoe UI',Arial,sans-serif;color:#19283a;background:#e9eef2;font-synthesis:none}
-*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}
-.workspace{min-height:100vh;display:grid;grid-template-columns:minmax(350px,1fr) minmax(460px,1fr);background:#e9eef2}
-.studio{min-height:100vh;padding:46px clamp(30px,5vw,90px);display:flex;flex-direction:column;color:white;background:radial-gradient(circle at 82% 5%,#2b7297 0%,transparent 31%),linear-gradient(150deg,#123e68 5%,#102d4a 68%,#112a3f 100%);position:relative;overflow:hidden}
-.studio:before{content:"";position:absolute;width:580px;height:580px;border:1px solid #ffffff18;border-radius:50%;left:-250px;bottom:-310px;box-shadow:0 0 0 110px #ffffff08,0 0 0 220px #ffffff05;pointer-events:none}
-.studio-brand{display:flex;align-items:center;gap:12px;letter-spacing:.14em;font-size:12px;font-weight:700;line-height:1.2;position:relative}.studio-brand strong{letter-spacing:.09em;font-weight:800}.brand-mark{display:grid;place-items:center;width:42px;height:42px;border:1px solid #ffffff88;border-radius:13px;color:#b7e6d9;font-size:30px}
-.studio-main{max-width:550px;margin:auto 0;position:relative;padding:55px 0}.eyebrow,.role-label,.preview-top,.scenario-index{font-size:11px;letter-spacing:.17em;font-weight:800}.eyebrow{color:#94dbc7}.studio h1{font-family:Manrope,Arial,sans-serif;font-size:clamp(45px,5vw,76px);line-height:1.09;letter-spacing:-.07em;margin:18px 0 20px;font-weight:800}.studio h1 em{font-style:normal;color:#9bdfce}.studio-copy{font-size:16px;line-height:1.75;color:#d8e6ee;max-width:465px;margin:0 0 46px}.role-box{background:#ffffff12;border:1px solid #ffffff25;padding:20px;border-radius:20px;backdrop-filter:blur(12px)}.role-label{display:block;color:#b7cdd9;margin-bottom:13px}.role-switch{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.role-switch button{border:1px solid #ffffff30;border-radius:11px;padding:11px 5px;background:#ffffff12;color:#ecf6f8;font-size:13px;font-weight:700}.role-switch button.active{background:#e6f6ec;color:#123e68;border-color:#e6f6ec;box-shadow:0 6px 16px #061f3160}.scenario{display:flex;gap:18px;margin-top:31px;max-width:500px}.scenario-index{color:#94dbc7;white-space:nowrap;padding-top:2px}.scenario strong{font-size:14px}.scenario p{color:#c5d7e1;font-size:13px;line-height:1.65;margin:6px 0}.studio-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:11px;color:#b9d0de;position:relative}.studio-foot button{border:0;background:none;color:#a9e5d2;font-weight:700;white-space:nowrap}.live-dot{width:7px;height:7px;background:#89debc;border-radius:50%;display:inline-block;margin-right:6px;box-shadow:0 0 0 4px #89debc20}
-.preview-area{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 28px 14px;min-width:0}.preview-top{width:min(430px,100%);display:flex;justify-content:space-between;align-items:center;color:#5b7080;margin-bottom:19px}.preview-pill{border:1px solid #bed8d1;border-radius:30px;background:#f4fcf7;padding:7px 11px;color:#37846b;font-size:10px;letter-spacing:.08em}.device{width:390px;height:min(818px,calc(100vh - 112px));min-height:600px;border:8px solid #1f2d38;border-radius:42px;background:#f7f8f8;box-shadow:0 25px 65px #24405238,0 3px 8px #24405230;position:relative;overflow:hidden}.device-notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:105px;height:20px;background:#1f2d38;border-radius:0 0 15px 15px;z-index:30}.app{height:100%;overflow:auto;background:#f8faf9;scrollbar-width:none}.app::-webkit-scrollbar{display:none}.preview-caption{font-size:11px;color:#83919b;margin:14px 0 0;text-align:center}
-.statusbar{height:31px;padding:10px 23px 0;display:flex;justify-content:space-between;font-size:11px;font-weight:800;background:#fff;color:#173c56}.statusbar span:last-child{letter-spacing:2px}.screen{min-height:calc(100% - 31px);padding-bottom:80px;background:#f7f9f8}.screen.full{padding-bottom:20px}.app-header{background:#fff;padding:16px 21px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #edf0f0}.app-header h2{font-family:Manrope,Arial,sans-serif;font-size:19px;line-height:1.2;letter-spacing:-.045em;margin:0}.app-header small{display:block;font-size:11px;font-weight:700;color:#608071;margin-bottom:5px}.header-left{display:flex;align-items:center;gap:10px}.icon-button{width:38px;height:38px;display:grid;place-items:center;border:1px solid #e5ebea;border-radius:12px;background:#fff;color:#173c56;font-size:20px}.avatar{width:38px;height:38px;border-radius:13px;background:#dceee7;color:#28715a;display:grid;place-items:center;font-weight:800;font-size:14px}.content{padding:18px 20px}.hero{background:#143f65;color:#fff;border-radius:22px;padding:20px;position:relative;overflow:hidden;box-shadow:0 10px 24px #18476524}.hero:after{content:"✳";position:absolute;right:-4px;top:-36px;font-size:170px;color:#ffffff0f;line-height:1}.hero .eyebrow{color:#a9d8cc;font-size:10px}.hero h3{font-family:Manrope,Arial,sans-serif;font-size:23px;letter-spacing:-.045em;line-height:1.18;margin:9px 0 8px;max-width:250px}.hero p{font-size:12px;color:#c9dfeb;line-height:1.5;margin:0 0 16px;max-width:250px}.hero button{background:#bdebd7;color:#143e60;border:0;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:800;position:relative;z-index:1}.section-heading{display:flex;align-items:center;justify-content:space-between;margin:22px 1px 11px}.section-heading h3{font-size:15px;font-weight:800;margin:0;letter-spacing:-.025em}.text-link{border:0;background:none;color:#256788;font-size:12px;font-weight:800;padding:4px}.chips{display:flex;gap:7px;overflow:auto;scrollbar-width:none;padding-bottom:2px}.chips::-webkit-scrollbar{display:none}.chip{flex:none;border:1px solid #dce6e2;background:#fff;color:#688074;padding:8px 12px;border-radius:30px;font-size:11px;font-weight:800}.chip.active{background:#164b65;color:#fff;border-color:#164b65}.map{height:262px;border-radius:19px;position:relative;overflow:hidden;background-color:#dce9d9;background-image:linear-gradient(23deg,transparent 45%,#f9f6ed 46%,#f9f6ed 53%,transparent 54%),linear-gradient(-58deg,transparent 43%,#f9f6ed 44%,#f9f6ed 52%,transparent 53%),linear-gradient(90deg,transparent 46%,#fffaf0 47%,#fffaf0 53%,transparent 54%);box-shadow:inset 0 0 0 1px #d1dfd7}.map:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 64px,#aacdb43b 64px 68px,transparent 68px 130px),repeating-linear-gradient(0deg,transparent 0 57px,#aacdb43b 57px 61px,transparent 61px 121px);opacity:.7}.map-road{position:absolute;background:#fdfcf7;box-shadow:0 0 0 1px #e5e2d8}.road-one{width:560px;height:20px;transform:rotate(-22deg);top:43%;left:-30%}.road-two{width:22px;height:500px;transform:rotate(-23deg);top:-35%;left:62%}.road-three{width:500px;height:16px;transform:rotate(32deg);top:75%;left:-28%}.map-label{position:absolute;color:#7c9788;font-size:9px;font-weight:800;letter-spacing:.04em;transform:rotate(-22deg)}.map-label.a{left:19px;top:29px}.map-label.b{right:25px;bottom:31px}.map-pin{position:absolute;width:30px;height:30px;border:3px solid #fff;border-radius:50% 50% 50% 6px;transform:translate(-50%,-50%) rotate(-45deg);box-shadow:0 5px 11px #25453055;z-index:3;display:grid;place-items:center;color:white;font-size:12px;font-weight:900}.map-pin span{transform:rotate(45deg)}.map-pin.selected{width:35px;height:35px;box-shadow:0 0 0 7px #ffffff80,0 6px 12px #25453055}.map-caption{position:absolute;left:12px;bottom:12px;background:#fff;padding:7px 10px;border-radius:8px;color:#46645b;font-size:10px;font-weight:800;z-index:4;box-shadow:0 2px 8px #456b4d20}.legend{display:flex;gap:10px;margin:11px 1px 0;color:#788985;font-size:10px;font-weight:700}.legend i{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}.report-card{background:#fff;border:1px solid #e8eeeb;border-radius:16px;padding:14px;margin:9px 0;box-shadow:0 4px 14px #32506508}.report-card button{border:0;background:none;padding:0;text-align:left;width:100%;color:inherit}.card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px}.kicker{color:#669080;font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:800}.report-card h4{font-size:14px;line-height:1.3;margin:0 0 5px;font-weight:800}.report-card p{font-size:11px;line-height:1.5;color:#7b8a88;margin:0}.card-bottom{display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid #eff2f1;color:#70837f;font-size:10px;font-weight:700}.status{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:6px 9px;font-size:10px;font-weight:800;white-space:nowrap}.status:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.pending{background:#fff0ec;color:#bd543b}.assigned{background:#fff3e5;color:#b26b25}.in_progress{background:#fff8d8;color:#9a7714}.resolved{background:#e5f6e9;color:#33875a}.nav{position:sticky;bottom:0;background:#fff;border-top:1px solid #e9eeec;display:grid;grid-template-columns:repeat(4,1fr);height:67px;padding:5px 4px 7px;z-index:9;box-shadow:0 -8px 24px #203d3d08}.nav button{border:0;background:none;color:#8b9b98;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px;font-weight:800}.nav button strong{font-size:20px;line-height:1}.nav button.active{color:#175b68}.fab{position:absolute;right:26px;bottom:86px;background:#ff7d48;color:#fff;border:0;border-radius:16px;padding:13px 17px;font-size:12px;font-weight:800;box-shadow:0 8px 18px #ff7d4850;z-index:6}.device .fab{position:sticky;float:right;margin-right:20px;margin-top:-78px;bottom:83px}.list-empty{padding:35px 20px;text-align:center;color:#81948d;font-size:13px;line-height:1.6}.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.metric{background:#fff;border:1px solid #e9eeeb;border-radius:15px;padding:13px 10px}.metric strong{display:block;font:800 24px Manrope,sans-serif;color:#143f65}.metric span{font-size:10px;color:#85948e;font-weight:800}.metric.highlight{background:#dff4e9}.metric.highlight strong{color:#29775a}.subtle{color:#81918c;font-size:11px;line-height:1.45}.assignment{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:11px}.assignment span{font-size:11px;color:#6d8078}.small-btn{border:1px solid #c8ded7!important;border-radius:9px!important;background:#f0f9f4!important;color:#266d59!important;padding:8px 9px!important;width:auto!important;font-size:10px!important;font-weight:800!important;white-space:nowrap}.primary-btn,.secondary-btn{width:100%;padding:14px 16px;border-radius:13px;font-size:13px;font-weight:800}.primary-btn{background:#144c65;color:#fff;border:0}.primary-btn.coral{background:#ef7957}.primary-btn.green{background:#2e936a}.secondary-btn{background:#fff;color:#15576c;border:1px solid #c5ded9}.stack{display:grid;gap:10px}.field-banner{background:#dff3e8;border-radius:17px;padding:17px;color:#26664f;display:flex;gap:12px;align-items:center}.field-banner .big{font-size:30px}.field-banner strong{display:block;font-size:13px}.field-banner small{display:block;margin-top:4px;color:#6c887c;font-size:11px}.detail-hero{height:212px;background:#d2e5db;overflow:hidden;position:relative}.detail-hero svg{width:100%;height:100%;display:block}.detail-hero .photo-badge{position:absolute;left:17px;bottom:14px;background:#123e68e8;color:#fff;padding:7px 10px;border-radius:9px;font-size:10px;font-weight:800}.detail-head{padding:17px 20px 0}.detail-head h3{font-family:Manrope,sans-serif;font-size:22px;line-height:1.15;letter-spacing:-.05em;margin:11px 0 7px}.detail-head p{font-size:12px;color:#72847b;line-height:1.55;margin:0}.detail-section{padding:15px 20px 0}.detail-section h4{font-size:13px;font-weight:800;margin:0 0 10px}.timeline{border-left:2px solid #d5e4da;margin-left:6px;padding-left:18px}.timeline-item{position:relative;font-size:11px;color:#74867c;margin:0 0 14px;line-height:1.4}.timeline-item:before{content:"";position:absolute;left:-25px;top:2px;width:10px;height:10px;background:#6ab993;border:3px solid #eef8f2;border-radius:50%}.timeline-item strong{display:block;color:#224e47;font-size:12px}.comparison{height:205px;position:relative;border-radius:16px;overflow:hidden;background:#cce1d5;touch-action:none}.comparison .scene{position:absolute;inset:0}.comparison .scene svg{width:100%;height:100%;display:block}.comparison .after-layer{clip-path:inset(0 0 0 var(--split,50%))}.compare-line{position:absolute;left:var(--split,50%);top:0;height:100%;width:3px;background:#fff;transform:translateX(-50%);pointer-events:none;box-shadow:0 0 8px #0004}.compare-handle{position:absolute;left:var(--split,50%);top:50%;transform:translate(-50%,-50%);background:#fff;color:#143f65;border-radius:50%;width:36px;height:36px;display:grid;place-items:center;box-shadow:0 3px 8px #0003;font-weight:800;pointer-events:none}.compare-tag{position:absolute;top:11px;background:#fffdf2e8;border-radius:7px;padding:5px 8px;font-size:9px;font-weight:800;color:#173e4d}.compare-tag.before{left:10px}.compare-tag.after{right:10px}.comparison input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize}.notice{background:#eaf5ef;border-left:3px solid #51ac7a;padding:12px;border-radius:0 11px 11px 0;color:#396b54;font-size:11px;line-height:1.5}.notice strong{display:block;color:#24553f;margin-bottom:3px}.stars{display:flex;gap:5px}.stars button{border:0;background:none;color:#ffad43;font-size:30px;line-height:1;padding:3px}.stars button.off{color:#d3deda}.form-field{display:block;margin:0 0 15px}.form-field span{display:block;font-size:11px;font-weight:800;color:#45665e;margin-bottom:7px}.form-field input,.form-field select,.form-field textarea{width:100%;border:1px solid #dbe7e2;background:#fff;border-radius:11px;padding:12px 13px;color:#263e38;outline:none;font-size:13px}.form-field textarea{resize:vertical;min-height:92px}.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:#438a77;box-shadow:0 0 0 3px #438a7720}.form-note{background:#f0f5f2;padding:11px;border-radius:10px;color:#648077;font-size:11px;line-height:1.45;margin-bottom:15px}.photo-demo{height:130px;border:1px dashed #b9d5ca;border-radius:13px;background:#f1f7f2;display:grid;place-items:center;text-align:center;color:#64937b;font-size:12px;margin-bottom:17px}.photo-demo strong{display:block;font-size:26px;margin-bottom:4px}.toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,18px);background:#173d54;color:#fff;border-radius:12px;padding:12px 18px;font-size:12px;font-weight:700;box-shadow:0 10px 30px #0002;opacity:0;pointer-events:none;transition:.25s;z-index:99}.toast.show{opacity:1;transform:translate(-50%,0)}.sheet-backdrop{position:absolute;inset:31px 0 0;background:#102b3977;z-index:20;display:flex;align-items:flex-end}.sheet{width:100%;background:#fff;border-radius:22px 22px 0 0;padding:23px 20px 24px;box-shadow:0 -15px 35px #15334a20}.sheet-handle{width:32px;height:4px;background:#d9e4df;border-radius:8px;margin:-10px auto 17px}.sheet h3{font:800 19px Manrope,sans-serif;letter-spacing:-.04em;margin:0 0 5px}.sheet p{font-size:11px;color:#768780;line-height:1.5;margin:0 0 14px}.team-option{display:flex;align-items:center;gap:11px;padding:12px;border:1px solid #e3ece7;background:#fff;border-radius:12px;width:100%;text-align:left;margin:7px 0}.team-option .team-icon{width:37px;height:37px;display:grid;place-items:center;border-radius:10px;background:#e4f4eb;font-size:18px}.team-option span{flex:1}.team-option strong{font-size:12px;display:block}.team-option small{color:#8a9b91;font-size:10px}.timer{text-align:center;background:#e9f7ee;border-radius:18px;padding:20px;color:#2d7b58}.timer strong{display:block;font:800 34px Manrope,sans-serif;letter-spacing:-.04em}.timer span{font-size:11px;font-weight:700}.inline-note{font-size:11px;color:#85968d}.mini-map{height:135px;border-radius:13px;overflow:hidden}.mini-map .map{height:135px}.alert-card{display:flex;gap:11px;background:#fff;border-bottom:1px solid #e9eeeb;padding:16px 20px}.alert-icon{width:34px;height:34px;flex:none;border-radius:10px;background:#e3f3ec;color:#317757;display:grid;place-items:center;font-size:17px}.alert-card strong{font-size:12px;display:block}.alert-card p{font-size:11px;color:#76877f;line-height:1.4;margin:4px 0}.alert-card small{font-size:10px;color:#9aa9a1}.alert-card.unread{background:#f2faf5}
-@media(max-width:650px){.workspace{display:block;background:#f7f9f8}.studio{min-height:auto;padding:16px 20px;background:#123e68}.studio-brand{font-size:10px}.brand-mark{width:32px;height:32px;font-size:22px;border-radius:9px}.studio-main{padding:16px 0 0}.studio h1,.studio-copy,.scenario,.studio-foot,.eyebrow{display:none}.role-box{padding:10px;border-radius:13px}.role-label{font-size:9px;margin-bottom:7px}.role-switch button{padding:8px 3px;font-size:11px}.preview-area{padding:0;display:block}.preview-top,.preview-caption{display:none}.device{width:100%;height:calc(100dvh - 139px);min-height:520px;border:0;border-radius:0;box-shadow:none}.device-notch{display:none}.toast{bottom:14px;white-space:nowrap}}
-@media(max-width:420px){.studio{padding:12px 14px}.device{height:calc(100dvh - 127px)}}
-.screen{display:flex;flex-direction:column}.screen>.content{flex:1}.screen>.nav{margin-top:auto}
-.analytics-panel{background:#fff;border:1px solid #e5eeea;border-radius:17px;padding:15px;margin-top:12px;box-shadow:0 4px 14px #32506508}
-.analytics-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}.analytics-top strong{display:block;font-size:13px;color:#214d47}.analytics-top small{display:block;color:#8b9c92;font-size:10px;margin-top:3px}.analytics-live{white-space:nowrap;color:#27835d;background:#e2f5e9;border-radius:20px;padding:5px 7px;font-size:9px;font-weight:800}
-.analytics-mini{display:flex;gap:6px;justify-content:space-between;padding:10px 0;border-block:1px solid #edf2ef;margin-bottom:11px}.analytics-mini span{font-size:10px;color:#789085}.analytics-mini b{color:#1d5b52}
-.chart-row{display:grid;grid-template-columns:85px 1fr 16px;gap:8px;align-items:center;margin:8px 0;color:#628078;font-size:10px;font-weight:700}.chart-row b{color:#1d5b52;text-align:right}.chart-track{height:7px;border-radius:10px;background:#edf4ee;overflow:hidden}.chart-track i{height:100%;display:block;border-radius:10px;background:linear-gradient(90deg,#76c69c,#257c68)}
-@media(max-width:650px){.studio{padding-top:calc(12px + env(safe-area-inset-top))}.device{height:calc(100dvh - 139px - env(safe-area-inset-top))}.nav{padding-bottom:max(7px,env(safe-area-inset-bottom));height:calc(67px + env(safe-area-inset-bottom))}}
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
 
-</style>
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/Qu-pasa-en-tu-barrio/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="que_pasa_en_tu_barrio">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>que_pasa_en_tu_barrio</title>
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <div class="workspace">
-    <aside class="studio">
-      <div class="studio-brand"><span class="brand-mark">✳</span><span>QUÉ PASA<br><strong>EN TU BARRIO</strong></span></div>
-      <div class="studio-main">
-        <p class="eyebrow">DEMO INTERACTIVA · INVERSORES</p>
-        <h1>Una ciudad que<br><em>se hace cargo.</em></h1>
-        <p class="studio-copy">Probá el recorrido completo: un vecino reporta, coordinación asigna y la cuadrilla resuelve con evidencia visual.</p>
-        <div class="role-box">
-          <span class="role-label">VER LA APP COMO</span>
-          <div class="role-switch" role="group" aria-label="Seleccionar rol">
-            <button type="button" data-role="citizen">Vecino</button>
-            <button type="button" data-role="coordinator">Coordinación</button>
-            <button type="button" data-role="field">Cuadrilla</button>
-          </div>
-        </div>
-        <div class="scenario">
-          <span class="scenario-index">01 / 03</span>
-          <div><strong>Probá este recorrido</strong><p>Elegí un reporte pendiente → asigná un equipo → cambiá a Cuadrilla → registrá llegada y resolución → volvé a Vecino para ver el antes/después.</p></div>
-        </div>
-      </div>
-      <div class="studio-foot"><span><i class="live-dot"></i> Conectando con el backend local</span><button type="button" id="reset-demo">Reiniciar demo ↗</button></div>
-    </aside>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
 
-    <main class="preview-area">
-      <div class="preview-top"><span>EXPERIENCIA MÓVIL / ANDROID + IOS</span><span class="preview-pill">● CONECTANDO</span></div>
-      <div class="device"><div class="device-notch"></div><div id="app" class="app" aria-live="polite"></div></div>
-      <p class="preview-caption">Conectando con la base de datos local…</p>
-    </main>
-  </div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script>window.QPBTB_OFFLINE_DEMO=true;</script>
-  <script>
-const STORAGE_KEY = 'qpbtb-maqueta-v1';
-const TEAMS = [
-  {id:'norte', name:'Cuadrilla Norte', specialties:['Alumbrado','Infraestructura']},
-  {id:'centro', name:'Equipo Centro', specialties:['Limpieza','Infraestructura']},
-  {id:'verde', name:'Espacios Verdes', specialties:['Ambiente','Limpieza']},
-];
-const SEED = [
-  {id:'r101',title:'Luminaria apagada en la esquina',description:'La esquina está a oscuras desde hace varios días. Es una zona muy transitada por la noche.',category:'Alumbrado',status:'pending',teamId:null,createdAt:Date.now()-7200000,supports:12,x:31,y:43,owner:'vecino',rating:0},
-  {id:'r102',title:'Vereda rota junto a la plaza',description:'Hay baldosas levantadas y se dificulta el paso de cochecitos y personas mayores.',category:'Infraestructura',status:'assigned',teamId:'norte',createdAt:Date.now()-86400000,supports:8,x:70,y:36,owner:'otro',rating:0},
-  {id:'r103',title:'Basural retirado de la calle',description:'Se habían acumulado bolsas y residuos en la esquina. El equipo limpió el espacio.',category:'Limpieza',status:'resolved',teamId:'centro',createdAt:Date.now()-172800000,supports:24,x:53,y:72,owner:'vecino',rating:5,arrivedAt:Date.now()-10800000,resolvedAt:Date.now()-7200000},
-];
-const seedNotifications = [
-  {id:'n1',role:'citizen',reportId:'r103',title:'¡Problema resuelto!',body:'La limpieza terminó. Mirá el antes y después.',time:Date.now()-7200000,read:false},
-  {id:'n2',role:'coordinator',reportId:'r101',title:'Nuevo reporte en tu municipio',body:'Luminaria apagada en la esquina',time:Date.now()-7200000,read:false},
-  {id:'n3',role:'field',reportId:'r102',title:'Nueva tarea asignada',body:'Vereda rota junto a la plaza',time:Date.now()-3600000,read:false},
-];
-function fresh(){return {reports:structuredClone(SEED),notifications:structuredClone(seedNotifications)}}
-function load(){try{const value=JSON.parse(localStorage.getItem(STORAGE_KEY));if(Array.isArray(value?.reports)&&Array.isArray(value?.notifications))return value}catch{}return fresh()}
-let data=load();
-let backendConnected=false;
-const ui={role:'citizen',view:'home',filter:'Todos',selected:'r101',sheet:null,fieldTeam:'norte'};
-const app=document.getElementById('app');
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const report=id=>data.reports.find(item=>item.id===id);
-const teamName=id=>TEAMS.find(team=>team.id===id)?.name||'Sin equipo';
-const statusText={pending:'Pendiente',assigned:'Asignado',in_progress:'En curso',resolved:'Resuelto'};
-const color={pending:'#dc7154',assigned:'#e09a3b',in_progress:'#d6ad3e',resolved:'#42aa70'};
-const save=()=>{if(!backendConnected){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data))}catch{}}};
-function localAnalytics(){
-  const byStatus={},byCategory={};
-  for(const item of data.reports){byStatus[item.status]=(byStatus[item.status]||0)+1;byCategory[item.category]=(byCategory[item.category]||0)+1}
-  const resolved=data.reports.filter(r=>r.resolvedAt);
-  return {total:data.reports.length,supports:data.reports.reduce((sum,r)=>sum+r.supports,0),
-    active:(byStatus.assigned||0)+(byStatus.in_progress||0),byStatus,
-    byCategory:Object.entries(byCategory).map(([category,count])=>({category,count})).sort((a,b)=>b.count-a.count),
-    avgResolutionHours:resolved.length?Math.round(resolved.reduce((sum,r)=>sum+(r.resolvedAt-r.createdAt)/3600000,0)/resolved.length*10)/10:null};
-}
-function applySnapshot(snapshot){
-  if(!Array.isArray(snapshot?.reports)||!Array.isArray(snapshot?.notifications))return;
-  data={reports:snapshot.reports,notifications:snapshot.notifications,analytics:snapshot.analytics};
-  if(!report(ui.selected))ui.selected=data.reports[0]?.id||null;
-  render();
-}
-async function refreshBackend(){const response=await fetch('/api/bootstrap',{cache:'no-store'});if(!response.ok)throw new Error('No se pudo leer la base de datos.');applySnapshot(await response.json())}
-async function backendAction(payload){
-  const response=await fetch('/api/actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  const result=await response.json();
-  if(!response.ok)throw new Error(result.error||'No se pudo guardar el cambio.');
-  await refreshBackend();
-  return result;
-}
-async function connectBackend(){
-  try{
-    await refreshBackend();backendConnected=true;
-    document.querySelector('.preview-pill').textContent='● SQLITE · EN VIVO';
-    document.querySelector('.studio-foot span').innerHTML='<i class="live-dot"></i> Datos sincronizados con SQLite';
-    document.querySelector('.preview-caption').textContent='Los cambios se guardan en SQLite y aparecen en todas las pantallas abiertas.';
-    const stream=new EventSource('/api/events');
-    stream.onmessage=event=>{try{applySnapshot(JSON.parse(event.data))}catch{}};
-    stream.onerror=()=>{document.querySelector('.preview-pill').textContent='● RECONECTANDO';};
-    stream.onopen=()=>{document.querySelector('.preview-pill').textContent='● SQLITE · EN VIVO';};
-  }catch{
-    document.querySelector('.preview-pill').textContent='● DEMO SIN CONEXIÓN';
-  }
-}
-function ago(time){const hours=Math.floor((Date.now()-time)/3600000);return hours<1?'Ahora':hours<24?`Hace ${hours} h`:`Hace ${Math.floor(hours/24)} d`}
-function toast(message){const el=document.getElementById('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timeout);toast.timeout=setTimeout(()=>el.classList.remove('show'),2700)}
-function status(item){return `<span class="status ${item.status}">${statusText[item.status]}</span>`}
-function header(title,subtitle='',back=false,right=''){return `<header class="app-header"><div class="header-left">${back?'<button class="icon-button" data-action="back" aria-label="Volver">‹</button>':''}<div>${subtitle?`<small>${esc(subtitle)}</small>`:''}<h2>${esc(title)}</h2></div></div>${right}</header>`}
-function nav(){
-  const items=ui.role==='citizen'?[['home','⌂','Mapa'],['reports','▤','Mis reportes'],['alerts','♧','Alertas'],['profile','◉','Perfil']]:ui.role==='coordinator'?[['home','▦','Panel'],['reports','☷','Reportes'],['alerts','♧','Alertas'],['profile','◉','Perfil']]:[['home','▤','Tareas'],['reports','✓','Hoy'],['alerts','♧','Alertas'],['profile','◉','Perfil']];
-  return `<nav class="nav" aria-label="Navegación principal">${items.map(([view,symbol,label])=>`<button data-action="view" data-view="${view}" class="${ui.view===view?'active':''}"><strong>${symbol}</strong>${label}</button>`).join('')}</nav>`;
-}
-function mapMarkup(items,small=false){return `<div class="map ${small?'mini-map':''}"><div class="map-road road-one"></div><div class="map-road road-two"></div><div class="map-road road-three"></div><span class="map-label a">PLAZA DEL BARRIO</span><span class="map-label b">AV. PRINCIPAL</span>${items.map(r=>`<button class="map-pin ${r.id===ui.selected?'selected':''}" style="left:${r.x}%;top:${r.y}%;background:${color[r.status]}" data-action="pin" data-id="${r.id}" aria-label="Ver ${esc(r.title)}"><span>!</span></button>`).join('')}<div class="map-caption">◎ Barrio Centro · municipio demo</div></div>`}
-function chips(values){return `<div class="chips">${values.map(label=>`<button class="chip ${ui.filter===label?'active':''}" data-action="filter" data-filter="${label}">${label}</button>`).join('')}</div>`}
-function filtered(items){return ui.filter==='Todos'?items:items.filter(item=>statusText[item.status]===ui.filter||item.category===ui.filter)}
-function card(item,coordinator=false){return `<article class="report-card"><button data-action="open" data-id="${item.id}"><div class="card-top"><span class="kicker">${esc(item.category)} · ${ago(item.createdAt)}</span>${status(item)}</div><h4>${esc(item.title)}</h4><p>${esc(item.description)}</p><div class="card-bottom"><span>◎ Barrio Centro</span><span>♥ ${item.supports} apoyos</span></div></button>${coordinator&&['pending','assigned'].includes(item.status)?`<div class="assignment"><span>${esc(teamName(item.teamId))}</span><button class="small-btn" data-action="assign" data-id="${item.id}">${item.teamId?'Reasignar':'Asignar equipo'} →</button></div>`:''}</article>`}
-function citizenHome(){const items=filtered(data.reports);const selected=report(ui.selected)||items[0];return `${header('¿Qué pasa en tu barrio?','BUEN DÍA, VECINA',false,'<div class="avatar">VB</div>')}<div class="content"><section class="hero"><span class="eyebrow">PARTICIPACIÓN CIUDADANA</span><h3>Tu barrio mejora cuando participás.</h3><p>Reportá un problema y seguí cada paso hasta su solución.</p><button data-action="create">＋ Crear un reporte</button></section><div class="section-heading"><h3>Explorá tu zona</h3><button class="text-link" data-action="view" data-view="reports">Ver todos →</button></div>${chips(['Todos','Pendiente','Asignado','En curso','Resuelto'])}<div style="height:11px"></div>${mapMarkup(items)}<div class="legend"><span><i style="background:#dc7154"></i>Pendiente</span><span><i style="background:#e09a3b"></i>Asignado</span><span><i style="background:#42aa70"></i>Resuelto</span></div><div class="section-heading"><h3>Cerca tuyo</h3><span class="subtle">${items.length} reportes</span></div>${selected&&items.includes(selected)?card(selected):'<p class="list-empty">No hay reportes con este filtro.</p>'}</div><button class="fab" data-action="create">＋ Reportar</button>${nav()}`}
-function citizenReports(){let items=data.reports.filter(r=>r.owner==='vecino');items=filtered(items);return `${header('Mis reportes','SEGUIMIENTO')}<div class="content">${chips(['Todos','Pendiente','Asignado','En curso','Resuelto'])}<div style="height:12px"></div>${items.length?items.map(r=>card(r)).join(''):'<div class="list-empty">Todavía no tenés reportes con ese estado.</div>'}</div>${nav()}`}
-function coordinatorHome(){
-  const all=data.reports,stats=data.analytics||localAnalytics();
-  const pending=stats.byStatus.pending||0,active=stats.active||0,solved=stats.byStatus.resolved||0;
-  const items=filtered(all),max=Math.max(1,...stats.byCategory.map(row=>row.count));
-  const chart=stats.byCategory.map(row=>`<div class="chart-row"><span>${esc(row.category)}</span><div class="chart-track"><i style="width:${Math.round(row.count/max*100)}%"></i></div><b>${row.count}</b></div>`).join('');
-  return `${header('Panel municipal','COORDINACIÓN',false,'<div class="avatar">CO</div>')}
-    <div class="content">
-      <div class="metric-grid"><div class="metric"><strong>${pending}</strong><span>PENDIENTES</span></div><div class="metric"><strong>${active}</strong><span>EN GESTIÓN</span></div><div class="metric highlight"><strong>${solved}</strong><span>RESUELTOS</span></div></div>
-      <div class="analytics-panel"><div class="analytics-top"><div><strong>Pulso del municipio</strong><small>${backendConnected?'Actualización en tiempo real':'Vista de demostración'}</small></div><span class="analytics-live">● EN VIVO</span></div><div class="analytics-mini"><span><b>${stats.total}</b> casos</span><span><b>${stats.supports}</b> apoyos</span><span><b>${stats.avgResolutionHours??'—'} h</b> resolución prom.</span></div>${chart}</div>
-      <div class="section-heading"><h3>Reportes del municipio</h3><span class="subtle">${all.length} en total</span></div>${chips(['Todos','Pendiente','Asignado','En curso','Resuelto'])}<div style="height:10px"></div>${items.length?items.map(r=>card(r,true)).join(''):'<div class="list-empty">No hay reportes con este filtro.</div>'}
-    </div>${nav()}`;
-}
-function fieldHome(){const items=data.reports.filter(r=>r.teamId===ui.fieldTeam&&['assigned','in_progress','resolved'].includes(r.status));const shown=ui.view==='reports'?items.filter(r=>r.status==='resolved'):items.filter(r=>r.status!=='resolved');return `${header(ui.view==='reports'?'Resueltas hoy':'Mis tareas',teamName(ui.fieldTeam).toUpperCase(),false,'<div class="avatar">⚒</div>')}<div class="content"><div class="field-banner"><span class="big">⌁</span><div><strong>Tu trabajo transforma el barrio.</strong><small>Documentá cada etapa para que los vecinos vean el cambio.</small></div></div><div class="section-heading"><h3>Equipo simulado</h3></div><div class="chips">${TEAMS.map(team=>`<button class="chip ${ui.fieldTeam===team.id?'active':''}" data-action="field-team" data-team="${team.id}">${esc(team.name)}</button>`).join('')}</div><div class="section-heading"><h3>${ui.view==='reports'?'Tareas terminadas':'Asignadas a tu equipo'}</h3><span class="subtle">${shown.length} tareas</span></div>${shown.length?shown.map(r=>card(r)).join(''):'<div class="list-empty">No hay tareas en esta sección. Asigná un reporte desde Coordinación para probar el flujo.</div>'}</div>${nav()}`}
-function alerts(){const items=data.notifications.filter(n=>n.role===ui.role).sort((a,b)=>b.time-a.time);return `${header('Notificaciones','ACTUALIZACIONES')}<div>${items.length?items.map(n=>`<div class="alert-card ${n.read?'':'unread'}"><span class="alert-icon">${n.role==='field'?'⚒':'✦'}</span><div><strong>${esc(n.title)}</strong><p>${esc(n.body)}</p><small>${ago(n.time)}</small><button class="text-link" data-action="notification" data-id="${n.id}">Ver reporte →</button></div></div>`).join(''):'<div class="list-empty">Sin notificaciones por ahora.</div>'}</div>${nav()}`}
-function profile(){const who=ui.role==='citizen'?'Vecina del barrio':ui.role==='coordinator'?'Coordinación municipal':teamName(ui.fieldTeam);return `${header('Mi perfil','MODO DEMOSTRACIÓN')}<div class="content"><div class="field-banner"><span class="big">◉</span><div><strong>${who}</strong><small>Municipio demo · Barrio Centro</small></div></div><div class="section-heading"><h3>Acerca de esta maqueta</h3></div><div class="report-card"><p>${backendConnected?'Los reportes y avisos se guardan en SQLite y se sincronizan en tiempo real con las demás pantallas abiertas.':'Sin conexión al backend: esta pantalla usa datos locales de demostración.'} La cámara y las imágenes son simuladas.</p></div><button class="secondary-btn" data-action="reset">Reiniciar datos de ejemplo</button></div>${nav()}`}
-function streetScene(category,after){const isLight=category==='Alumbrado',isWalk=category==='Infraestructura';const issue=isLight?(after?'<circle cx="458" cy="103" r="63" fill="#ffe6a0" opacity=".35"/><path d="M458 106 L399 279 L524 279Z" fill="#fff1a5" opacity=".36"/>':'<circle cx="458" cy="103" r="8" fill="#5c6474"/>'):(isWalk?(after?'<path d="M0 296 H600" stroke="#c5bfb3" stroke-width="4"/><path d="M58 295V400 M215 295V400 M370 295V400 M520 295V400" stroke="#c5bfb3" stroke-width="3"/>':'<path d="M80 320l65 15 40-10 42 25 68-7 32 22 67-6" fill="none" stroke="#736e6a" stroke-width="8" stroke-linejoin="round"/>'):(after?'':'<g fill="#505860"><path d="M345 295q18-37 38-3l9 28h-57z"/><path d="M383 300q20-43 48-5l9 31h-67z"/><path d="M438 307q13-28 31-2l8 22h-46z"/></g><path d="M362 293l8-16 9 14 M399 290l12-17 9 22" stroke="#343c42" stroke-width="5" fill="none"/>'));return `<svg viewBox="0 0 600 400" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Ilustración ${after?'después':'antes'}"><rect width="600" height="400" fill="${after?'#c3e5de':'#cbd8df'}"/><circle cx="83" cy="62" r="35" fill="${after?'#fff0ae':'#e8edf0'}"/><rect y="210" width="600" height="95" fill="#c8d4c1"/><rect x="0" y="132" width="150" height="105" fill="#e7e1cc"/><rect x="21" y="159" width="55" height="60" fill="#8ba6a2"/><rect x="165" y="90" width="145" height="160" fill="#f2e8d9"/><rect x="181" y="110" width="39" height="44" fill="#91aba7"/><rect x="246" y="110" width="40" height="44" fill="#91aba7"/><rect x="220" y="181" width="51" height="69" fill="#a9806e"/><rect x="497" y="135" width="103" height="112" fill="#eadac4"/><rect x="513" y="158" width="47" height="46" fill="#89a8a6"/><path d="M0 275h600v125H0z" fill="#b6b7ae"/><path d="M0 330h600" stroke="#f7f0d9" stroke-width="5" stroke-dasharray="55 40"/><path d="M0 273h600" stroke="#e5dfce" stroke-width="10"/><path d="M458 110v164" stroke="#586a6d" stroke-width="8"/><path d="M458 107h42" stroke="#586a6d" stroke-width="7"/><circle cx="501" cy="107" r="10" fill="${after?'#ffe198':'#697883'}"/><path d="M76 263v-95" stroke="#6d795f" stroke-width="12"/><circle cx="74" cy="141" r="50" fill="#7ba985"/><circle cx="42" cy="163" r="33" fill="#71a17d"/><circle cx="105" cy="164" r="34" fill="#6e9b76"/>${issue}<rect width="600" height="400" fill="${after?'#ffffff':'#53636f'}" opacity="${after?'.03':'.10'}"/></svg>`}
-function comparison(item){return `<div class="comparison" style="--split:50%"><div class="scene">${streetScene(item.category,false)}</div><div class="scene after-layer">${streetScene(item.category,true)}</div><div class="compare-line"></div><div class="compare-handle">⇆</div><span class="compare-tag before">ANTES</span><span class="compare-tag after">DESPUÉS</span><input type="range" min="5" max="95" value="50" aria-label="Deslizar comparación antes y después" data-action="compare"></div>`}
-function detail(){const item=report(ui.selected);if(!item)return citizenHome();const resolved=item.status==='resolved';return `${header('Detalle del reporte','BARRIO CENTRO',true,'<button class="icon-button" data-action="support" aria-label="Apoyar reporte">♡</button>')}<div class="detail-hero">${streetScene(item.category,resolved)}<span class="photo-badge">◎ Evidencia del ${resolved?'resultado':'problema'}</span></div><div class="detail-head">${status(item)}<h3>${esc(item.title)}</h3><p>${esc(item.description)}</p><div class="card-bottom"><span>◈ ${esc(item.category)}</span><span>♥ ${item.supports} apoyos · ${ago(item.createdAt)}</span></div></div>${resolved?`<div class="detail-section"><h4>El cambio, a la vista</h4>${comparison(item)}<p class="subtle">Arrastrá el control para comparar el antes y el después.</p></div>`:''}<div class="detail-section"><h4>Seguimiento</h4><div class="timeline"><div class="timeline-item"><strong>Reporte recibido</strong>${ago(item.createdAt)}</div>${item.teamId?`<div class="timeline-item"><strong>Asignado a ${esc(teamName(item.teamId))}</strong>El municipio tomó el caso.</div>`:''}${item.arrivedAt?'<div class="timeline-item"><strong>Equipo en el lugar</strong>Se registró la llegada.</div>':''}${resolved?'<div class="timeline-item"><strong>Trabajo terminado</strong>Resolución documentada.</div>':''}</div></div>${resolved?`<div class="detail-section"><div class="notice"><strong>Respuesta oficial</strong>El trabajo fue realizado y documentado por ${esc(teamName(item.teamId))}.</div></div>`:''}${resolved&&item.owner==='vecino'?`<div class="detail-section"><h4>¿Cómo quedó el trabajo?</h4><div class="stars" aria-label="Calificar">${[1,2,3,4,5].map(n=>`<button data-action="rate" data-rating="${n}" class="${n>(item.rating||0)?'off':''}" aria-label="${n} estrellas">★</button>`).join('')}</div></div>`:''}<div class="detail-section"><button class="secondary-btn" data-action="support">♡ Apoyar este reporte</button></div>`}
-function create(){return `${header('Nuevo reporte','CONTANOS QUÉ PASA',true)}<div class="content"><form id="report-form"><label class="form-field"><span>TÍTULO DEL PROBLEMA</span><input name="title" maxlength="80" required placeholder="Ej.: Bache en la esquina"></label><label class="form-field"><span>DESCRIPCIÓN</span><textarea name="description" maxlength="500" required placeholder="Contanos dónde está y qué ocurre..."></textarea></label><label class="form-field"><span>CATEGORÍA</span><select name="category"><option>Infraestructura</option><option>Alumbrado</option><option>Limpieza</option><option>Ambiente</option><option>Seguridad</option><option>Salud</option><option>Transporte</option></select></label><div class="photo-demo"><div><strong>▧</strong>Foto ilustrativa del problema<br><span class="subtle">La app real abre cámara o galería</span></div></div><div class="form-note">◎ Ubicación de ejemplo: Barrio Centro. En la app real se toma del mapa o GPS.</div><button class="primary-btn coral" type="submit">Publicar reporte →</button></form></div>`}
-function fieldTask(){const item=report(ui.selected);if(!item)return fieldHome();return `${header('Detalle de tarea',teamName(item.teamId).toUpperCase(),true)}<div class="detail-hero">${streetScene(item.category,item.status==='resolved')}<span class="photo-badge">◎ Barrio Centro</span></div><div class="detail-head">${status(item)}<h3>${esc(item.title)}</h3><p>${esc(item.description)}</p></div><div class="detail-section"><h4>Ubicación</h4>${mapMarkup([item],true)}<p class="subtle">Equipo asignado: ${esc(teamName(item.teamId))}</p></div><div class="detail-section stack">${item.status==='assigned'?`<div class="form-note">Al llegar, registrá una foto del estado actual antes de empezar. Esta maqueta simula la cámara.</div><button class="primary-btn" data-action="arrive" data-id="${item.id}">◎ Estoy en el lugar · foto antes</button>`:item.status==='in_progress'?`<div class="timer"><strong data-timer="${item.arrivedAt||Date.now()}">00:00:00</strong><span>TIEMPO EN EL LUGAR</span></div><label class="form-field"><span>NOTA DEL TÉCNICO</span><textarea id="worker-note" maxlength="200" placeholder="¿Qué trabajo se realizó?"></textarea></label><button class="secondary-btn" data-action="progress-photo">＋ Foto del proceso (opcional) ${item.progressPhotos?'· '+item.progressPhotos:''}</button><button class="primary-btn green" data-action="finish" data-id="${item.id}">✓ Trabajo terminado · foto después</button>`:'<div class="notice"><strong>Tarea terminada</strong>La resolución ya está disponible para el vecino.</div>'}</div>`}
-function renderSheet(){if(!ui.sheet)return '';const item=report(ui.sheet);if(!item)return '';return `<div class="sheet-backdrop" data-action="close-sheet"><div class="sheet" role="dialog" aria-modal="true" aria-label="Asignar equipo"><div class="sheet-handle"></div><h3>Asignar un equipo</h3><p>${esc(item.title)} · Elegí la cuadrilla responsable.</p>${TEAMS.map(team=>`<button class="team-option" data-action="team" data-team="${team.id}"><span class="team-icon">⚒</span><span><strong>${esc(team.name)}</strong><small>${esc(team.specialties.join(' · '))}</small></span><b>›</b></button>`).join('')}</div></div>`}
-let lastView='home',lastRole='citizen';
-function render(){
-  const sameView=lastView===ui.view&&lastRole===ui.role,scroll=app.scrollTop;
-  const draftTitle=sameView?document.querySelector('#report-form [name="title"]')?.value:null;
-  const draftDescription=sameView?document.querySelector('#report-form [name="description"]')?.value:null;
-  const draftCategory=sameView?document.querySelector('#report-form [name="category"]')?.value:null;
-  const draftNote=sameView?document.getElementById('worker-note')?.value:null;
-  document.querySelectorAll('[data-role]').forEach(button=>{button.classList.toggle('active',button.dataset.role===ui.role);button.setAttribute('aria-pressed',String(button.dataset.role===ui.role))});
-  const content=ui.view==='detail'?detail():ui.view==='create'?create():ui.view==='task'?fieldTask():ui.view==='alerts'?alerts():ui.view==='profile'?profile():ui.role==='citizen'?(ui.view==='reports'?citizenReports():citizenHome()):ui.role==='coordinator'?coordinatorHome():fieldHome();
-  app.innerHTML=`<div class="statusbar"><span>9:41</span><span>●●● ▰</span></div><div class="screen ${['detail','create','task'].includes(ui.view)?'full':''}">${content}</div>${renderSheet()}`;
-  if(draftTitle!=null&&document.querySelector('#report-form [name="title"]')){document.querySelector('#report-form [name="title"]').value=draftTitle;document.querySelector('#report-form [name="description"]').value=draftDescription;document.querySelector('#report-form [name="category"]').value=draftCategory}
-  if(draftNote!=null&&document.getElementById('worker-note'))document.getElementById('worker-note').value=draftNote;
-  app.scrollTop=sameView?scroll:0;lastView=ui.view;lastRole=ui.role;updateTimers();
-}
-function notification(role,reportId,title,body){data.notifications.unshift({id:'n'+Math.random().toString(36).slice(2),role,reportId,title,body,time:Date.now(),read:false})}
-document.addEventListener('click',async event=>{
-  const roleButton=event.target.closest('[data-role]');if(roleButton){ui.role=roleButton.dataset.role;ui.view='home';ui.filter='Todos';ui.sheet=null;render();return}
-  if(event.target.closest('#reset-demo')){
-    try{if(backendConnected)await backendAction({action:'reset'});else{data=fresh();save()}ui.role='citizen';ui.view='home';ui.filter='Todos';ui.selected='r101';ui.sheet=null;render();toast('Demo reiniciada')}catch(issue){toast(issue.message)}return;
-  }
-  const target=event.target.closest('[data-action]');if(!target||!app.contains(target))return;
-  const action=target.dataset.action,id=target.dataset.id;
-  try{
-  if(action==='view'){ui.view=target.dataset.view;ui.filter='Todos'}
-  if(action==='filter'){ui.filter=target.dataset.filter}
-  if(action==='field-team'){ui.fieldTeam=target.dataset.team}
-  if(action==='pin'){ui.selected=id;ui.filter='Todos'}
-  if(action==='open'){ui.selected=id;ui.view=ui.role==='field'?'task':'detail'}
-  if(action==='create'){ui.view='create'}
-  if(action==='back'){ui.view='home'}
-  if(action==='assign'){ui.sheet=id;ui.selected=id}
-  if(action==='close-sheet'){ui.sheet=null}
-  if(action==='team'){
-    const item=report(ui.sheet);if(item){
-      if(backendConnected)await backendAction({action:'assign',id:item.id,teamId:target.dataset.team});
-      else{item.teamId=target.dataset.team;item.status='assigned';notification('citizen',item.id,'Reporte asignado',item.title);notification('field',item.id,'Nueva tarea asignada',item.title);save()}
-      toast('Equipo asignado y avisos generados');
-    }ui.sheet=null;
-  }
-  if(action==='arrive'){
-    const item=report(id);if(item?.status==='assigned'){
-      if(backendConnected)await backendAction({action:'arrive',id});
-      else{item.status='in_progress';item.arrivedAt=Date.now();notification('citizen',id,'Equipo en el lugar',item.title);save()}
-      toast('Llegada y foto del antes registradas');
-    }
-  }
-  if(action==='progress-photo'){
-    const item=report(ui.selected);if(item){
-      if(backendConnected)await backendAction({action:'progress_photo',id:item.id});
-      else{item.progressPhotos=(item.progressPhotos||0)+1;save()}
-      toast('Foto del proceso agregada (simulación)');
-    }
-  }
-  if(action==='finish'){
-    const item=report(id);if(item?.status==='in_progress'){
-      const note=document.getElementById('worker-note')?.value.trim()||'';
-      if(backendConnected)await backendAction({action:'finish',id,note});
-      else{item.status='resolved';item.resolvedAt=Date.now();item.note=note;notification('citizen',id,'¡Problema resuelto!',`Mirá el antes y después de ${item.title.toLowerCase()}.`);save()}
-      toast('Trabajo resuelto y vecino notificado');
-    }
-  }
-  if(action==='support'){
-    const item=report(ui.selected);if(item&&!item.supported){
-      if(backendConnected)await backendAction({action:'support',id:item.id});
-      else{item.supports++;item.supported=true;save()}
-      toast('Gracias por apoyar este reporte');
-    }else toast('Ya apoyaste este reporte');
-  }
-  if(action==='rate'){
-    const item=report(ui.selected);if(item){
-      const rating=Number(target.dataset.rating);
-      if(backendConnected)await backendAction({action:'rate',id:item.id,rating});
-      else{item.rating=rating;save()}
-      toast('Gracias por calificar el trabajo');
-    }
-  }
-  if(action==='notification'){
-    const note=data.notifications.find(n=>n.id===id);if(note){
-      if(backendConnected)await backendAction({action:'mark_read',id});
-      else{note.read=true;save()}
-      ui.selected=note.reportId;ui.view=ui.role==='field'?'task':'detail';
-    }
-  }
-  if(action==='reset'){
-    if(backendConnected)await backendAction({action:'reset'});
-    else{data=fresh();save()}
-    ui.view='home';ui.filter='Todos';ui.selected='r101';toast('Datos reiniciados');
-  }
-  render();
-  }catch(issue){toast(issue.message||'No se pudo guardar el cambio.');render()}
-});
-app.addEventListener('submit',async event=>{
-  if(event.target.id!=='report-form')return;event.preventDefault();
-  const form=new FormData(event.target),title=String(form.get('title')||'').trim(),description=String(form.get('description')||'').trim(),category=String(form.get('category'));
-  if(!title||!description)return;
-  try{
-    if(backendConnected){const result=await backendAction({action:'create',title,description,category});ui.selected=result.id}
-    else{const item={id:'r'+Date.now(),title,description,category,status:'pending',teamId:null,createdAt:Date.now(),supports:0,x:26+Math.round(Math.random()*52),y:27+Math.round(Math.random()*43),owner:'vecino',rating:0};data.reports.unshift(item);notification('coordinator',item.id,'Nuevo reporte en tu municipio',title);save();ui.selected=item.id}
-    ui.view='detail';render();toast('Reporte publicado · coordinación recibió un aviso');
-  }catch(issue){toast(issue.message||'No se pudo publicar el reporte.')}
-});
-app.addEventListener('input',event=>{if(event.target.dataset.action==='compare'){event.target.closest('.comparison').style.setProperty('--split',`${event.target.value}%`)}});
-function updateTimers(){document.querySelectorAll('[data-timer]').forEach(el=>{const seconds=Math.max(0,Math.floor((Date.now()-Number(el.dataset.timer))/1000));const h=String(Math.floor(seconds/3600)).padStart(2,'0'),m=String(Math.floor(seconds%3600/60)).padStart(2,'0'),s=String(seconds%60).padStart(2,'0');el.textContent=`${h}:${m}:${s}`})}
-setInterval(updateTimers,1000);
-render();
-if(window.QPBTB_OFFLINE_DEMO){
-  document.querySelector('.preview-pill').textContent='● DEMO PORTÁTIL';
-  document.querySelector('.studio-foot span').innerHTML='<i class="live-dot"></i> Funciona sin servidor ni conexión';
-  document.querySelector('.preview-caption').textContent='Una demostración interactiva para recorrer la experiencia completa.';
-}else{
-  connectBackend();
-  if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
-}
-
-</script>
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
