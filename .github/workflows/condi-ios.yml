@@ -1,0 +1,91 @@
+name: ConDi iOS
+on:
+  push:
+    branches: [ci/condi-ios-20261013]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      FLUTTER_VERSION: 3.47.7
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Restore encrypted application snapshot
+        env:
+          CONDI_SOURCE_KEY: ${{ secrets.CONDI_IOS_SOURCE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CONDI_SOURCE_KEY"
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:CONDI_SOURCE_KEY -in .ci/condi-ios/source.zip.enc -out "$RUNNER_TEMP/condi-source.zip"
+          mkdir -p "$RUNNER_TEMP/condi-src"
+          unzip -q "$RUNNER_TEMP/condi-source.zip" -d "$RUNNER_TEMP/condi-src"
+          echo "CONDI_PROJECT=$RUNNER_TEMP/condi-src" >> "$GITHUB_ENV"
+      - name: Install exact Flutter SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+          xcodebuild -version
+          pod --version
+      - name: Build and test iOS simulator
+        run: bash .ci/condi-ios/build-ios.sh "$CONDI_PROJECT" simulator
+      - name: Launch ConDi on iPhone simulator
+        run: bash .ci/condi-ios/simulator-smoke.sh "$CONDI_PROJECT"
+      - name: Build unsigned iPhone release
+        run: bash .ci/condi-ios/build-ios.sh "$CONDI_PROJECT" unsigned-device
+      - name: Check Apple signing configuration
+        id: signing
+        env:
+          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          if [[ -n "$IOS_DISTRIBUTION_P12_BASE64" && -n "$IOS_PROVISION_PROFILE_BASE64" && -n "$APPLE_TEAM_ID" ]]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo '::notice::Apple signing secrets are missing. Unsigned builds cannot be installed on a physical iPhone.'
+          fi
+      - name: Prepare temporary Apple signing keychain
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash .ci/condi-ios/prepare-signing.sh
+      - name: Build signed IPA
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash .ci/condi-ios/build-ios.sh "$CONDI_PROJECT" ipa
+      - name: Upload ConDi builds and startup evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ConDi-iOS-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/condi-src/build/ios/ConDi-*.zip
+            ${{ runner.temp }}/condi-src/build/ios/ipa/*.ipa
+            ${{ runner.temp }}/condi-src/build/ios/ConDi-iOS-startup.png
+            ${{ runner.temp }}/condi-src/build/ios/simulator-startup.log
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Remove temporary signing keychain
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/condi-signing/condi.keychain-db" ]]; then
+            security delete-keychain "$RUNNER_TEMP/condi-signing/condi.keychain-db"
+          fi
