@@ -168,6 +168,17 @@ service cloud.firestore {
       allow delete: if admin();
     }
 
+// Datos del dispositivo y de la cuenta, guardados solo con consentimiento
+    // expreso. Los escribe una Cloud Function; solo el administrador los lee.
+    match /userDevices/{userId} {
+      allow read: if admin();
+    }
+
+    match /weatherAlerts/{alertId} {
+      allow read: if staff();
+    }
+
+
     match /notifications/{notificationId} {
       allow read: if signedIn() && own(resource.data.userId);
       allow update: if signedIn() && own(resource.data.userId) &&

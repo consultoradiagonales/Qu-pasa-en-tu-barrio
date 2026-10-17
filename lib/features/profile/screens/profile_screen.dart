@@ -4,6 +4,7 @@ import '../../../core/router/navigation_policy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/services/device_profile_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
@@ -102,6 +103,21 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => context.go('/admin'),
               ),
             _MenuItem(
+              icon: Icons.shield_outlined,
+              label: "Retirar consentimiento de datos",
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await DeviceProfileService.withdraw();
+                  messenger.showSnackBar(const SnackBar(
+                      content: Text("Borramos los datos de tu dispositivo.")));
+                } catch (e) {
+                  messenger.showSnackBar(
+                      SnackBar(content: Text(mensajeDeError(e))));
+                }
+              },
+            ),
+            _MenuItem(
               icon: Icons.privacy_tip_outlined,
               label: 'Política de privacidad',
               onTap: () {/* TODO: abrir URL */},
@@ -167,6 +183,9 @@ class ProfileScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
+      try {
+        await DeviceProfileService.withdraw();
+      } catch (_) {}
       await ref.read(userRepositoryProvider).deleteUserData(uid);
       await ref.read(authServiceProvider).deleteAccount();
       if (context.mounted) context.go('/report/new?mode=camera');

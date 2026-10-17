@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../../../core/services/device_profile_service.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -94,6 +95,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       } else if (widget.startWithCamera) {
         await _camera();
       }
+      if (mounted) await DeviceProfileService.askIfNeeded(context);
     } catch (e) {
       if (mounted) setState(() => _error = mensajeDeError(e));
     }

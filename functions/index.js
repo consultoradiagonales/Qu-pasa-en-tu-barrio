@@ -14,6 +14,11 @@ exports.reportLifecycleNotifications = require('./report-notifications').reportL
 const adminNotifications = require('./admin-notifications');
 exports.setReportPriority = adminNotifications.setReportPriority;
 exports.sendReportUpdate = adminNotifications.sendReportUpdate;
+exports.weatherAlerts = require("./weather-alerts").weatherAlerts;
+const userMessaging = require("./user-messaging");
+exports.sendCustomMessage = userMessaging.sendCustomMessage;
+exports.saveDeviceProfile = userMessaging.saveDeviceProfile;
+exports.deleteDeviceProfile = userMessaging.deleteDeviceProfile;
 
 const ROLES_GESTION = ['coordinator', 'admin', 'moderator'];
 const ESTADOS_ASIGNABLES = ['pending', 'assigned'];
