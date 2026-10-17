@@ -14,6 +14,8 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'features/demo/investor_demo_app.dart';
+import 'core/services/app_update_service.dart';
+import 'core/services/device_profile_service.dart';
 import 'core/services/local_notification_service.dart';
 
 /// Manejador de mensajes FCM en segundo plano (debe ser función de nivel superior)
@@ -90,6 +92,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   var firebaseReady = false;
+  RequiredAppUpdate? requiredUpdate;
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -102,10 +105,14 @@ void main() async {
     }
 
     await _activateAppCheck();
+    requiredUpdate = await AppUpdateService.requiredUpdate();
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     await LocalNotificationService.initialize();
     FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (user != null) unawaited(_registerPushForUser(user));
+      if (user != null) {
+        unawaited(_registerPushForUser(user));
+        unawaited(DeviceProfileService.recordUsageIfAllowed());
+      }
     });
     FirebaseMessaging.onMessage.listen((message) {
       final notification = message.notification;
@@ -130,16 +137,30 @@ void main() async {
   runApp(
     // ProviderScope envuelve toda la app para Riverpod
     ProviderScope(
-      child: firebaseReady ? const QuePasaApp() : const InvestorDemoApp(),
+      child: firebaseReady
+          ? QuePasaApp(requiredUpdate: requiredUpdate)
+          : const InvestorDemoApp(),
     ),
   );
 }
 
 class QuePasaApp extends ConsumerWidget {
-  const QuePasaApp({super.key});
+  const QuePasaApp({super.key, this.requiredUpdate});
+
+  final RequiredAppUpdate? requiredUpdate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (requiredUpdate != null) {
+      return MaterialApp(
+        title: 'ConDi',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: ThemeMode.system,
+        home: MandatoryUpdateScreen(update: requiredUpdate!),
+      );
+    }
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(

@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../../core/router/navigation_policy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/services/device_profile_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/user_repository.dart';
@@ -103,24 +105,52 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => context.go('/admin'),
               ),
             _MenuItem(
+              icon: Icons.analytics_outlined,
+              label: 'Medición territorial de uso',
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  final accepted =
+                      await DeviceProfileService.requestConsent(context);
+                  if (!context.mounted) return;
+                  messenger.showSnackBar(SnackBar(
+                    content: Text(accepted
+                        ? 'Activaste la medición territorial agregada.'
+                        : 'La medición territorial quedó desactivada.'),
+                  ));
+                } catch (error) {
+                  if (context.mounted) {
+                    messenger.showSnackBar(
+                        SnackBar(content: Text(mensajeDeError(error))));
+                  }
+                }
+              },
+            ),
+            _MenuItem(
               icon: Icons.shield_outlined,
-              label: "Retirar consentimiento de datos",
+              label: 'Desactivar medición territorial',
               onTap: () async {
                 final messenger = ScaffoldMessenger.of(context);
                 try {
                   await DeviceProfileService.withdraw();
                   messenger.showSnackBar(const SnackBar(
-                      content: Text("Borramos los datos de tu dispositivo.")));
+                      content:
+                          Text('Borramos tu consentimiento de medición.')));
                 } catch (e) {
-                  messenger.showSnackBar(
-                      SnackBar(content: Text(mensajeDeError(e))));
+                  messenger
+                      .showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
                 }
               },
             ),
             _MenuItem(
               icon: Icons.privacy_tip_outlined,
               label: 'Política de privacidad',
-              onTap: () {/* TODO: abrir URL */},
+              onTap: () async {
+                await launchUrl(
+                  Uri.parse(AppConstants.privacyPolicyUrl),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
             ),
             _MenuItem(
               icon: Icons.info_outline,

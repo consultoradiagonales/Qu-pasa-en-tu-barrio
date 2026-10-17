@@ -6,7 +6,7 @@ const { deliverToUsers } = require('./push-delivery');
 
 const REGION = 'southamerica-east1';
 const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator']);
-const CONSENT_VERSION = 1;
+const CONSENT_VERSION = 2;
 
 function cleanText(value, max) {
   if (typeof value !== 'string') return '';
@@ -94,20 +94,10 @@ async function finish(db, recipients, requestId, title, body) {
   return { ok: true, ...result };
 }
 
-function clientIp(request) {
-  const forwarded = request.rawRequest?.headers?.['x-forwarded-for'];
-  const first = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '';
-  return first || request.rawRequest?.ip || null;
-}
-
-function num(value, min, max) {
-  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : null;
-}
-
 /**
- * Guarda los datos del dispositivo y de la cuenta de quien dio su
- * consentimiento expreso. Sin consentimiento no se guarda nada.
- * La IP y los datos de Google los toma el servidor, no el cliente.
+ * Guarda únicamente el consentimiento para la medición territorial. La
+ * agregación se hace por ciudad/municipio declarado en el perfil: no se
+ * conserva IP, ubicación exacta, cuenta, teléfono ni identidad del equipo.
  */
 async function saveDeviceProfileHandler(request) {
   const uid = request.auth?.uid;
@@ -115,44 +105,25 @@ async function saveDeviceProfileHandler(request) {
   if (request.data?.consent !== true) {
     throw new HttpsError('failed-precondition', 'Hace falta tu consentimiento para guardar estos datos.');
   }
-  const device = request.data?.device || {};
-  const location = request.data?.location || null;
-  const phone = cleanText(request.data?.phone, 20).replace(/[^\d+]/g, '');
-  const token = request.auth.token || {};
 
-  const doc = {
+  await getFirestore().collection('userDevices').doc(uid).set({
     consent: { given: true, version: CONSENT_VERSION, at: FieldValue.serverTimestamp() },
-    account: {
-      name: cleanText(token.name, 120) || null,
-      email: cleanText(token.email, 160) || null,
-      emailVerified: token.email_verified === true,
-      photoURL: typeof token.picture === 'string' && /^https:\/\//.test(token.picture) ? token.picture.slice(0, 400) : null,
-      provider: cleanText(token.firebase?.sign_in_provider, 40) || null,
+    usageAnalytics: {
+      enabled: true,
+      source: 'profile_territory',
+      rawIpStored: false,
+      exactLocationStored: false,
     },
-    device: {
-      platform: cleanText(device.platform, 20) || null,
-      manufacturer: cleanText(device.manufacturer, 60) || null,
-      model: cleanText(device.model, 80) || null,
-      osVersion: cleanText(device.osVersion, 40) || null,
-      appVersion: cleanText(device.appVersion, 30) || null,
-      locale: cleanText(device.locale, 20) || null,
-    },
-    network: { ip: clientIp(request), userAgent: cleanText(request.rawRequest?.headers?.['user-agent'], 200) || null },
+    // Limpia los campos invasivos de la versión anterior cuando la persona
+    // actualiza su consentimiento a esta versión.
+    account: FieldValue.delete(),
+    device: FieldValue.delete(),
+    network: FieldValue.delete(),
+    location: FieldValue.delete(),
+    phone: FieldValue.delete(),
     updatedAt: FieldValue.serverTimestamp(),
-  };
-  if (location && num(location.lat, -90, 90) !== null && num(location.lng, -180, 180) !== null) {
-    doc.location = {
-      lat: location.lat,
-      lng: location.lng,
-      accuracyM: num(location.accuracyM, 0, 100000),
-      at: FieldValue.serverTimestamp(),
-    };
-  }
-  // El teléfono lo escribe la persona y no está verificado por SMS.
-  if (phone.length >= 8) doc.phone = { number: phone, verified: false };
-
-  await getFirestore().collection('userDevices').doc(uid).set(doc, { merge: true });
-  return { ok: true };
+  }, { merge: true });
+  return { ok: true, consentVersion: CONSENT_VERSION };
 }
 
 /** Derecho a retirar el consentimiento: borra todo lo guardado. */

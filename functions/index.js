@@ -19,6 +19,12 @@ const userMessaging = require("./user-messaging");
 exports.sendCustomMessage = userMessaging.sendCustomMessage;
 exports.saveDeviceProfile = userMessaging.saveDeviceProfile;
 exports.deleteDeviceProfile = userMessaging.deleteDeviceProfile;
+const usageAnalytics = require('./usage-analytics');
+exports.recordUsagePresence = usageAnalytics.recordUsagePresence;
+exports.getUsageSummary = usageAnalytics.getUsageSummary;
+const appRelease = require('./app-release');
+exports.getAppRelease = appRelease.getAppRelease;
+exports.saveAppRelease = appRelease.saveAppRelease;
 
 const ROLES_GESTION = ['coordinator', 'admin', 'moderator'];
 const ESTADOS_ASIGNABLES = ['pending', 'assigned'];

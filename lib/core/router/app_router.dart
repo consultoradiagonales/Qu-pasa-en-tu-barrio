@@ -25,6 +25,7 @@ import '../../features/admin/screens/admin_console_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/advertising/local_ads_banner.dart';
+import '../services/device_profile_service.dart';
 
 class _AuthChangeNotifier extends ChangeNotifier {
   _AuthChangeNotifier() {
@@ -237,18 +238,35 @@ LatLng? _queryLocation(String? lat, String? lng) {
 // ─── Shells de navegación ────────────────────────────────────────────────────
 
 /// Barra de navegación inferior para ciudadanos
-class _CitizenShell extends ConsumerWidget {
+class _CitizenShell extends ConsumerStatefulWidget {
   final Widget child;
   const _CitizenShell({required this.child});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CitizenShell> createState() => _CitizenShellState();
+}
+
+class _CitizenShellState extends ConsumerState<_CitizenShell> {
+  bool _consentChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _consentChecked) return;
+      _consentChecked = true;
+      await DeviceProfileService.askIfNeeded(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     final index = _indexFromLocation(location);
     final municipalityId = ref.watch(currentUserMunicipalityProvider) ?? '';
 
     return Scaffold(
-      body: child,
+      body: widget.child,
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
