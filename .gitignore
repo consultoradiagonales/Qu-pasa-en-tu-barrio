@@ -18,3 +18,5 @@ scripts/qa-runtime/node_modules/
 functions/node_modules/
 # Artefactos de pruebas manuales (capturas, APK de QA). Se regeneran.
 dev/qa/*.apk
+
+dist/
