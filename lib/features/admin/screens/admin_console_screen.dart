@@ -18,6 +18,8 @@ import '../../../core/utils/error_text.dart';
 import '../widgets/dashboard_ai_card.dart';
 import '../widgets/html_report_view.dart';
 import '../widgets/municipality_map_view.dart';
+import '../widgets/send_message_view.dart';
+import '../../../data/models/user_model.dart';
 
 /// Consola web propia de ConDi. Los streams vienen directamente de Firestore,
 /// por eso una alta, asignación o resolución aparece sin recargar la página.
@@ -108,6 +110,8 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen> {
                               search: _search,
                               filter: _filter,
                               municipalityId: municipalityId,
+                              isAdmin:
+                                  profile?.valueOrNull?.role == UserRole.admin,
                               onSearch: (v) => setState(() => _search = v),
                               onFilter: (v) => setState(() => _filter = v),
                               onAssign: (r) => _assign(r, municipalityId),
@@ -221,6 +225,11 @@ class _Sidebar extends StatelessWidget {
               label: 'Informes HTML',
               selected: section == 5,
               onTap: () => onChanged(5)),
+          _NavItem(
+              icon: Icons.campaign_outlined,
+              label: 'Enviar mensaje',
+              selected: section == 6,
+              onTap: () => onChanged(6)),
           const Spacer(),
           const Padding(
               padding: EdgeInsets.all(12),
@@ -280,6 +289,7 @@ class _ConsoleBody extends StatelessWidget {
       required this.search,
       required this.filter,
       required this.municipalityId,
+      required this.isAdmin,
       required this.onSearch,
       required this.onFilter,
       required this.onAssign});
@@ -289,6 +299,7 @@ class _ConsoleBody extends StatelessWidget {
   final String search;
   final ReportStatus? filter;
   final String municipalityId;
+  final bool isAdmin;
   final ValueChanged<String> onSearch;
   final ValueChanged<ReportStatus?> onFilter;
   final ValueChanged<ReportModel> onAssign;
@@ -298,6 +309,7 @@ class _ConsoleBody extends StatelessWidget {
     if (section == 3) return AdsManagementView(municipalityId: municipalityId);
     if (section == 4) return MunicipalityMapView(reports: reports);
     if (section == 5) return HtmlReportView(reports: reports);
+    if (section == 6) return SendMessageView(isAdmin: isAdmin);
     if (section == 2) return _TeamsView(municipalityId: municipalityId);
     final visible = reports.where((r) {
       final term = search.toLowerCase().trim();
