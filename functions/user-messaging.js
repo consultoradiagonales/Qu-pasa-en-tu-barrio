@@ -71,13 +71,14 @@ async function sendCustomMessageHandler(request) {
       throw new HttpsError('permission-denied', 'Solo podés escribir a tu municipio.');
     }
     if (!target) throw new HttpsError('failed-precondition', 'No hay municipio asignado.');
-    query = query.where('municipalityId', '==', target);
+    query = query.where('municipalityId', '==', target).where('role', '==', 'citizen');
   } else if (audience.type === 'all') {
     if (role !== 'admin') throw new HttpsError('permission-denied', 'Solo el administrador puede escribir a todos.');
   } else {
     throw new HttpsError('invalid-argument', 'Elegí a quién enviar el mensaje.');
   }
-  query = query.where('role', '==', 'citizen');
+  // "Todos" incluye a cualquier cuenta activa (también al personal y al
+  // administrador); "municipio" es solo para los vecinos de esa zona.
   const snapshot = await query.get();
   const recipients = snapshot.docs.map((doc) => ({ uid: doc.id, fcmToken: doc.get('fcmToken') }));
   return finish(db, recipients, requestId, title, body);
