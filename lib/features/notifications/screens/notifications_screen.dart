@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/notification_model.dart';
 import '../../../data/repositories/notifications_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/utils/error_text.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   final bool forFieldWorker;
@@ -34,7 +35,7 @@ class NotificationsScreen extends ConsumerWidget {
       ),
       body: notifAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(mensajeDeError(e))),
         data: (notifications) {
           if (notifications.isEmpty) {
             return const Center(
@@ -97,6 +98,19 @@ class _NotifTile extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(notification.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+          if (notification.imageUrl != null && notification.imageUrl!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                notification.imageUrl!,
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+          ],
           const SizedBox(height: 2),
           Text(
             timeago.format(notification.createdAt, locale: 'es'),
@@ -128,6 +142,10 @@ class _NotifTile extends ConsumerWidget {
         return AppColors.primary;
       case NotificationType.reportResolved:
         return AppColors.statusResolved;
+      case NotificationType.reportProgress:
+        return AppColors.statusInProgress;
+      case NotificationType.reportRejected:
+        return AppColors.statusPending;
       case NotificationType.workerArrived:
         return AppColors.statusInProgress;
       case NotificationType.reportAssigned:
@@ -143,6 +161,10 @@ class _NotifTile extends ConsumerWidget {
         return Icons.add_location_alt_outlined;
       case NotificationType.reportResolved:
         return Icons.check_circle_outline;
+      case NotificationType.reportProgress:
+        return Icons.photo_camera_back_outlined;
+      case NotificationType.reportRejected:
+        return Icons.info_outline;
       case NotificationType.workerArrived:
         return Icons.engineering_outlined;
       case NotificationType.reportAssigned:

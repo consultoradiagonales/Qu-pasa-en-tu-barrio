@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/reports_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/utils/error_text.dart';
 
 class MyReportsScreen extends ConsumerWidget {
   const MyReportsScreen({super.key});
@@ -22,7 +23,7 @@ class MyReportsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Mis reportes')),
       body: reportsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(mensajeDeError(e))),
         data: (reports) {
           if (reports.isEmpty) {
             return Center(
@@ -70,7 +71,7 @@ class _ReportCard extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.go('/report/${report.id}'),
+        onTap: () => context.push('/report/${report.id}'),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

@@ -1,0 +1,92 @@
+# Compilación de iOS para ConDi sin necesidad de una Mac propia.
+#
+# Antes de que esto funcione hay que hacer tres cosas una sola vez, todas
+# desde el navegador. Están explicadas en plataformas/iOS/GUIA_SUBIR_A_APPLE.md:
+#   1. Crear en App Store Connect una "API key" y cargarla en Codemagic con el
+#      nombre `condi_asc` (Teams > Integrations > App Store Connect).
+#   2. Registrar el App ID ar.com.consultoradiagonales.condi en developer.apple.com.
+#   3. Crear la ficha de la app en App Store Connect con ese mismo bundle id.
+#
+# Después, cada push a la rama principal produce un build que aparece solo en
+# TestFlight.
+
+workflows:
+  ios-testflight:
+    name: ConDi iOS - TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      app_store_connect: condi_asc
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        # Codemagic crea y renueva solo el certificado y el perfil de
+        # distribución usando la API key de arriba.
+        distribution_type: app_store
+        bundle_identifier: ar.com.consultoradiagonales.condi
+      vars:
+        BUNDLE_ID: "ar.com.consultoradiagonales.condi"
+        # Es el ID numérico de la app en App Store Connect (Información de la
+        # app > ID de Apple). Hay que completarlo cuando la ficha exista.
+        APP_STORE_APPLE_ID: "COMPLETAR_CON_EL_ID_NUMERICO"
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+
+    scripts:
+      - name: Dependencias de Flutter
+        script: flutter pub get
+
+      - name: Instalar pods
+        script: |
+          cd ios
+          pod install
+          cd ..
+
+      - name: Aplicar la firma del proyecto
+        script: xcode-project use-profiles
+
+      - name: Número de build consecutivo
+        script: |
+          # TestFlight rechaza dos builds con el mismo número. Se toma el último
+          # que haya subido Apple y se suma uno.
+          LAST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          NEXT=$((LAST + 1))
+          echo "Último build en TestFlight: $LAST  ->  este: $NEXT"
+          echo "BUILD_NUMBER=$NEXT" >> $CM_ENV
+
+      - name: Compilar el IPA
+        script: |
+          flutter build ipa --release \
+            --no-tree-shake-icons \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Los testers internos reciben el build apenas Apple lo procesa.
+        # Enviar a revisión pública se hace a mano desde App Store Connect.
+        submit_to_app_store: false
+
+      email:
+        recipients:
+          - info.consultoradiagonales@gmail.com
+        notify:
+          success: true
+          failure: true

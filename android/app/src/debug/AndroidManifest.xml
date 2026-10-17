@@ -4,4 +4,9 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Solo builds de debug: permite hablar con el emulador local de Firebase,
+         que escucha en http://10.0.2.2. El manifest de release NO incluye esto,
+         así que producción sigue prohibiendo tráfico sin cifrar. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

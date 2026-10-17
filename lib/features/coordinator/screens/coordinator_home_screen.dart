@@ -12,6 +12,7 @@ import '../../../data/repositories/reports_repository.dart';
 import '../../../data/repositories/teams_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/utils/error_text.dart';
 
 class CoordinatorHomeScreen extends ConsumerStatefulWidget {
   const CoordinatorHomeScreen({super.key});
@@ -46,7 +47,7 @@ class _CoordinatorHomeScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo asignar el equipo: $e')),
+          SnackBar(content: Text(mensajeDeError(e))),
         );
       }
     }
@@ -126,14 +127,27 @@ class _CoordinatorHomeScreenState
             child: reportsAsync == null
                 ? Center(
                     child: profileAsync?.hasError == true
-                        ? Text('No se pudo cargar el perfil: ${profileAsync!.error}')
+                        ? const _PanelMessage(
+                            icon: Icons.lock_outline,
+                            text: 'No pudimos cargar tu perfil.\n'
+                                'Revisá tu conexión o escribinos a '
+                                'info.consultoradiagonales@gmail.com.',
+                          )
                         : profileAsync?.hasValue == true
-                            ? const Text('Tu usuario no tiene municipio asignado.')
+                            ? const _PanelMessage(
+                                icon: Icons.location_city_outlined,
+                                text: 'Tu usuario no tiene municipio asignado.',
+                              )
                             : const CircularProgressIndicator(),
                   )
                 : reportsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
+              error: (_, __) => const Center(
+                child: _PanelMessage(
+                  icon: Icons.cloud_off_outlined,
+                  text: 'No pudimos cargar los reportes.\nIntentá de nuevo.',
+                ),
+              ),
               data: (allReports) {
                 final reports = _filter == null
                     ? allReports
@@ -161,6 +175,33 @@ class _CoordinatorHomeScreenState
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Mensaje de estado del panel, sin detalles técnicos.
+class _PanelMessage extends StatelessWidget {
+  const _PanelMessage({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 16),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -202,7 +243,7 @@ class _StatsCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             '${stats.total} reportes · ${stats.supports} apoyos · '
-            'resolución promedio: ${average == null ? '—' : '${average.toStringAsFixed(1)} h'}',
+            'resolución promedio: ${average == null ? '�?"' : '${average.toStringAsFixed(1)} h'}',
             style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
         ],
@@ -241,7 +282,7 @@ class _ReportTile extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.go('/report/${report.id}'),
+        onTap: () => context.push('/report/${report.id}'),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -343,7 +384,7 @@ class _TeamPicker extends ConsumerWidget {
             const SizedBox(height: 12),
             teamsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('No se pudieron cargar los equipos: $e'),
+              error: (e, _) => Text(mensajeDeError(e)),
               data: (teams) {
                 if (teams.isEmpty) {
                   return const Text('No hay equipos activos en este municipio.');

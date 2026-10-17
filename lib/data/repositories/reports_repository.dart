@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/report_model.dart';
@@ -10,6 +10,9 @@ import '../../core/constants/app_constants.dart';
 class ReportsRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'southamerica-east1',
+  );
 
   CollectionReference<Map<String, dynamic>> get _col =>
       _db.collection(AppConstants.reportsCollection);
@@ -19,6 +22,7 @@ class ReportsRepository {
   Stream<List<ReportModel>> watchReports({
     String? municipalityId,
     ReportStatus? status,
+    int limit = 200,
   }) {
     Query<Map<String, dynamic>> q = _col.where('hidden', isEqualTo: false);
     if (municipalityId != null) {
@@ -27,7 +31,7 @@ class ReportsRepository {
     if (status != null) {
       q = q.where('status', isEqualTo: status.value);
     }
-    q = q.orderBy('createdAt', descending: true).limit(200);
+    q = q.orderBy('createdAt', descending: true).limit(limit);
     return q.snapshots().map(
           (snap) => snap.docs.map(ReportModel.fromFirestore).toList(),
         );
@@ -61,6 +65,7 @@ class ReportsRepository {
     final snap = await _col
         .where('userId', isEqualTo: userId)
         .where('createdAt', isGreaterThan: Timestamp.fromDate(since))
+        .orderBy('createdAt', descending: true)
         .count()
         .get();
     return snap.count ?? 0;
@@ -70,14 +75,17 @@ class ReportsRepository {
 
   Future<String> createReport(ReportModel report) async {
     await _col.doc(report.id).set(report.toFirestore());
-    // Actualizar contador del usuario
-    await _db
-        .collection(AppConstants.usersCollection)
-        .doc(report.userId)
-        .update({
-      'reportsCount': FieldValue.increment(1),
-      'lastReportAt': FieldValue.serverTimestamp(),
-    });
+    // El reclamo ya quedó guardado. El contador es auxiliar y no debe hacer
+    // que la pantalla informe un fallo ni deje al usuario reintentando.
+    try {
+      await _db
+          .collection(AppConstants.usersCollection)
+          .doc(report.userId)
+          .update({
+        'reportsCount': FieldValue.increment(1),
+        'lastReportAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
     return report.id;
   }
 
@@ -90,7 +98,7 @@ class ReportsRepository {
 
   /// La función valida rol, municipio, estado y equipo antes de asignar.
   Future<void> assignTeam(String reportId, String teamId) async {
-    await FirebaseFunctions.instance.httpsCallable('assignReportTeam').call({
+    await _functions.httpsCallable('assignReportTeam').call({
       'reportId': reportId,
       'teamId': teamId,
     });
@@ -181,7 +189,8 @@ class ReportsRepository {
     });
     // Incrementar contador de denuncias en el item
     if (targetType == 'report') {
-      await _col.doc(targetId)
+      await _col
+          .doc(targetId)
           .update({'flaggedCount': FieldValue.increment(1)});
     }
   }
@@ -210,4 +219,11 @@ final myReportsProvider =
 final teamReportsProvider =
     StreamProvider.family<List<ReportModel>, String>((ref, teamId) {
   return ref.read(reportsRepositoryProvider).watchTeamReports(teamId);
+});
+
+final adminMunicipalityReportsProvider =
+    StreamProvider.family<List<ReportModel>, String>((ref, municipalityId) {
+  return ref.read(reportsRepositoryProvider).watchReports(
+        municipalityId: municipalityId, limit: 2000,
+      );
 });

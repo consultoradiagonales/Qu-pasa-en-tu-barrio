@@ -1,23 +1,19 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CLIENT_ID</key>
-	<string>650673979964-p7ucsdo91qe3vomu22lbh712pf8ha9bb.apps.googleusercontent.com</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.650673979964-p7ucsdo91qe3vomu22lbh712pf8ha9bb</string>
 	<key>API_KEY</key>
-	<string>AIzaSyAkcmwvTvpjeO4Po3mcahCV1Xb3NRrYhWs</string>
+	<string>AIzaSyCaJ45Z52WO-vM0Q3XFz6I8iEVgy43HBVA</string>
 	<key>GCM_SENDER_ID</key>
-	<string>650673979964</string>
+	<string>949079641355</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.quepasaentubarrio.quePasaEnTuBarrio</string>
+	<string>ar.com.consultoradiagonales.condi</string>
 	<key>PROJECT_ID</key>
-	<string>que-pasa-en-tu-barrio</string>
+	<string>project-5fc9024a-e961-42b7-9ee</string>
 	<key>STORAGE_BUCKET</key>
-	<string>que-pasa-en-tu-barrio.firebasestorage.app</string>
+	<string>project-5fc9024a-e961-42b7-9ee.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -29,6 +25,11 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:650673979964:ios:016eb29e4266a07cd3b939</string>
+	<string>1:949079641355:ios:8d58ccdaea04f99b94e60e</string>
+<key>CLIENT_ID</key>
+<string>949079641355-f1pr7ccjgkt52uik3ffkd529i09qovh6.apps.googleusercontent.com</string>
+<key>REVERSED_CLIENT_ID</key>
+<string>com.googleusercontent.apps.949079641355-f1pr7ccjgkt52uik3ffkd529i09qovh6</string>
 </dict>
 </plist>
+

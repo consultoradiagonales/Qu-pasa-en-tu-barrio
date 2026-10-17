@@ -6,8 +6,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$PROJECT = "E:\CODEX ChatGPT\04 - APP municipal → Qué pasa en tu barrio"
-$FLUTTER = "C:\flutter\bin\flutter.bat"
+. (Join-Path $PSScriptRoot "environment.ps1")
+$PROJECT = "E:\condi"
+$FLUTTER = "E:\CodexTools\flutter\bin\flutter.bat"
 
 Push-Location $PROJECT
 

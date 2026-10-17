@@ -66,11 +66,16 @@ class ReportLocation {
   final String geohash;
   final String? address;
 
+  /// La persona escribió una dirección pero no autorizó GPS ni usó el mapa.
+  /// Las coordenadas de respaldo no representan una ubicación precisa.
+  final bool isManualAddress;
+
   const ReportLocation({
     required this.lat,
     required this.lng,
     required this.geohash,
     this.address,
+    this.isManualAddress = false,
   });
 
   LatLng get latLng => LatLng(lat, lng);
@@ -81,6 +86,7 @@ class ReportLocation {
       lng: (map['lng'] as num).toDouble(),
       geohash: map['geohash'] ?? '',
       address: map['address'],
+      isManualAddress: map['isManualAddress'] == true,
     );
   }
 
@@ -89,14 +95,21 @@ class ReportLocation {
         'lng': lng,
         'geohash': geohash,
         'address': address,
+        'isManualAddress': isManualAddress,
       };
 
-  ReportLocation copyWith({double? lat, double? lng, String? geohash, String? address}) {
+  ReportLocation copyWith(
+      {double? lat,
+      double? lng,
+      String? geohash,
+      String? address,
+      bool? isManualAddress}) {
     return ReportLocation(
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
       geohash: geohash ?? this.geohash,
       address: address ?? this.address,
+      isManualAddress: isManualAddress ?? this.isManualAddress,
     );
   }
 }
@@ -106,6 +119,15 @@ class ReportModel {
   final String id;
   final String userId;
   final String municipalityId;
+  final String? municipalityName;
+  final String? provinceId;
+  final String? province;
+  final String? departmentId;
+  final String? department;
+  final String? localityId;
+  final String? locality;
+  final String? settlementId;
+  final String? settlement;
 
   // Datos del problema
   final String title;
@@ -113,18 +135,18 @@ class ReportModel {
   final ReportCategory category;
 
   // Fotos por etapa
-  final List<String> photosReport;  // ciudadano al reportar
-  final List<String> photosBefore;  // equipo al llegar
+  final List<String> photosReport; // ciudadano al reportar
+  final List<String> photosBefore; // equipo al llegar
   final List<String> photosProgress; // equipo durante el trabajo
-  final List<String> photosAfter;   // equipo al terminar
+  final List<String> photosAfter; // equipo al terminar
 
   // Ubicación
   final ReportLocation location;
 
   // Estado y asignación
   final ReportStatus status;
-  final int priority;           // 1-5, mayor = más urgente
-  final int supportCount;       // votos de apoyo de vecinos
+  final int priority; // 1-5, mayor = más urgente
+  final int supportCount; // votos de apoyo de vecinos
 
   final String? assignedTeamId;
   final String? assignedWorkerId;
@@ -150,13 +172,23 @@ class ReportModel {
   final DateTime updatedAt;
 
   // Calificación del ciudadano
-  final int? rating;            // 1-5, null si no calificó
+  final bool aiRequested;
+  final int? rating; // 1-5, null si no calificó
   final String? ratingComment;
 
   const ReportModel({
     required this.id,
     required this.userId,
     required this.municipalityId,
+    this.municipalityName,
+    this.provinceId,
+    this.province,
+    this.departmentId,
+    this.department,
+    this.localityId,
+    this.locality,
+    this.settlementId,
+    this.settlement,
     required this.title,
     required this.description,
     required this.category,
@@ -182,6 +214,7 @@ class ReportModel {
     this.commentsCount = 0,
     required this.createdAt,
     required this.updatedAt,
+    this.aiRequested = false,
     this.rating,
     this.ratingComment,
   });
@@ -192,6 +225,15 @@ class ReportModel {
       id: doc.id,
       userId: data['userId'] ?? '',
       municipalityId: data['municipalityId'] ?? '',
+      municipalityName: data['municipalityName'],
+      provinceId: data['provinceId'],
+      province: data['province'],
+      departmentId: data['departmentId'],
+      department: data['department'],
+      localityId: data['localityId'],
+      locality: data['locality'],
+      settlementId: data['settlementId'],
+      settlement: data['settlement'],
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       category: ReportCategory.fromString(data['category'] ?? 'other'),
@@ -219,6 +261,7 @@ class ReportModel {
       commentsCount: data['commentsCount'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      aiRequested: data['aiRequested'] == true,
       rating: data['rating'],
       ratingComment: data['ratingComment'],
     );
@@ -228,6 +271,15 @@ class ReportModel {
     return {
       'userId': userId,
       'municipalityId': municipalityId,
+      'municipalityName': municipalityName,
+      'provinceId': provinceId,
+      'province': province,
+      'departmentId': departmentId,
+      'department': department,
+      'localityId': localityId,
+      'locality': locality,
+      'settlementId': settlementId,
+      'settlement': settlement,
       'title': title,
       'description': description,
       'category': category.value,
@@ -242,9 +294,12 @@ class ReportModel {
       'assignedTeamId': assignedTeamId,
       'assignedWorkerId': assignedWorkerId,
       'assignedAt': assignedAt != null ? Timestamp.fromDate(assignedAt!) : null,
-      'workerArrivedAt': workerArrivedAt != null ? Timestamp.fromDate(workerArrivedAt!) : null,
-      'workStartedAt': workStartedAt != null ? Timestamp.fromDate(workStartedAt!) : null,
-      'workFinishedAt': workFinishedAt != null ? Timestamp.fromDate(workFinishedAt!) : null,
+      'workerArrivedAt':
+          workerArrivedAt != null ? Timestamp.fromDate(workerArrivedAt!) : null,
+      'workStartedAt':
+          workStartedAt != null ? Timestamp.fromDate(workStartedAt!) : null,
+      'workFinishedAt':
+          workFinishedAt != null ? Timestamp.fromDate(workFinishedAt!) : null,
       'workerNotes': workerNotes,
       'resolvedAt': resolvedAt != null ? Timestamp.fromDate(resolvedAt!) : null,
       'rejectionReason': rejectionReason,
@@ -253,6 +308,8 @@ class ReportModel {
       'commentsCount': commentsCount,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'aiRequested': aiRequested,
+      'aiConsentVersion': aiRequested ? 1 : 0,
       'rating': rating,
       'ratingComment': ratingComment,
     };
@@ -261,6 +318,15 @@ class ReportModel {
   ReportModel copyWith({
     String? title,
     String? description,
+    String? municipalityName,
+    String? provinceId,
+    String? province,
+    String? departmentId,
+    String? department,
+    String? localityId,
+    String? locality,
+    String? settlementId,
+    String? settlement,
     ReportCategory? category,
     List<String>? photosReport,
     List<String>? photosBefore,
@@ -290,6 +356,15 @@ class ReportModel {
       id: id,
       userId: userId,
       municipalityId: municipalityId,
+      municipalityName: municipalityName ?? this.municipalityName,
+      provinceId: provinceId ?? this.provinceId,
+      province: province ?? this.province,
+      departmentId: departmentId ?? this.departmentId,
+      department: department ?? this.department,
+      localityId: localityId ?? this.localityId,
+      locality: locality ?? this.locality,
+      settlementId: settlementId ?? this.settlementId,
+      settlement: settlement ?? this.settlement,
       title: title ?? this.title,
       description: description ?? this.description,
       category: category ?? this.category,
@@ -315,6 +390,7 @@ class ReportModel {
       commentsCount: commentsCount ?? this.commentsCount,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      aiRequested: aiRequested,
       rating: rating ?? this.rating,
       ratingComment: ratingComment ?? this.ratingComment,
     );

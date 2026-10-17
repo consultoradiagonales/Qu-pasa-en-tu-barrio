@@ -23,11 +23,12 @@ abstract class AppConstants {
 
   // URLs
   static const String privacyPolicyUrl =
-      'https://tudominio.com/privacidad'; // TODO: reemplazar con URL real
+      'https://consultoradiagonales.com.ar/app/privacidad.html';
   static const String termsUrl =
-      'https://tudominio.com/terminos'; // TODO: reemplazar con URL real
+      'https://consultoradiagonales.com.ar/app/privacidad.html';
+  // Play Store y App Store piden una URL pública para solicitar la baja.
   static const String deleteAccountUrl =
-      'https://tudominio.com/eliminar-cuenta'; // requerido por Play Store
+      'https://consultoradiagonales.com.ar/app/eliminar-cuenta.html';
 
   // Colecciones Firestore
   static const String usersCollection = 'users';

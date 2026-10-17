@@ -1,40 +1,47 @@
-# build-web.ps1 — Compila Flutter Web y sube a GitHub Pages (rama gh-pages)
-# Uso: .\tools\build-web.ps1
-
-$ErrorActionPreference = "Stop"
-$PROJECT = "E:\CODEX ChatGPT\04 - APP municipal → Qué pasa en tu barrio"
-$FLUTTER = "C:\flutter\bin\flutter.bat"
-
-Push-Location $PROJECT
-
-Write-Host "==> Compilando Flutter Web..." -ForegroundColor Cyan
-& $FLUTTER build web --release --base-href "/Qu-pasa-en-tu-barrio/" --no-tree-shake-icons
-
-Write-Host "==> Subiendo a gh-pages..." -ForegroundColor Cyan
-# Guarda el estado actual
-$branch = git rev-parse --abbrev-ref HEAD
-
-# Copia el output compilado
-$tmpDir = "$env:TEMP\flutter_web_build"
-if (Test-Path $tmpDir) { Remove-Item $tmpDir -Recurse -Force }
-Copy-Item "build\web" $tmpDir -Recurse
-
-# Cambia a gh-pages
-git checkout gh-pages
-# Limpia los archivos anteriores de Flutter web (conserva los de la maqueta si existen)
-Get-ChildItem -File | Where-Object { $_.Name -notlike "maqueta*" } | Remove-Item -Force
-Get-ChildItem -Directory | Where-Object { $_.Name -notin @("maqueta","assets") } | Remove-Item -Recurse -Force
-
-# Copia los nuevos archivos
-Copy-Item "$tmpDir\*" "." -Recurse -Force
-Remove-Item $tmpDir -Recurse -Force
-
-git add .
-git commit -m "deploy: Flutter Web build $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-git push origin gh-pages
-
-# Vuelve a la rama original
-git checkout $branch
-
-Pop-Location
-Write-Host "==> Deploy completado en https://consultoradiagonales.github.io/Qu-pasa-en-tu-barrio/" -ForegroundColor Green
+# Compila y publica la web desde una copia Git aislada; conserva el proyecto y sus SDK.
+$ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'environment.ps1')
+$project='E:\condi'
+$flutter=Join-Path $env:FLUTTER_ROOT 'bin\flutter.bat'
+$deployment=$null
+$completed=$false
+Push-Location $project
+try {
+    & $flutter build web --release --base-href '/Qu-pasa-en-tu-barrio/' --no-tree-shake-icons
+    if($LASTEXITCODE -ne 0){throw 'Falló la compilación web; no se publica'}
+    $base=Join-Path $project 'dev\deploy-worktrees'
+    New-Item -ItemType Directory -Force -Path $base | Out-Null
+    $deployment=Join-Path $base ([guid]::NewGuid().ToString('N'))
+    $resolvedBase=[IO.Path]::GetFullPath($base).TrimEnd('\')+'\'
+    $resolvedDeployment=[IO.Path]::GetFullPath($deployment)
+    if(-not $resolvedDeployment.StartsWith($resolvedBase,[StringComparison]::OrdinalIgnoreCase)){throw 'Destino de publicación fuera de alcance'}
+    & git worktree add --detach $deployment gh-pages
+    if($LASTEXITCODE -ne 0){throw 'No se pudo crear la copia aislada de gh-pages'}
+    foreach($item in Get-ChildItem -LiteralPath $deployment -Force){
+        if($item.Name -eq '.git' -or $item.Name -like 'maqueta*' -or $item.Name -eq 'assets'){continue}
+        $absolute=[IO.Path]::GetFullPath($item.FullName)
+        if(-not $absolute.StartsWith($resolvedDeployment+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Archivo fuera de la copia de publicación'}
+        if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'La copia de publicación contiene enlaces que requieren revisión'}
+        Remove-Item -LiteralPath $absolute -Recurse -Force
+    }
+    foreach($item in Get-ChildItem -LiteralPath (Join-Path $project 'build\web') -Force){
+        Copy-Item -LiteralPath $item.FullName -Destination $deployment -Recurse -Force
+    }
+    & git -C $deployment add -A
+    if($LASTEXITCODE -ne 0){throw 'No se pudo preparar la publicación'}
+    & git -C $deployment diff --cached --quiet
+    if($LASTEXITCODE -eq 1){
+        & git -C $deployment commit -m ('deploy: Flutter Web build '+(Get-Date -Format 'yyyy-MM-dd HH:mm'))
+        if($LASTEXITCODE -ne 0){throw 'No se pudo crear el commit de publicación'}
+        & git -C $deployment push origin HEAD:gh-pages
+        if($LASTEXITCODE -ne 0){throw "Falló la publicación; se conserva la copia en $deployment"}
+    }elseif($LASTEXITCODE -ne 0){throw 'No se pudo comprobar el contenido de la publicación'}
+    $completed=$true
+    Write-Host 'Web compilada y publicación completada.'
+} finally {
+    Pop-Location
+    if($completed -and $deployment){
+        & git -C $project worktree remove $deployment
+        if($LASTEXITCODE -ne 0){Write-Warning "La copia de publicación se conserva en $deployment"}
+    }
+}

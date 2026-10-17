@@ -1,34 +1,65 @@
 {
   "project_info": {
-    "project_number": "650673979964",
-    "project_id": "que-pasa-en-tu-barrio",
-    "storage_bucket": "que-pasa-en-tu-barrio.firebasestorage.app"
+    "project_number": "949079641355",
+    "project_id": "project-5fc9024a-e961-42b7-9ee",
+    "storage_bucket": "project-5fc9024a-e961-42b7-9ee.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:650673979964:android:c9cb7350c01d0277d3b939",
+        "mobilesdk_app_id": "1:949079641355:android:fc11ef66a7c1930d94e60e",
         "android_client_info": {
-          "package_name": "com.quepasaentubarrio.que_pasa_en_tu_barrio"
+          "package_name": "ar.com.consultoradiagonales.condi"
         }
       },
       "oauth_client": [
         {
-          "client_id": "650673979964-f4olob6e51k6g8jfmq802ncfkjnj4l7k.apps.googleusercontent.com",
+          "client_id": "949079641355-k9j4s37i4f7me0dfbr9gqvmdcnqjuo6i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ar.com.consultoradiagonales.condi",
+            "certificate_hash": "6729ad1c4c56ce5283e53733153d5da32232f34e"
+          }
+        },
+        {
+          "client_id": "949079641355-ksvf7o7v9d01l2mml8slf7lptnin5kjl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ar.com.consultoradiagonales.condi",
+            "certificate_hash": "82faeaac3966e0079238e1d3ccd4bae00c9fecc7"
+          }
+        },
+        {
+          "client_id": "949079641355-tlk4u19sh50b60re4m8bu1ckhd6ra95t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ar.com.consultoradiagonales.condi",
+            "certificate_hash": "63189c531c408aae756f5860b16c5b194068d884"
+          }
+        },
+        {
+          "client_id": "949079641355-u8ktth9l6i9q3rcj6eesgajekuq7vgb1.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDeBjOxDmiZSAjGi00I7TD5UED6UmEVkJg"
+          "current_key": "AIzaSyBOW2aAZi-9HRd2iRB3GP7INAB0paVvAXg"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "650673979964-f4olob6e51k6g8jfmq802ncfkjnj4l7k.apps.googleusercontent.com",
+              "client_id": "949079641355-u8ktth9l6i9q3rcj6eesgajekuq7vgb1.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "949079641355-f1pr7ccjgkt52uik3ffkd529i09qovh6.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ar.com.consultoradiagonales.condi"
+              }
             }
           ]
         }

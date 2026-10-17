@@ -12,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/reports_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/utils/error_text.dart';
 
 class TaskDetailScreen extends ConsumerStatefulWidget {
   final String reportId;
@@ -25,11 +26,15 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   bool _uploading = false;
 
   Future<void> _navigateToLocation(ReportModel r) async {
-    final lat = r.location.lat;
-    final lng = r.location.lng;
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
-    );
+    final manualAddress = r.location.address?.trim() ?? '';
+    final uri = r.location.isManualAddress && manualAddress.isNotEmpty
+        ? Uri.https('www.google.com', '/maps/search/', {
+            'api': '1',
+            'query': manualAddress,
+          })
+        : Uri.parse(
+            'https://www.google.com/maps/dir/?api=1&destination=${r.location.lat},${r.location.lng}&travelmode=driving',
+          );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
@@ -65,7 +70,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     );
     if (confirmed != true || !mounted) return;
 
-    // Foto SOLO con cámara — no galería
+    // Foto SOLO con cámara �?" no galería
     final photo = await ImagePicker().pickImage(
       source: ImageSource.camera,
       imageQuality: 80,
@@ -99,7 +104,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al subir la foto: $e')),
+          SnackBar(content: Text(mensajeDeError(e))),
         );
       }
     } finally {
@@ -118,7 +123,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       appBar: AppBar(title: const Text('Detalle de tarea')),
       body: reportAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(mensajeDeError(e))),
         data: (report) {
           if (report == null) {
             return const Center(child: Text('Reporte no encontrado.'));
@@ -187,36 +192,58 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             const SizedBox(height: 16),
           ],
 
-          // Mini mapa
-          Container(
-            height: 180,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: LatLng(report.location.lat, report.location.lng),
-                  zoom: 16,
-                ),
-                markers: {
-                  Marker(
-                    markerId: const MarkerId('report'),
-                    position:
-                        LatLng(report.location.lat, report.location.lng),
+          // Mini mapa o dirección ingresada sin GPS.
+          if (report.location.isManualAddress)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.edit_location_alt_outlined),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      report.location.address ??
+                          'Dirección escrita por el vecino.',
+                    ),
                   ),
-                },
-                zoomControlsEnabled: false,
-                scrollGesturesEnabled: false,
-                rotateGesturesEnabled: false,
-                tiltGesturesEnabled: false,
-                zoomGesturesEnabled: false,
-                myLocationButtonEnabled: false,
+                ],
+              ),
+            )
+          else
+            Container(
+              height: 180,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(report.location.lat, report.location.lng),
+                    zoom: 16,
+                  ),
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('report'),
+                      position:
+                          LatLng(report.location.lat, report.location.lng),
+                    ),
+                  },
+                  zoomControlsEnabled: false,
+                  scrollGesturesEnabled: false,
+                  rotateGesturesEnabled: false,
+                  tiltGesturesEnabled: false,
+                  zoomGesturesEnabled: false,
+                  myLocationButtonEnabled: false,
+                ),
               ),
             ),
-          ),
           const SizedBox(height: 24),
 
           // Botones de acción
@@ -226,7 +253,9 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
             ),
             onPressed: () => _navigateToLocation(report),
             icon: const Icon(Icons.navigation_outlined),
-            label: const Text('Navegar al lugar'),
+            label: Text(report.location.isManualAddress
+                ? 'Abrir dirección en el mapa'
+                : 'Navegar al lugar'),
           ),
           const SizedBox(height: 12),
 
@@ -273,8 +302,8 @@ class _Chip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-            color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        style:
+            TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }

@@ -1,11 +1,24 @@
 {
   "functions": { "source": "functions" },
   "hosting": {
-    "public": "maqueta/dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+    "public": "build/web",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "headers": [{ "source": "**", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
   },
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "emulators": {
+    "auth": { "port": 9099 },
+    "firestore": { "port": 8080 },
+    "storage": { "port": 9199 },
+    "functions": { "port": 5001 },
+    "ui": { "enabled": true, "port": 4000 },
+    "singleProjectMode": true
   }
 }

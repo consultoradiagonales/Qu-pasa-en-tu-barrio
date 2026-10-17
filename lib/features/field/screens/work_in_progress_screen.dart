@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/repositories/reports_repository.dart';
+import '../../../core/utils/error_text.dart';
 
 class WorkInProgressScreen extends ConsumerStatefulWidget {
   final String reportId;
@@ -94,7 +95,7 @@ class _WorkInProgressScreenState extends ConsumerState<WorkInProgressScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo guardar la foto: $e')),
+          SnackBar(content: Text(mensajeDeError(e))),
         );
       }
     } finally {
@@ -103,7 +104,7 @@ class _WorkInProgressScreenState extends ConsumerState<WorkInProgressScreen> {
   }
 
   Future<void> _finishWork() async {
-    // Pedir foto del DESPUÉS — solo cámara
+    // Pedir foto del DESPU�?S �?" solo cámara
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -136,7 +137,7 @@ class _WorkInProgressScreenState extends ConsumerState<WorkInProgressScreen> {
     try {
       final repo = ref.read(reportsRepositoryProvider);
 
-      // Subir foto del DESPUÉS
+      // Subir foto del DESPU�?S
       final afterUrl = await repo.uploadFieldPhoto(
         reportId: widget.reportId,
         file: File(photo.path),
@@ -155,7 +156,7 @@ class _WorkInProgressScreenState extends ConsumerState<WorkInProgressScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Problema marcado como resuelto.'),
+            content: Text('�o. Problema marcado como resuelto.'),
             backgroundColor: AppColors.statusResolved,
           ),
         );
@@ -164,7 +165,7 @@ class _WorkInProgressScreenState extends ConsumerState<WorkInProgressScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cerrar la tarea: $e')),
+          SnackBar(content: Text(mensajeDeError(e))),
         );
       }
     } finally {

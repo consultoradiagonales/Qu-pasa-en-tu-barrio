@@ -1,6 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'navigation_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../data/services/auth_service.dart';
 import '../../features/auth/screens/splash_screen.dart';
@@ -8,6 +12,7 @@ import '../../features/auth/screens/welcome_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/auth/screens/select_municipality_screen.dart';
 import '../../features/map/screens/map_screen.dart';
 import '../../features/report/screens/new_report_screen.dart';
 import '../../features/report_detail/screens/report_detail_screen.dart';
@@ -16,33 +21,79 @@ import '../../features/field/screens/field_home_screen.dart';
 import '../../features/field/screens/task_detail_screen.dart';
 import '../../features/field/screens/work_in_progress_screen.dart';
 import '../../features/coordinator/screens/coordinator_home_screen.dart';
+import '../../features/admin/screens/admin_console_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
+import '../../features/advertising/local_ads_banner.dart';
 
-/// Proveedor del router — se reconstruye cuando cambia el estado de auth
+class _AuthChangeNotifier extends ChangeNotifier {
+  _AuthChangeNotifier() {
+    _sub = FirebaseAuth.instance.authStateChanges().listen((_) {
+      notifyListeners();
+    });
+  }
+  late final dynamic _sub;
+
+  /// Expuesto para que el router pueda reevaluar el redirect cuando cambia
+  /// algo que no es el estado de sesión, como el rol leído de Firestore.
+  @override
+  void notifyListeners() => super.notifyListeners();
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+}
+
+/// Proveedor del router — se crea UNA vez; el redirect se reejercuta via refreshListenable
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final notifier = _AuthChangeNotifier();
+  ref.onDispose(notifier.dispose);
+
+  // El guard por rol depende de la lectura del perfil, que llega después del
+  // cambio de sesión. Sin esto el redirect se evalúa una sola vez, cuando el
+  // rol todavía es desconocido, y nunca se vuelve a aplicar.
+  ref.listen(userRoleResolvedProvider, (_, __) => notifier.notifyListeners());
+  ref.listen(currentUserRoleProvider, (_, __) => notifier.notifyListeners());
+  ref.listen(
+      currentUserMunicipalityProvider, (_, __) => notifier.notifyListeners());
 
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: notifier,
     redirect: (context, state) {
-      final isLoggedIn = authState.valueOrNull != null;
-      final isOnAuth = state.matchedLocation.startsWith('/auth');
+      final isLoggedIn = FirebaseAuth.instance.currentUser != null;
       final isOnSplash = state.matchedLocation == '/splash';
+      // La elección de municipio cuelga de /auth pero es para alguien que ya
+      // inició sesión, así que no entra en el rebote de las pantallas de auth:
+      // si entrara, el guard de más abajo la devolvería acá sin fin.
+      final isOnMunicipio = state.matchedLocation.startsWith('/auth/municipio');
+      final isOnAuth =
+          state.matchedLocation.startsWith('/auth') && !isOnMunicipio;
 
       // Si está en splash, no redirigir (el splash decide)
       if (isOnSplash) return null;
 
-      // Si no está logueado y no está en pantalla de auth, mandar al login
-      if (!isLoggedIn && !isOnAuth) return '/auth/welcome';
-
-      // Si está logueado y está en pantalla de auth, mandar al home según rol
-      if (isLoggedIn && isOnAuth) {
-        final currentRole = ref.read(currentUserRoleProvider);
-        if (currentRole == null) return null;
-        return _homeByRole(currentRole);
+      final target = state.matchedLocation;
+      final isReport = target == '/report/new';
+      // Photo capture is public. Authentication is requested only on send.
+      if (!isLoggedIn && !isOnAuth && !isReport) {
+        final next = isOnMunicipio ? 'report' : target;
+        return '/auth/login?next=${Uri.encodeComponent(next)}';
       }
-
+      if (isLoggedIn && isOnAuth) {
+        if (ref.read(currentUserRoleProvider) == null) return null;
+        return signedInDestination(state.uri.queryParameters['next']);
+      }
+      if (isOperationsPath(target)) {
+        if (!(kIsWeb || operationsBuild)) return citizenStartLocation;
+        if (ref.read(userRoleResolvedProvider) &&
+            !canOpenOperations(target, ref.read(currentUserRoleProvider),
+                enabled: true)) {
+          return citizenStartLocation;
+        }
+      }
       return null;
     },
     routes: [
@@ -56,6 +107,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth/welcome',
         builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/auth/municipio',
+        builder: (context, state) => const SelectMunicipalityScreen(),
       ),
       GoRoute(
         path: '/auth/login',
@@ -93,10 +148,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
+      // Consola web de gestión y analítica. Comparte las mismas reglas y
+      // streams que la app, por lo que nunca expone datos fuera del backend.
+      GoRoute(
+        path: '/admin',
+        builder: (context, state) => const AdminConsoleScreen(),
+      ),
+
       // Crear reporte (modal, sin shell)
       GoRoute(
         path: '/report/new',
-        builder: (context, state) => const NewReportScreen(),
+        builder: (context, state) {
+          final query = state.uri.queryParameters;
+          return NewReportScreen(
+            startWithCamera: query['resume'] != '1',
+            initialAddressMode: query['mode'] == 'manual',
+            initialLocation: _queryLocation(query['lat'], query['lng']),
+          );
+        },
       ),
 
       // Detalle de reporte (ciudadano y todos los roles)
@@ -150,65 +219,65 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
+    errorBuilder: (context, state) => const Scaffold(
       body: Center(
-        child: Text('Página no encontrada: ${state.error}'),
+        child: Text('No encontramos esa página.'),
       ),
     ),
   );
 });
 
-/// Retorna la ruta home según el rol del usuario
-String _homeByRole(String? role) {
-  switch (role) {
-    case 'field_worker':
-      return '/field';
-    case 'coordinator':
-    case 'admin':
-    case 'moderator':
-      return '/coordinator';
-    default:
-      return '/map';
-  }
+LatLng? _queryLocation(String? lat, String? lng) {
+  final latitude = double.tryParse(lat ?? '');
+  final longitude = double.tryParse(lng ?? '');
+  if (latitude == null || longitude == null) return null;
+  return LatLng(latitude, longitude);
 }
 
 // ─── Shells de navegación ────────────────────────────────────────────────────
 
 /// Barra de navegación inferior para ciudadanos
-class _CitizenShell extends StatelessWidget {
+class _CitizenShell extends ConsumerWidget {
   final Widget child;
   const _CitizenShell({required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
     final index = _indexFromLocation(location);
+    final municipalityId = ref.watch(currentUserMunicipalityProvider) ?? '';
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => _navigate(context, i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.map_outlined),
-            selectedIcon: Icon(Icons.map),
-            label: 'Mapa',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
-            label: 'Mis reportes',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.notifications_outlined),
-            selectedIcon: Icon(Icons.notifications),
-            label: 'Alertas',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Perfil',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LocalAdsBanner(municipalityId: municipalityId),
+          NavigationBar(
+            selectedIndex: index,
+            onDestinationSelected: (i) => _navigate(context, i),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.map_outlined),
+                selectedIcon: Icon(Icons.map),
+                label: 'Mapa',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.list_alt_outlined),
+                selectedIcon: Icon(Icons.list_alt),
+                label: 'Mis reportes',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.notifications_outlined),
+                selectedIcon: Icon(Icons.notifications),
+                label: 'Alertas',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person),
+                label: 'Perfil',
+              ),
+            ],
           ),
         ],
       ),

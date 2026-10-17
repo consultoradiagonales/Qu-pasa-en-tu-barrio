@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/platform_support.dart';
+import '../../../core/router/navigation_policy.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
 
@@ -28,6 +30,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -46,14 +59,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (mounted) _redirectByRole(credential.user!.uid);
     } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AuthService.errorMessage(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError(AuthService.loginErrorMessage(e));
+    } on FirebaseException catch (e) {
+      // refreshFcmToken() y la lectura del perfil tocan Firestore. Si fallan,
+      // sin este catch la pantalla quedaba congelada sin explicación.
+      _showError(
+        e.code == 'permission-denied'
+            ? 'Entraste, pero no pudimos cargar tu perfil. '
+                'Escribinos a info.consultoradiagonales@gmail.com.'
+            : 'No pudimos cargar tus datos. Intentá de nuevo.',
+      );
+    } catch (_) {
+      _showError('No se pudo iniciar sesión. Intentá de nuevo.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -74,10 +91,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SnackBar(content: Text(AuthService.errorMessage(e))),
         );
       }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        final message = e.code == 'permission-denied'
+            ? 'Google te identificó, pero no pudimos guardar tu perfil. '
+                'Reintentá; si continúa, escribinos a '
+                'info.consultoradiagonales@gmail.com.'
+            : 'Google te identificó, pero no pudimos cargar tus datos. '
+                'Reintentá con conexión a internet.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo iniciar sesión con Google.')),
+          const SnackBar(
+              content: Text('No se pudo iniciar sesión con Google.')),
         );
       }
     } finally {
@@ -86,20 +116,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _redirectByRole(String uid) async {
-    final user = await ref.read(userRepositoryProvider).getUser(uid);
     if (!mounted) return;
-    switch (user?.role.value) {
-      case 'field_worker':
-        context.go('/field');
-        break;
-      case 'coordinator':
-      case 'admin':
-      case 'moderator':
-        context.go('/coordinator');
-        break;
-      default:
-        context.go('/map');
-    }
+    context.go(signedInDestination(
+        GoRouterState.of(context).uri.queryParameters['next']));
   }
 
   @override
@@ -110,6 +129,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -178,28 +198,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Separador
-              Row(
-                children: [
-                  const Expanded(child: Divider()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'o',
-                      style: TextStyle(color: AppColors.textSecondary),
+              if (googleSignInAvailable) ...[
+                // Separador
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'o',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
                     ),
-                  ),
-                  const Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
-              // Google Sign-In
-              OutlinedButton.icon(
-                onPressed: _loading ? null : _loginWithGoogle,
-                icon: const Icon(Icons.g_mobiledata, size: 24),
-                label: const Text('Continuar con Google'),
-              ),
+                // Google Sign-In
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _loginWithGoogle,
+                  icon: const Icon(Icons.g_mobiledata, size: 24),
+                  label: const Text('Continuar con Google'),
+                ),
+              ],
               const SizedBox(height: 24),
 
               // Link a registro
@@ -208,7 +230,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   const Text('¿No tenés cuenta?'),
                   TextButton(
-                    onPressed: () => context.go('/auth/register'),
+                    onPressed: () => context.go(
+                        '/auth/register?next=${Uri.encodeComponent(GoRouterState.of(context).uri.queryParameters['next'] ?? 'report')}'),
                     child: const Text('Registrate'),
                   ),
                 ],

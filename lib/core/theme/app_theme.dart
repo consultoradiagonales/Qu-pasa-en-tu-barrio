@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 /// Paleta de colores oficial de la app
 abstract class AppColors {
   // Primario: azul municipal
+  /// Colores de la marca ConDi: "Con" azul, "Di" verde.
+  static const brandBlue = Color(0xFF1E56DB);
+  static const brandGreen = Color(0xFF16A34A);
+
   static const primary = Color(0xFF1565C0);
   static const primaryLight = Color(0xFF1E88E5);
   static const primaryDark = Color(0xFF0D47A1);

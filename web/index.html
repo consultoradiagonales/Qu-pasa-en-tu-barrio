@@ -18,19 +18,25 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="ConDi — Reportá lo que pasa en tu barrio. Participación ciudadana municipal.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="que_pasa_en_tu_barrio">
+  <meta name="apple-mobile-web-app-title" content="ConDi">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>que_pasa_en_tu_barrio</title>
+  <title>ConDi</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- google_maps_flutter_web no inyecta el SDK: sin este script el mapa
+       falla con "Cannot read properties of undefined (reading 'MapTypeId')".
+       La clave es distinta a la de Android/iOS porque queda expuesta en la
+       página y va restringida por dominio de origen. -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCRKeRO6eCDNHLmfq-kZXeEXNI79Mc4tU4"></script>
 </head>
 <body>
   <!--

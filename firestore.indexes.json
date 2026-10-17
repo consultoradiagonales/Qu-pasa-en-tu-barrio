@@ -21,6 +21,14 @@
       "collectionGroup": "reports",
       "queryScope": "COLLECTION",
       "fields": [
+        {"fieldPath": "municipalityId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "reports",
+      "queryScope": "COLLECTION",
+      "fields": [
         {"fieldPath": "hidden", "order": "ASCENDING"},
         {"fieldPath": "status", "order": "ASCENDING"},
         {"fieldPath": "createdAt", "order": "DESCENDING"}

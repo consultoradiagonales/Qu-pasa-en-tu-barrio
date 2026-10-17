@@ -6,10 +6,10 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/report_model.dart';
-import '../../../data/models/user_model.dart';
 import '../../../data/repositories/reports_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/utils/error_text.dart';
 
 class FieldHomeScreen extends ConsumerStatefulWidget {
   const FieldHomeScreen({super.key});
@@ -46,7 +46,7 @@ class _FieldHomeScreenState extends ConsumerState<FieldHomeScreen>
   }
 
   String _distance(ReportModel r) {
-    if (_myPosition == null) return '';
+    if (_myPosition == null || r.location.isManualAddress) return '';
     final meters = Geolocator.distanceBetween(
       _myPosition!.latitude,
       _myPosition!.longitude,
@@ -64,7 +64,8 @@ class _FieldHomeScreenState extends ConsumerState<FieldHomeScreen>
     if (user == null) return const SizedBox.shrink();
 
     final userAsync = ref.watch(
-      StreamProvider((ref) => ref.read(userRepositoryProvider).watchUser(user.uid)),
+      StreamProvider(
+          (ref) => ref.read(userRepositoryProvider).watchUser(user.uid)),
     );
     final teamId = userAsync.valueOrNull?.teamId;
 
@@ -135,7 +136,7 @@ class _TaskList extends ConsumerWidget {
 
     return reportsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => Center(child: Text(mensajeDeError(e))),
       data: (allReports) {
         var reports = allReports.where((r) => r.status == status).toList();
         if (todayOnly) {
@@ -251,8 +252,8 @@ class _TaskCard extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: categoryColor(report.category.value)
                           .withOpacity(0.15),

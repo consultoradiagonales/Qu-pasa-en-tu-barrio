@@ -1,0 +1,20 @@
+.dart_tool/
+.packages
+build/
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/key.properties
+android/app/google-services.json
+ios/Pods/
+ios/.symlinks/
+ios/Runner/GoogleService-Info.plist
+*.jks
+*.keystore
+tools/private/
+tools/google-cloud-sdk/
+tools/downloads/
+scripts/qa-runtime/node_modules/
+functions/node_modules/
+# Artefactos de pruebas manuales (capturas, APK de QA). Se regeneran.
+dev/qa/*.apk

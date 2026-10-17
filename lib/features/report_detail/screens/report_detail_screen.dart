@@ -10,19 +10,30 @@ import '../../../data/models/report_model.dart';
 import '../../../data/repositories/reports_repository.dart';
 import '../../../data/services/auth_service.dart';
 import '../widgets/before_after_slider_widget.dart';
+import '../../../core/utils/error_text.dart';
+import '../../report/report_insight.dart';
 
 class ReportDetailScreen extends ConsumerStatefulWidget {
   final String reportId;
   const ReportDetailScreen({super.key, required this.reportId});
 
   @override
-  ConsumerState<ReportDetailScreen> createState() =>
-      _ReportDetailScreenState();
+  ConsumerState<ReportDetailScreen> createState() => _ReportDetailScreenState();
 }
 
 class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   bool _voting = false;
   bool _flagging = false;
+  late final Future<ReportModel?> _reportFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // No crear el provider dentro de build: cada reconstrucción reiniciaba la
+    // lectura de Firestore y la pantalla podía quedar en el spinner.
+    _reportFuture =
+        ref.read(reportsRepositoryProvider).getReport(widget.reportId);
+  }
 
   Future<void> _toggleSupport(ReportModel report) async {
     final uid = ref.read(authStateProvider).valueOrNull?.uid;
@@ -30,9 +41,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
     setState(() => _voting = true);
     try {
-      await ref
-          .read(reportsRepositoryProvider)
-          .addSupportVote(report.id, uid);
+      await ref.read(reportsRepositoryProvider).addSupportVote(report.id, uid);
     } finally {
       if (mounted) setState(() => _voting = false);
     }
@@ -50,9 +59,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
     setState(() => _flagging = true);
     try {
-      await ref
-          .read(reportsRepositoryProvider)
-          .flagContent(
+      await ref.read(reportsRepositoryProvider).flagContent(
             reportedBy: uid,
             targetType: 'report',
             targetId: report.id,
@@ -97,36 +104,75 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reportAsync = ref.watch(
-      FutureProvider((ref) =>
-          ref.read(reportsRepositoryProvider).getReport(widget.reportId)),
-    );
     final uid = ref.watch(authStateProvider).valueOrNull?.uid ?? '';
+    final role = ref.watch(currentUserRoleProvider);
+    final isStaff =
+        role == 'admin' || role == 'coordinator' || role == 'moderator';
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalle del reporte'),
         actions: [
-          reportAsync.whenData((r) {
-            if (r == null) return const SizedBox.shrink();
-            return IconButton(
-              icon: _flagging
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.flag_outlined),
-              tooltip: 'Reportar contenido',
-              onPressed: () => _flagReport(r),
-            );
-          }).value ??
-              const SizedBox.shrink(),
+          if (isStaff)
+            PopupMenuButton<String>(
+              tooltip: 'Navegación de gestión',
+              icon: const Icon(Icons.menu),
+              onSelected: (route) => context.go(route),
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: '/admin',
+                  child: ListTile(
+                    leading: Icon(Icons.dashboard_outlined),
+                    title: Text('Centro de gestión'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: '/coordinator',
+                  child: ListTile(
+                    leading: Icon(Icons.assignment_outlined),
+                    title: Text('Reportes'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: '/profile',
+                  child: ListTile(
+                    leading: Icon(Icons.person_outline),
+                    title: Text('Perfil y contraseña'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+            ),
+          FutureBuilder<ReportModel?>(
+            future: _reportFuture,
+            builder: (_, snapshot) {
+              final report = snapshot.data;
+              if (report == null) return const SizedBox.shrink();
+              return IconButton(
+                icon: _flagging
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.flag_outlined),
+                tooltip: 'Reportar contenido',
+                onPressed: () => _flagReport(report),
+              );
+            },
+          ),
         ],
       ),
-      body: reportAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (report) {
+      body: FutureBuilder<ReportModel?>(
+        future: _reportFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError)
+            return Center(child: Text(mensajeDeError(snapshot.error!)));
+          final report = snapshot.data;
           if (report == null) {
             return const Center(child: Text('Reporte no encontrado.'));
           }
@@ -194,9 +240,10 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
           // Descripción
           Text(report.description, style: const TextStyle(fontSize: 15)),
+          ReportInsightCard(reportId: report.id, expected: report.aiRequested),
           const SizedBox(height: 16),
 
-          // ── SLIDER ANTES/DESPUÉS ──────────────────────────────
+          // �"?�"? SLIDER ANTES/DESPU�?S �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
           if (hasBeforeAfter) ...[
             const _SectionTitle(text: 'Evolución del problema'),
             const SizedBox(height: 8),
@@ -257,40 +304,61 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
           const _SectionTitle(text: 'Ubicación'),
           const SizedBox(height: 8),
-          Container(
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.divider),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: LatLng(report.location.lat, report.location.lng),
-                  zoom: 16,
-                ),
-                markers: {
-                  Marker(
-                    markerId: const MarkerId('r'),
-                    position:
-                        LatLng(report.location.lat, report.location.lng),
+          if (report.location.isManualAddress)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.edit_location_alt_outlined),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      report.location.address ??
+                          'Dirección escrita por la persona que reportó.',
+                    ),
                   ),
-                },
-                zoomControlsEnabled: false,
-                scrollGesturesEnabled: false,
-                rotateGesturesEnabled: false,
-                tiltGesturesEnabled: false,
-                zoomGesturesEnabled: false,
-                myLocationButtonEnabled: false,
+                ],
+              ),
+            )
+          else
+            Container(
+              height: 160,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(report.location.lat, report.location.lng),
+                    zoom: 16,
+                  ),
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('r'),
+                      position:
+                          LatLng(report.location.lat, report.location.lng),
+                    ),
+                  },
+                  zoomControlsEnabled: false,
+                  scrollGesturesEnabled: false,
+                  rotateGesturesEnabled: false,
+                  tiltGesturesEnabled: false,
+                  zoomGesturesEnabled: false,
+                  myLocationButtonEnabled: false,
+                ),
               ),
             ),
-          ),
           const SizedBox(height: 16),
 
           // Nota del técnico
-          if (report.workerNotes != null &&
-              report.workerNotes!.isNotEmpty) ...[
+          if (report.workerNotes != null && report.workerNotes!.isNotEmpty) ...[
             const _SectionTitle(text: 'Respuesta oficial'),
             const SizedBox(height: 8),
             Container(
@@ -298,8 +366,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               decoration: BoxDecoration(
                 color: AppColors.primary.withOpacity(0.06),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: AppColors.primary.withOpacity(0.2)),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,8 +394,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.thumb_up_outlined),
                   label: Text('${report.supportCount} apoyos'),
                 ),
@@ -364,7 +430,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   }
 }
 
-// ─── Widgets auxiliares ───────────────────────────────────────────────────────
+// �"?�"?�"? Widgets auxiliares �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
 class _SectionTitle extends StatelessWidget {
   final String text;
@@ -398,8 +464,8 @@ class _Chip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-            color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        style:
+            TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }

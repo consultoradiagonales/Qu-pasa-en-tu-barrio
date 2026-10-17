@@ -1,4 +1,4 @@
-package com.quepasaentubarrio.que_pasa_en_tu_barrio
+package ar.com.consultoradiagonales.condi
 
 import io.flutter.embedding.android.FlutterActivity
 

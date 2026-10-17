@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../../core/router/navigation_policy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/utils/error_text.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -14,15 +17,13 @@ class ProfileScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).valueOrNull;
     if (user == null) return const SizedBox.shrink();
 
-    final userAsync = ref.watch(
-      StreamProvider((ref) => ref.read(userRepositoryProvider).watchUser(user.uid)),
-    );
+    final userAsync = ref.watch(currentUserProfileProvider(user.uid));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mi perfil')),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(mensajeDeError(e))),
         data: (userModel) => ListView(
           padding: const EdgeInsets.all(24),
           children: [
@@ -35,8 +36,8 @@ class ProfileScreen extends ConsumerWidget {
                   userModel?.realName.isNotEmpty == true
                       ? userModel!.realName[0].toUpperCase()
                       : '?',
-                  style: const TextStyle(
-                      fontSize: 36, color: AppColors.primary),
+                  style:
+                      const TextStyle(fontSize: 36, color: AppColors.primary),
                 ),
               ),
             ),
@@ -44,8 +45,8 @@ class ProfileScreen extends ConsumerWidget {
             Center(
               child: Text(
                 userModel?.realName ?? '',
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
             Center(
@@ -79,6 +80,28 @@ class ProfileScreen extends ConsumerWidget {
 
             // Opciones
             _MenuItem(
+              icon: Icons.lock_outline,
+              label: 'Cambiar contraseña',
+              onTap: () => _changePassword(context, ref),
+            ),
+            if ((kIsWeb || operationsBuild) &&
+                user.email?.toLowerCase() ==
+                    'info.consultoradiagonales@gmail.com' &&
+                userModel?.role.value != 'admin')
+              _MenuItem(
+                icon: Icons.admin_panel_settings_outlined,
+                label: 'Activar administración ConDi',
+                color: AppColors.brandBlue,
+                onTap: () => _activateAdmin(context, ref),
+              ),
+            if ((kIsWeb || operationsBuild) && userModel?.role.value == 'admin')
+              _MenuItem(
+                icon: Icons.dashboard_outlined,
+                label: 'Abrir panel de gestión',
+                color: AppColors.brandBlue,
+                onTap: () => context.go('/admin'),
+              ),
+            _MenuItem(
               icon: Icons.privacy_tip_outlined,
               label: 'Política de privacidad',
               onTap: () {/* TODO: abrir URL */},
@@ -97,7 +120,7 @@ class ProfileScreen extends ConsumerWidget {
               color: Colors.orange,
               onTap: () async {
                 await ref.read(authServiceProvider).signOut();
-                if (context.mounted) context.go('/auth/welcome');
+                if (context.mounted) context.go('/report/new?mode=camera');
               },
             ),
 
@@ -122,7 +145,8 @@ class ProfileScreen extends ConsumerWidget {
         title: const Text('Eliminar cuenta'),
         content: const Text(
           'Esta acción es irreversible. Se eliminarán tu cuenta y todos tus datos. '
-          'Tus reportes quedarán anónimos en el mapa.\n\n'
+          'Tus reportes dejarán de mostrarse en el mapa; el municipio conserva '
+          'el registro sin tu nombre ni tu correo.\n\n'
           '¿Estás seguro/a?',
         ),
         actions: [
@@ -133,8 +157,8 @@ class ProfileScreen extends ConsumerWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar',
-                style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Eliminar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -145,7 +169,7 @@ class ProfileScreen extends ConsumerWidget {
     try {
       await ref.read(userRepositoryProvider).deleteUserData(uid);
       await ref.read(authServiceProvider).deleteAccount();
-      if (context.mounted) context.go('/auth/welcome');
+      if (context.mounted) context.go('/report/new?mode=camera');
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,6 +180,84 @@ class ProfileScreen extends ConsumerWidget {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _activateAdmin(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(authServiceProvider).activateOwnerAdmin();
+      if (context.mounted) context.go('/admin');
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mensajeDeError(error))),
+        );
+      }
+    }
+  }
+
+  Future<void> _changePassword(BuildContext context, WidgetRef ref) async {
+    final current = TextEditingController();
+    final next = TextEditingController();
+    final confirm = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cambiar contraseña'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+              controller: current,
+              obscureText: true,
+              decoration:
+                  const InputDecoration(labelText: 'Contraseña actual')),
+          const SizedBox(height: 10),
+          TextField(
+              controller: next,
+              obscureText: true,
+              decoration: const InputDecoration(
+                  labelText: 'Nueva contraseña (8 caracteres mínimo)')),
+          const SizedBox(height: 10),
+          TextField(
+              controller: confirm,
+              obscureText: true,
+              decoration:
+                  const InputDecoration(labelText: 'Repetir nueva contraseña')),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              if (next.text.length < 8 || next.text != confirm.text) return;
+              Navigator.pop(dialogContext, true);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (result != true || !context.mounted) return;
+    try {
+      await ref.read(authServiceProvider).changePassword(
+            currentPassword: current.text,
+            newPassword: next.text,
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Contraseña actualizada.')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mensajeDeError(error))),
+        );
+      }
+    } finally {
+      current.dispose();
+      next.dispose();
+      confirm.dispose();
     }
   }
 
@@ -186,11 +288,12 @@ class _StatTile extends StatelessWidget {
       children: [
         Text(value,
             style: const TextStyle(
-                fontSize: 24, fontWeight: FontWeight.bold,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
                 color: AppColors.primary)),
         Text(label,
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.textSecondary)),
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ],
     );
   }

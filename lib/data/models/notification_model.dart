@@ -5,6 +5,8 @@ enum NotificationType {
   reportAssigned,
   workerArrived,
   reportResolved,
+  reportProgress,
+  reportRejected,
   officialComment,
   newSupport;
 
@@ -18,6 +20,10 @@ enum NotificationType {
         return 'worker_arrived';
       case NotificationType.reportResolved:
         return 'report_resolved';
+      case NotificationType.reportProgress:
+        return 'report_progress';
+      case NotificationType.reportRejected:
+        return 'report_rejected';
       case NotificationType.officialComment:
         return 'official_comment';
       case NotificationType.newSupport:
@@ -35,6 +41,10 @@ enum NotificationType {
         return NotificationType.workerArrived;
       case 'report_resolved':
         return NotificationType.reportResolved;
+      case 'report_progress':
+        return NotificationType.reportProgress;
+      case 'report_rejected':
+        return NotificationType.reportRejected;
       case 'official_comment':
         return NotificationType.officialComment;
       case 'new_support':
@@ -52,6 +62,7 @@ class NotificationModel {
   final String reportId;
   final String title;
   final String body;
+  final String? imageUrl;
   final bool read;
   final DateTime createdAt;
 
@@ -62,6 +73,7 @@ class NotificationModel {
     required this.reportId,
     required this.title,
     required this.body,
+    this.imageUrl,
     this.read = false,
     required this.createdAt,
   });
@@ -75,6 +87,7 @@ class NotificationModel {
       reportId: data['reportId'] ?? '',
       title: data['title'] ?? '',
       body: data['body'] ?? '',
+      imageUrl: data['imageUrl'] as String?,
       read: data['read'] ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -86,6 +99,7 @@ class NotificationModel {
         'reportId': reportId,
         'title': title,
         'body': body,
+        'imageUrl': imageUrl,
         'read': read,
         'createdAt': Timestamp.fromDate(createdAt),
       };
@@ -98,6 +112,7 @@ class NotificationModel {
       reportId: reportId,
       title: title,
       body: body,
+      imageUrl: imageUrl,
       read: read ?? this.read,
       createdAt: createdAt,
     );

@@ -3,6 +3,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function own(id) { return signedIn() && request.auth.uid == id; }
+    function ownerAccount() {
+      return signedIn() &&
+        request.auth.token.email == 'info.consultoradiagonales@gmail.com';
+    }
     function profile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
@@ -27,19 +31,37 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if own(userId) || staff();
       allow list: if staff();
-      allow create: if own(userId) && request.resource.data.role == 'citizen' &&
-        request.resource.data.disabled == false;
+      allow create: if own(userId) &&
+        ((request.resource.data.role == 'citizen' &&
+          request.resource.data.disabled == false) ||
+         (ownerAccount() && request.resource.data.role == 'admin' &&
+          request.resource.data.disabled == false));
       allow update: if admin() || (own(userId) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'displayName', 'realName', 'photoURL', 'fcmToken', 'reportsCount',
-          'lastReportAt', 'updatedAt'
+          'lastReportAt', 'updatedAt', 'municipalityId', 'municipalityName',
+          'provinceId', 'province', 'departmentId', 'department',
+          'localityId', 'locality', 'settlementId', 'settlement'
         ]) &&
-        request.resource.data.reportsCount >= resource.data.reportsCount);
+        request.resource.data.reportsCount >= resource.data.reportsCount &&
+        // El municipio lo elige el vecino al registrarse y puede cambiarlo si
+        // se muda. Para el personal municipal es distinto: su municipio define
+        // qué reportes ve, así que dejarlo cambiarlo sería darle acceso a los
+        // datos de otro municipio.
+        (request.resource.data.municipalityId == resource.data.municipalityId ||
+          resource.data.role == 'citizen')) ||
+        (own(userId) && ownerAccount() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'role', 'disabled', 'updatedAt'
+          ]) && request.resource.data.role == 'admin' &&
+          request.resource.data.disabled == false);
       allow delete: if own(userId) || admin();
     }
 
     match /teams/{teamId} {
-      allow read: if signedIn();
+      // Las fichas operativas contienen responsables y personal de cuadrilla.
+      // Sólo las cuentas de gestión pueden consultarlas.
+      allow read: if staff();
       allow write: if admin();
     }
 
@@ -52,6 +74,14 @@ service cloud.firestore {
       allow read: if coordinatorFor(municipalityId);
     }
 
+    // AI results are server-authored and never writable by clients.
+    match /reportInsights/{reportId} {
+      allow get: if signedIn() && exists(/databases/$(database)/documents/reports/$(reportId)) &&
+        (own(get(/databases/$(database)/documents/reports/$(reportId)).data.userId) ||
+          coordinatorFor(get(/databases/$(database)/documents/reports/$(reportId)).data.municipalityId));
+      allow list, create, update, delete: if false;
+    }
+
     match /reports/{reportId} {
       allow read: if signedIn() &&
         (resource.data.hidden == false || own(resource.data.userId) ||
@@ -59,7 +89,9 @@ service cloud.firestore {
       allow create: if signedIn() && own(request.resource.data.userId) &&
         request.resource.data.municipalityId == profile().municipalityId &&
         request.resource.data.status == 'pending' &&
-        request.resource.data.hidden == false;
+        request.resource.data.hidden == false &&
+        (!('aiRequested' in request.resource.data) || request.resource.data.aiRequested is bool) &&
+        (!('aiConsentVersion' in request.resource.data) || request.resource.data.aiConsentVersion in [0, 1]);
       allow update: if signedIn() && (
         (own(resource.data.userId) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -117,6 +149,23 @@ service cloud.firestore {
           request.resource.data.userId == request.auth.uid;
         allow update: if staff();
       }
+    }
+
+    match /localAds/{adId} {
+      allow read: if admin() || (signedIn() && resource.data.active == true &&
+        resource.data.municipalityId == profile().municipalityId);
+      allow create, update: if admin() &&
+        request.resource.data.keys().hasOnly(['municipalityId', 'business', 'message', 'imageUrl', 'link', 'startsAt', 'endsAt', 'active', 'updatedAt']) &&
+        request.resource.data.municipalityId is string &&
+        request.resource.data.business is string && request.resource.data.business.size() > 0 && request.resource.data.business.size() <= 80 &&
+        request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 180 &&
+        request.resource.data.imageUrl is string &&
+        (request.resource.data.imageUrl == '' || request.resource.data.imageUrl.matches('https://.*')) &&
+        request.resource.data.link is string && request.resource.data.link.matches('https://.*') &&
+        request.resource.data.startsAt is timestamp && request.resource.data.endsAt is timestamp &&
+        request.resource.data.endsAt > request.resource.data.startsAt &&
+        request.resource.data.active is bool && request.resource.data.updatedAt == request.time;
+      allow delete: if admin();
     }
 
     match /notifications/{notificationId} {
