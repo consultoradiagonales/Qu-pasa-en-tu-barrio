@@ -126,8 +126,8 @@ class _NotifTile extends ConsumerWidget {
               .read(notificationsRepositoryProvider)
               .markRead(userId, notification.id);
         }
-        // Navegar al reporte
-        if (context.mounted) {
+        // Navegar al reporte (los avisos de clima/mensaje no tienen reporte)
+        if (notification.hasReport && context.mounted) {
           context.go(forFieldWorker
               ? '/field/task/${notification.reportId}'
               : '/report/${notification.reportId}');
@@ -150,6 +150,8 @@ class _NotifTile extends ConsumerWidget {
         return AppColors.statusInProgress;
       case NotificationType.reportAssigned:
         return AppColors.primary;
+      case NotificationType.weatherAlert:
+        return AppColors.statusPending;
       default:
         return AppColors.accent;
     }
@@ -173,6 +175,10 @@ class _NotifTile extends ConsumerWidget {
         return Icons.record_voice_over_outlined;
       case NotificationType.newSupport:
         return Icons.thumb_up_outlined;
+      case NotificationType.weatherAlert:
+        return Icons.cloud_outlined;
+      case NotificationType.municipalityMessage:
+        return Icons.campaign_outlined;
     }
   }
 }

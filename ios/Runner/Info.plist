@@ -27,13 +27,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Usamos la cÃ¡mara para documentar reportes y trabajos realizados.</string>
+	<string>ConDi usa la cámara para que puedas sacar una foto del problema que querés reportar en tu barrio (por ejemplo un bache o una luminaria rota) y adjuntarla al reporte.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Usamos tu ubicaciÃ³n para ubicar reportes en el barrio.</string>
+	<string>ConDi usa tu ubicación mientras la app está abierta para marcar en el mapa dónde está el problema que reportás y mostrarte lo que pasa cerca tuyo.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Accedemos a tu galerÃ­a para adjuntar fotos a los reportes ciudadanos.</string>
+	<string>ConDi accede a tu galería solo para que elijas las fotos que querés adjuntar a un reporte o a tu perfil.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Guardamos capturas de reportes en tu galerÃ­a.</string>
+	<string>ConDi puede guardar en tu galería la foto de un reporte solo si vos lo pedís.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -93,6 +93,8 @@
     </array>
   </dict>
 </array>
+<key>ITSAppUsesNonExemptEncryption</key>
+<false/>
 <key>UIBackgroundModes</key>
 <array><string>remote-notification</string></array>
 </dict>

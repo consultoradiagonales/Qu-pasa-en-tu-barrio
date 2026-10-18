@@ -119,6 +119,11 @@ Declarar que se recopila, vinculado al usuario, sin rastreo:
 | Ubicación precisa | Funcionalidad de la app |
 | Fotos | Funcionalidad de la app |
 | ID de usuario | Funcionalidad de la app |
+| ID de dispositivo (token de notificaciones) | Funcionalidad de la app |
+
+La lista completa y los textos para pegar están en la sección 8. El archivo
+`ios/Runner/PrivacyInfo.xcprivacy` declara lo mismo dentro de la app: tiene que
+coincidir con lo que se carga en App Store Connect.
 
 "¿Se usa para rastrearte?" → **No** en todos. ConDi no usa el identificador de
 publicidad, así que no hace falta el aviso de transparencia de seguimiento.
@@ -156,3 +161,87 @@ Hay dos salidas:
 5. Paso 3 en Codemagic
 6. Primer build → TestFlight → probar en un iPhone real
 7. Completar la ficha y enviar a revisión desde App Store Connect
+
+
+## 7. Notificaciones push (APNs)
+
+La app ya tiene en el código: el permiso `aps-environment` en
+`ios/Runner/Runner.entitlements` (desarrollo en Debug, producción en
+Release/Profile), el modo en segundo plano `remote-notification` en
+`Info.plist` y Firebase Messaging. Falta lo que solo se puede hacer en los
+sitios de Apple y Firebase:
+
+1. **Activar Push en el App ID.** developer.apple.com > Certificates,
+   Identifiers & Profiles > Identifiers > `ar.com.consultoradiagonales.condi`
+   > marcar **Push Notifications** > Save. (Si Codemagic ya había creado el
+   perfil, se regenera solo en el próximo build.)
+2. **Crear la clave APNs.** Keys > `+` > nombre `ConDi APNs` > marcar
+   **Apple Push Notifications service (APNs)** > Continue > Register.
+   Descargar el `.p8` (Apple lo entrega **una sola vez**) y anotar el
+   **Key ID**. El **Team ID** (`MY483Q9FNY`) está arriba a la derecha en la cuenta.
+3. **Subir la clave a Firebase.** console.firebase.google.com > proyecto de
+   ConDi > engranaje > Configuración del proyecto > **Cloud Messaging** >
+   sección *Configuración de la app de Apple* > app iOS
+   `ar.com.consultoradiagonales.condi` > **Clave de autenticación de APNs** >
+   Subir: elegir el `.p8`, cargar Key ID y Team ID. Una sola clave sirve para
+   desarrollo y producción. **No va en Codemagic ni en el repositorio**:
+   guardar el `.p8` en un lugar privado (gestor de contraseñas).
+4. **Compilar y subir a TestFlight** (paso 3 de esta guía). Los builds de
+   TestFlight y App Store usan el entorno `production` de APNs, que es el que
+   está configurado en Release.
+5. **Probar en un iPhone real** (el simulador no recibe push remotas): instalar
+   desde TestFlight, iniciar sesión, aceptar el permiso de notificaciones y
+   mandar un mensaje de prueba desde Firebase Console > Messaging > *Nuevo
+   mensaje de prueba* con el token FCM del dispositivo.
+6. Si no llega: revisar que el `.p8` esté cargado en Firebase, que Push esté
+   activo en el App ID, que el perfil sea nuevo (build posterior al paso 1) y
+   que el iPhone no esté en modo Concentración.
+
+## 8. Textos para App Store Connect
+
+### Privacidad de la app (App Privacy)
+Todos los datos: **vinculados al usuario**, **no se usan para rastrearlo**.
+Finalidad: **Funcionalidad de la app**.
+
+| Categoría | Dato | Para qué se usa |
+|---|---|---|
+| Ubicación | Ubicación precisa y aproximada | Marcar dónde está el problema reportado y mostrar lo que pasa cerca del usuario |
+| Información de contacto | Nombre y correo electrónico | Crear y identificar la cuenta, y avisar sobre el estado de sus reportes |
+| Contenido del usuario | Fotos y contenido de los reportes | Documentar los reportes que el vecino envía |
+| Identificadores | ID de usuario e ID de dispositivo (token de notificaciones) | Mantener la sesión y enviar avisos al dispositivo |
+
+Además, para operar el servicio se procesan el **modelo del dispositivo** y la
+**dirección IP** (seguridad y prevención de abusos). Si Apple los pide en el
+formulario, declararlos como *Datos de diagnóstico / Identificadores* con la
+misma finalidad.
+
+"¿Alguno de estos datos se usa para rastrear?" > **No**.
+No hay identificador de publicidad, así que no se muestra el aviso de
+transparencia de seguimiento (ATT).
+
+### Texto breve para la ficha / notas de revisión
+> ConDi permite a los vecinos reportar problemas de su barrio y seguir su
+> resolución. Recopilamos ubicación, nombre, correo, fotos del reporte, modelo
+> del dispositivo y dirección IP únicamente para que la app funcione. La
+> persona da su consentimiento al registrarse y al aceptar los permisos, y
+> puede retirarlo en cualquier momento desde **Mi cuenta** (incluida la
+> opción de eliminar la cuenta y sus datos). No vendemos datos ni se usan
+> para publicidad ni seguimiento.
+
+### Notas para el equipo de revisión (App Review)
+> Las notificaciones push se usan solo para avisar al usuario el estado de sus
+> reportes. El permiso se solicita dentro de la app y puede rechazarse sin
+> perder funciones. Usuario de prueba: cargar en el campo de credenciales.
+
+### Cumplimiento de exportación
+`ITSAppUsesNonExemptEncryption = false` ya está en `Info.plist` (la app solo
+usa el cifrado estándar HTTPS del sistema), por lo que App Store Connect no
+vuelve a preguntar por el cumplimiento de exportación en cada build.
+
+### Antes de enviar a revisión (checklist rápida)
+- [ ] Push activo en el App ID y `.p8` cargado en Firebase (sección 7)
+- [ ] `APP_STORE_APPLE_ID` completado en `codemagic.yaml`
+- [ ] Etiquetas de privacidad iguales a `PrivacyInfo.xcprivacy`
+- [ ] Cuenta de prueba con municipio elegido
+- [ ] URL de política de privacidad publicada y accesible
+- [ ] Clave de Google Maps iOS restringida al bundle id en Google Cloud Console

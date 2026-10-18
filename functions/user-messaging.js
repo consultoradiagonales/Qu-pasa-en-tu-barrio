@@ -22,10 +22,10 @@ function validId(value) {
   return typeof value === 'string' && /^[A-Za-z0-9_-]{12,80}$/.test(value);
 }
 
-async function requireStaff(request) {
+async function requireStaff(request, deps = {}) {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
-  const db = getFirestore();
+  const db = deps.db || getFirestore();
   const profile = await db.collection('users').doc(uid).get();
   const role = profile.get('role');
   if (!profile.exists || profile.get('disabled') === true || !MANAGEMENT_ROLES.has(role)) {
@@ -40,8 +40,8 @@ async function requireStaff(request) {
  * El personal solo escribe a su propio municipio; 'all' y otros municipios son
  * exclusivos del administrador.
  */
-async function sendCustomMessageHandler(request) {
-  const { db, role, municipalityId: ownMunicipality } = await requireStaff(request);
+async function sendCustomMessageHandler(request, deps = {}) {
+  const { db, role, municipalityId: ownMunicipality } = await requireStaff(request, deps);
   const title = cleanText(request.data?.title, 80);
   const body = cleanText(request.data?.body, 280);
   const requestId = request.data?.requestId;
@@ -59,11 +59,11 @@ async function sendCustomMessageHandler(request) {
       throw new HttpsError('invalid-argument', 'El destinatario no es válido.');
     }
     const target = await db.collection('users').doc(audience.uid).get();
-    if (!target.exists) throw new HttpsError('not-found', 'El usuario no existe.');
+    if (!target.exists || target.get('disabled') === true) throw new HttpsError('not-found', 'El usuario no existe.');
     if (role !== 'admin' && target.get('municipalityId') !== ownMunicipality) {
       throw new HttpsError('permission-denied', 'Ese usuario es de otro municipio.');
     }
-    return finish(db, [{ uid: target.id, fcmToken: target.get('fcmToken') }], requestId, title, body);
+    return finish(db, [{ uid: target.id, fcmToken: target.get('fcmToken') }], requestId, title, body, deps);
   }
   if (audience.type === 'municipality') {
     const target = role === 'admin' && audience.municipalityId ? audience.municipalityId : ownMunicipality;
@@ -81,17 +81,17 @@ async function sendCustomMessageHandler(request) {
   // administrador); "municipio" es solo para los vecinos de esa zona.
   const snapshot = await query.get();
   const recipients = snapshot.docs.map((doc) => ({ uid: doc.id, fcmToken: doc.get('fcmToken') }));
-  return finish(db, recipients, requestId, title, body);
+  return finish(db, recipients, requestId, title, body, deps);
 }
 
-async function finish(db, recipients, requestId, title, body) {
+async function finish(db, recipients, requestId, title, body, deps = {}) {
   if (!recipients.length) return { ok: true, total: 0, pushed: 0, inApp: 0 };
   const result = await deliverToUsers(db, recipients, {
     key: `custom_${requestId}`,
     type: 'municipality_message',
     title,
     body,
-  });
+  }, deps.messaging);
   return { ok: true, ...result };
 }
 
@@ -100,14 +100,14 @@ async function finish(db, recipients, requestId, title, body) {
  * agregación se hace por ciudad/municipio declarado en el perfil: no se
  * conserva IP, ubicación exacta, cuenta, teléfono ni identidad del equipo.
  */
-async function saveDeviceProfileHandler(request) {
+async function saveDeviceProfileHandler(request, deps = {}) {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
   if (request.data?.consent !== true) {
     throw new HttpsError('failed-precondition', 'Hace falta tu consentimiento para guardar estos datos.');
   }
 
-  await getFirestore().collection('userDevices').doc(uid).set({
+  await (deps.db || getFirestore()).collection('userDevices').doc(uid).set({
     consent: { given: true, version: CONSENT_VERSION, at: FieldValue.serverTimestamp() },
     usageAnalytics: {
       enabled: true,
@@ -128,10 +128,10 @@ async function saveDeviceProfileHandler(request) {
 }
 
 /** Derecho a retirar el consentimiento: borra todo lo guardado. */
-async function deleteDeviceProfileHandler(request) {
+async function deleteDeviceProfileHandler(request, deps = {}) {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
-  await getFirestore().collection('userDevices').doc(uid).delete();
+  await (deps.db || getFirestore()).collection('userDevices').doc(uid).delete();
   return { ok: true };
 }
 
@@ -145,6 +145,7 @@ module.exports = {
   deleteDeviceProfile,
   sendCustomMessageHandler,
   saveDeviceProfileHandler,
+  deleteDeviceProfileHandler,
   cleanText,
   CONSENT_VERSION,
 };

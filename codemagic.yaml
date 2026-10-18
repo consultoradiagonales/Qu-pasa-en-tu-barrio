@@ -7,6 +7,11 @@
 #   2. Registrar el App ID ar.com.consultoradiagonales.condi en developer.apple.com.
 #   3. Crear la ficha de la app en App Store Connect con ese mismo bundle id.
 #
+# Notificaciones push: la clave APNs (.p8) NO va en Codemagic. Se sube una sola
+# vez en Firebase Console > Configuración del proyecto > Cloud Messaging >
+# Configuración de la app de Apple (ver sección "Notificaciones push (APNs)"
+# de GUIA_SUBIR_A_APPLE.md). Sin ese paso el build sale bien pero no llegan push.
+#
 # Después, cada push a la rama principal produce un build que aparece solo en
 # TestFlight.
 
@@ -30,6 +35,12 @@ workflows:
         bundle_identifier: ar.com.consultoradiagonales.condi
       vars:
         BUNDLE_ID: "ar.com.consultoradiagonales.condi"
+        # La API key de App Store Connect (APP_STORE_CONNECT_ISSUER_ID,
+        # APP_STORE_CONNECT_KEY_IDENTIFIER y APP_STORE_CONNECT_PRIVATE_KEY) la
+        # inyecta Codemagic sola desde la integración `condi_asc`; no se escribe
+        # acá. Si se usara un grupo de variables en lugar de la integración,
+        # crear el grupo `appstore_credentials` con esas tres variables
+        # (marcadas como secretas) y agregarlo en `groups:`.
         # Es el ID numérico de la app en App Store Connect (Información de la
         # app > ID de Apple). Hay que completarlo cuando la ficha exista.
         APP_STORE_APPLE_ID: "COMPLETAR_CON_EL_ID_NUMERICO"
@@ -55,11 +66,21 @@ workflows:
       - name: Aplicar la firma del proyecto
         script: xcode-project use-profiles
 
+      - name: Verificar archivos de Apple
+        script: |
+          # Falla temprano si falta algo que Apple o las push necesitan.
+          test -f ios/Runner/GoogleService-Info.plist || { echo "Falta GoogleService-Info.plist"; exit 1; }
+          test -f ios/Runner/PrivacyInfo.xcprivacy || { echo "Falta PrivacyInfo.xcprivacy"; exit 1; }
+          grep -q "aps-environment" ios/Runner/Runner.entitlements || { echo "Falta aps-environment"; exit 1; }
+          case "$APP_STORE_APPLE_ID" in
+            ''|COMPLETAR*) echo "AVISO: APP_STORE_APPLE_ID sin completar; el build será siempre 1." ;;
+          esac
+
       - name: Número de build consecutivo
         script: |
           # TestFlight rechaza dos builds con el mismo número. Se toma el último
-          # que haya subido Apple y se suma uno.
-          LAST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          # que haya subido Apple y se suma uno (si no hay ninguno, empieza en 1).
+          LAST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null | tail -n 1 | grep -E '^[0-9]+$' || echo 0)
           NEXT=$((LAST + 1))
           echo "Último build en TestFlight: $LAST  ->  este: $NEXT"
           echo "BUILD_NUMBER=$NEXT" >> $CM_ENV
@@ -70,6 +91,14 @@ workflows:
             --no-tree-shake-icons \
             --build-number=$BUILD_NUMBER \
             --export-options-plist=/Users/builder/export_options.plist
+
+      - name: Revisar entitlements del IPA (push en producción)
+        script: |
+          IPA=$(ls build/ios/ipa/*.ipa | head -n 1)
+          rm -rf /tmp/ipa_check && mkdir -p /tmp/ipa_check
+          unzip -q "$IPA" -d /tmp/ipa_check
+          codesign -d --entitlements :- /tmp/ipa_check/Payload/Runner.app 2>/dev/null | grep -A1 "aps-environment" || echo "AVISO: el IPA no trae aps-environment"
+          test -f /tmp/ipa_check/Payload/Runner.app/PrivacyInfo.xcprivacy && echo "PrivacyInfo.xcprivacy incluido" || echo "AVISO: PrivacyInfo.xcprivacy no está en el IPA"
 
     artifacts:
       - build/ios/ipa/*.ipa

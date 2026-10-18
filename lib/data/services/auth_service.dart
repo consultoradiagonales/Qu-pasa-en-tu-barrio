@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../repositories/user_repository.dart';
@@ -51,10 +51,19 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    return await _auth.createUserWithEmailAndPassword(
+    final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
+    final user = credential.user;
+    if (user != null) {
+      await _ensureUserProfile(
+        user,
+        displayName: user.displayName,
+        photoUrl: user.photoURL,
+      );
+    }
+    return credential;
   }
 
   /// Login con correo y contraseña
@@ -105,9 +114,13 @@ class AuthService {
           message: 'Inicio de sesión cancelado.',
         );
       }
+      // Conserva la causa nativa para que los diagnósticos puedan distinguir
+      // un problema de configuración OAuth, servicios de Google o interfaz.
+      final googleErrorCode = e.code.name;
+      debugPrint('Google Sign-In falló: $googleErrorCode ($e)');
       throw FirebaseAuthException(
-        code: 'google-sign-in-failed',
-        message: 'No se pudo iniciar sesión con Google.',
+        code: 'google-sign-in-$googleErrorCode',
+        message: 'Google Sign-In falló: $googleErrorCode',
       );
     }
 
@@ -234,7 +247,9 @@ class AuthService {
       return 'Ya existe una cuenta con ese correo.';
     }
     if (has('account-exists-with-different-credential')) {
-      return 'Ese correo ya tiene una cuenta. Iniciá sesión con tu contraseña.';
+      return 'Ese correo ya está registrado con correo y contraseña. '
+          'Iniciá sesión con tu contraseña o recuperala desde '
+          '"¿Olvidaste tu contraseña?".';
     }
     if (has('invalid-email')) return 'El correo electrónico no es válido.';
     if (has('weak-password') || has('weak_password')) {

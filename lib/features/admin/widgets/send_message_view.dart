@@ -2,24 +2,26 @@ import 'dart:math';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/error_text.dart';
+import '../../../data/repositories/push_reach_repository.dart';
 
 /// Redacta un mensaje y lo envía como notificación a la app de los vecinos.
 /// El permiso real lo valida la Cloud Function `sendCustomMessage`; el rol que
 /// recibe esta vista solo decide qué opciones se ofrecen.
-class SendMessageView extends StatefulWidget {
+class SendMessageView extends ConsumerStatefulWidget {
   const SendMessageView({super.key, required this.isAdmin});
 
   final bool isAdmin;
 
   @override
-  State<SendMessageView> createState() => _SendMessageViewState();
+  ConsumerState<SendMessageView> createState() => _SendMessageViewState();
 }
 
 enum _Audience { municipality, everyone }
 
-class _SendMessageViewState extends State<SendMessageView> {
+class _SendMessageViewState extends ConsumerState<SendMessageView> {
   final _title = TextEditingController();
   final _body = TextEditingController();
   late final _functions =
@@ -107,6 +109,17 @@ class _SendMessageViewState extends State<SendMessageView> {
     }
   }
 
+  // Clave null = todos los usuarios. Si el municipio aún no se conoce no se
+  // consulta nada y el aviso no se muestra.
+  AsyncValue<PushReach>? _watchReach() {
+    if (_audience == _Audience.everyone) {
+      return ref.watch(pushReachProvider(null));
+    }
+    final municipalityId = ref.watch(reachMunicipalityIdProvider);
+    if (municipalityId.isEmpty) return null;
+    return ref.watch(pushReachProvider(municipalityId));
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -161,6 +174,8 @@ class _SendMessageViewState extends State<SendMessageView> {
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 16),
+              _ReachNotice(reach: _watchReach()),
+              const SizedBox(height: 16),
               FilledButton.icon(
                 key: const Key('message-send'),
                 onPressed: _valid && !_sending ? _send : null,
@@ -185,6 +200,59 @@ class _SendMessageViewState extends State<SendMessageView> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Alcance real del envío, antes de enviar. Si el conteo falla no bloquea nada.
+class _ReachNotice extends StatelessWidget {
+  const _ReachNotice({required this.reach});
+
+  final AsyncValue<PushReach>? reach;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = reach;
+    if (value == null) return const SizedBox.shrink();
+    return value.when(
+      loading: () => const Row(children: [
+        SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+        SizedBox(width: 8),
+        Text('Calculando a cuántas personas llega…'),
+      ]),
+      error: (_, __) => const Text(
+          'No pudimos calcular el alcance del envío. Podés enviar igual.',
+          key: Key('message-reach-error')),
+      data: (r) => Column(
+        key: const Key('message-reach'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${r.total} usuarios en total, ${r.withPush} con '
+              'notificaciones activas en el celular, ${r.inAppOnly} solo '
+              'recibirán el aviso dentro de la app.'),
+          if (r.withPush == 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              key: const Key('message-reach-warning'),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                border: Border.all(color: Colors.amber.shade700),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                  'Por ahora nadie puede recibir la notificación en el '
+                  'celular. Para recibirla, cada persona debe instalar la '
+                  'última versión de la app, iniciar sesión y aceptar el '
+                  'permiso de notificaciones. Mientras tanto, el mensaje se '
+                  'verá dentro de la app.'),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

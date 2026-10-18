@@ -17,6 +17,7 @@ import 'features/demo/investor_demo_app.dart';
 import 'core/services/app_update_service.dart';
 import 'core/services/device_profile_service.dart';
 import 'core/services/local_notification_service.dart';
+import 'core/services/push_token_registrar.dart';
 
 /// Manejador de mensajes FCM en segundo plano (debe ser función de nivel superior)
 @pragma('vm:entry-point')
@@ -65,27 +66,29 @@ Future<void> _activateAppCheck() async {
   }
 }
 
+final _pushRegistrar = PushTokenRegistrar(
+  getToken: () => FirebaseMessaging.instance.getToken(),
+  saveToken: (uid, token) => FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .update({'fcmToken': token}),
+  ensurePermission: () async {
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.getNotificationSettings();
+    debugPrint('Push: permiso de notificaciones = '
+        '${settings.authorizationStatus}');
+    if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
+    }
+  },
+);
+
+/// Guarda el token FCM de la persona con sesión iniciada. Se llama al abrir
+/// la app con sesión ya iniciada y en cada cambio de sesión; los errores se
+/// loguean y se reintentan (ver PushTokenRegistrar).
 Future<void> _registerPushForUser(User user) async {
   if (kIsWeb) return;
-  try {
-    var settings = await FirebaseMessaging.instance.getNotificationSettings();
-    if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
-      settings = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-    }
-    if (settings.authorizationStatus == AuthorizationStatus.denied) return;
-    final token = await FirebaseMessaging.instance.getToken();
-    if (token == null || token.isEmpty) return;
-    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-      'fcmToken': token,
-    });
-  } catch (_) {
-    // El reporte y las alertas dentro de la app siguen funcionando si el
-    // dispositivo no admite notificaciones del sistema.
-  }
+  await _pushRegistrar.register(user.uid);
 }
 
 void main() async {
@@ -105,9 +108,17 @@ void main() async {
     }
 
     await _activateAppCheck();
-    requiredUpdate = await AppUpdateService.requiredUpdate();
+    try {
+      requiredUpdate = await AppUpdateService.requiredUpdate();
+    } catch (error) {
+      debugPrint('No se pudo consultar la versión mínima: $error');
+    }
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    await LocalNotificationService.initialize();
+    try {
+      await LocalNotificationService.initialize();
+    } catch (error) {
+      debugPrint('Notificaciones locales no disponibles: $error');
+    }
     FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
         unawaited(_registerPushForUser(user));
@@ -129,10 +140,14 @@ void main() async {
         await FirebaseFirestore.instance.collection('users').doc(uid).update({
           'fcmToken': token,
         });
-      } catch (_) {}
+      } catch (error) {
+        debugPrint('Push: no se pudo guardar el token renovado: $error');
+      }
     });
     firebaseReady = true;
-  } catch (_) {}
+  } catch (error, stack) {
+    debugPrint('Firebase no se pudo inicializar: $error $stack');
+  }
 
   runApp(
     // ProviderScope envuelve toda la app para Riverpod

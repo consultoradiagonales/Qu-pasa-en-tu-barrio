@@ -8,7 +8,9 @@ enum NotificationType {
   reportProgress,
   reportRejected,
   officialComment,
-  newSupport;
+  newSupport,
+  weatherAlert,
+  municipalityMessage;
 
   String get value {
     switch (this) {
@@ -28,6 +30,10 @@ enum NotificationType {
         return 'official_comment';
       case NotificationType.newSupport:
         return 'new_support';
+      case NotificationType.weatherAlert:
+        return 'weather_alert';
+      case NotificationType.municipalityMessage:
+        return 'municipality_message';
     }
   }
 
@@ -49,6 +55,10 @@ enum NotificationType {
         return NotificationType.officialComment;
       case 'new_support':
         return NotificationType.newSupport;
+      case 'weather_alert':
+        return NotificationType.weatherAlert;
+      case 'municipality_message':
+        return NotificationType.municipalityMessage;
       default:
         return NotificationType.reportAssigned;
     }
@@ -77,6 +87,8 @@ class NotificationModel {
     this.read = false,
     required this.createdAt,
   });
+
+  bool get hasReport => reportId.isNotEmpty;
 
   factory NotificationModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;

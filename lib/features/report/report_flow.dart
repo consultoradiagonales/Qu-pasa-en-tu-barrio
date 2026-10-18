@@ -44,7 +44,7 @@ class ReportDraft {
       this.locationConfirmed = false,
       this.usesManualAddress = false,
       this.photoConfirmed = false,
-      this.presetId = 'other',
+      this.presetId,
       this.aiRequested = true,
       this.comment = '',
       this.address = '',
@@ -60,17 +60,21 @@ class ReportDraft {
   /// y no en la pantalla porque iniciar sesión o elegir municipio destruye la
   /// pantalla, y la confirmación se perdía dejando Enviar bloqueado sin motivo.
   final bool photoConfirmed;
-  final String presetId;
+  /// Null until the person explicitly chooses a category.
+  final String? presetId;
   final bool aiRequested;
   final String comment;
   final String address;
   final String territory;
   bool get hasPhoto => photoPath != null && photoPath!.isNotEmpty;
   bool get hasManualAddress => address.trim().length >= 4;
+  bool get hasCategory =>
+      presetId != null && reportPresets.any((preset) => preset.id == presetId);
   bool get canSend =>
       hasPhoto &&
       locationConfirmed &&
-      (location != null || (usesManualAddress && hasManualAddress));
+      location != null &&
+      hasCategory;
   ReportPreset get preset => reportPresets.firstWhere((p) => p.id == presetId,
       orElse: () => reportPresets.last);
 
@@ -128,7 +132,7 @@ class ReportDraft {
         locationConfirmed: j['locationConfirmed'] == true,
         usesManualAddress: j['usesManualAddress'] == true,
         photoConfirmed: j['photoConfirmed'] == true,
-        presetId: j['presetId'] as String? ?? 'other',
+        presetId: j['presetId'] as String?,
         aiRequested: j['aiRequested'] != false,
         comment: j['comment'] as String? ?? '',
         address: j['address'] as String? ?? '',
@@ -227,20 +231,6 @@ class ReportCaptureService {
 
 final reportCaptureProvider = Provider((ref) => ReportCaptureService());
 
-/// Coordenada técnica de respaldo para no impedir un reporte cuando la persona
-/// decide describir la dirección sin activar GPS. Nunca se presenta como un
-/// punto exacto: el flag `isManualAddress` la excluye de mapas y concentraciones.
-LatLng _manualAddressPoint(String municipalityId, String municipalityName) {
-  final key = '$municipalityId $municipalityName'.toLowerCase();
-  if (key.contains('la-plata') || key.contains('06441')) {
-    return const LatLng(-34.9205, -57.9536);
-  }
-  if (key.contains('saladillo') || key.contains('060707')) {
-    return const LatLng(-35.6384, -59.7779);
-  }
-  return const LatLng(-34.6037, -58.3816);
-}
-
 class MunicipalityRequired implements Exception {}
 
 class ReportSubmitService {
@@ -252,9 +242,11 @@ class ReportSubmitService {
   }
 
   Future<String> submit(ReportDraft draft) async {
-    if (!draft.canSend)
+    if (!draft.canSend) {
       throw StateError(
-          'Agregá una foto y confirmá la ubicación o la dirección escrita.');
+        'Agregá una foto, confirmá un punto en el mapa y elegí una categoría.',
+      );
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw StateError('Iniciá sesión para enviar tu reporte.');
     final profile = await ref.read(userRepositoryProvider).getUser(user.uid);
@@ -280,12 +272,9 @@ class ReportSubmitService {
     await photo.putData(bytes,
         SettableMetadata(contentType: isPng ? 'image/png' : 'image/jpeg'));
     final url = await photo.getDownloadURL();
-    final isManualAddress = draft.location == null && draft.usesManualAddress;
-    final location = draft.location ??
-        _manualAddressPoint(
-          profile?.municipalityId ?? '',
-          profile?.municipalityName ?? '',
-        );
+    // Una dirección escrita complementa el punto elegido por la persona; no
+    // se inventan coordenadas cuando falta geocodificación.
+    final location = draft.location!;
     final locationLabel = [draft.territory.trim(), draft.address.trim()]
         .where((value) => value.isNotEmpty)
         .join(' · ');
@@ -311,12 +300,11 @@ class ReportSubmitService {
         location: ReportLocation(
             lat: location.latitude,
             lng: location.longitude,
-            geohash: isManualAddress
-                ? ''
-                : GeoFirePoint(GeoPoint(location.latitude, location.longitude))
+            geohash:
+                GeoFirePoint(GeoPoint(location.latitude, location.longitude))
                     .geohash,
             address: locationLabel.isEmpty ? null : locationLabel,
-            isManualAddress: isManualAddress),
+            isManualAddress: false),
         createdAt: now,
         updatedAt: now));
     return draft.id;
