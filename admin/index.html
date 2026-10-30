@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="ConDi Gestión Municipal: operación, evidencias y decisiones en tiempo real.">
+    <title>ConDi · Gestión Municipal</title>
+    <link rel="icon" type="image/png" href="../favicon.png">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="./vendor/leaflet.css">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="app-loading" id="app-loading" aria-live="polite">
+      <span class="loading-mark">C</span>
+      <span>Preparando centro de gestión…</span>
+    </div>
+
+    <section class="auth-shell" id="auth-screen" hidden>
+      <div class="auth-art" aria-hidden="true">
+        <div class="orb orb-one"></div>
+        <div class="orb orb-two"></div>
+        <div class="auth-copy">
+          <span class="eyebrow light">CONDI · CONSULTORA DIAGONALES</span>
+          <h1>Las decisiones de gestión, con la ciudad a la vista.</h1>
+          <p>Operación, evidencia de cuadrillas y análisis territorial en un único tablero municipal.</p>
+        </div>
+      </div>
+      <div class="auth-panel">
+        <form class="login-card" id="login-form" novalidate>
+          <img class="brand-logo" src="../assets/assets/images/condi_logo.png" alt="ConDi">
+          <p class="eyebrow">ACCESO RESTRINGIDO</p>
+          <h2>Centro de gestión</h2>
+          <p class="muted">Ingresá con la cuenta habilitada por el municipio.</p>
+          <label for="login-email">Correo electrónico</label>
+          <input id="login-email" type="email" autocomplete="email" required placeholder="nombre@municipio.gob.ar">
+          <label for="login-password">Contraseña</label>
+          <input id="login-password" type="password" autocomplete="current-password" required placeholder="••••••••">
+          <button class="button primary full" type="submit">Ingresar al tablero</button>
+          <div class="login-separator"><span>o</span></div>
+          <button class="button secondary full" id="google-login" type="button">
+            <span class="google-g">G</span> Continuar con Google
+          </button>
+          <p class="form-message" id="login-message" role="alert"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="access-denied" id="access-denied" hidden>
+      <div class="access-card">
+        <img class="brand-logo" src="../assets/assets/images/condi_logo.png" alt="ConDi">
+        <p class="eyebrow">ACCESO NO HABILITADO</p>
+        <h1>Esta cuenta no tiene un rol de gestión.</h1>
+        <p id="denied-copy">Pedí a la administración municipal que habilite tu cuenta.</p>
+        <button class="button secondary" id="denied-signout" type="button">Cerrar sesión</button>
+      </div>
+    </section>
+
+    <div class="admin-shell" id="admin-shell" hidden>
+      <aside class="sidebar" aria-label="Navegación de administración">
+        <div class="sidebar-brand">
+          <img src="../assets/assets/images/condi_logo.png" alt="ConDi">
+          <span>GESTIÓN MUNICIPAL</span>
+        </div>
+        <div class="municipality-brand" id="municipality-brand" hidden>
+          <img id="municipality-crest" alt="" hidden>
+          <span class="municipality-crest-fallback" id="municipality-crest-fallback" aria-hidden="true">🏛</span>
+          <span class="municipality-brand-copy">
+            <b id="municipality-brand-name">Municipalidad</b>
+            <small>Institución adherida</small>
+          </span>
+        </div>
+        <nav class="nav-list">
+          <button class="nav-item active" data-view="overview" type="button"><span class="nav-icon">⌂</span> Resumen</button>
+          <button class="nav-item" data-view="reports" type="button"><span class="nav-icon">▣</span> Reportes <b id="nav-open-count">0</b></button>
+          <button class="nav-item" data-view="messages" type="button"><span class="nav-icon">✉</span> Comunicaciones</button>
+          <button class="nav-item" data-view="map" type="button"><span class="nav-icon">⌖</span> Mapa operativo</button>
+          <button class="nav-item" data-view="teams" type="button"><span class="nav-icon">♟</span> Cuadrillas</button>
+          <button class="nav-item" data-view="ads" id="ads-nav" type="button" hidden><span class="nav-icon">▤</span> Publicidad</button>
+          <button class="nav-item" data-view="usage" type="button"><span class="nav-icon">◔</span> Uso de la app</button>
+          <button class="nav-item" data-view="release" id="release-nav" type="button" hidden><span class="nav-icon">⇧</span> Actualizaciones</button>
+          <button class="nav-item" data-view="strategy" type="button"><span class="nav-icon">✦</span> Decisiones IA</button>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="live-dot"></span><span>Datos en tiempo real</span>
+          <small>CONDI · CONSULTORA DIAGONALES</small>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <button class="mobile-menu" id="mobile-menu" type="button" aria-label="Abrir menú">☰</button>
+          <div class="title-group">
+            <span class="eyebrow" id="page-kicker">OPERACIÓN MUNICIPAL</span>
+            <h1 id="page-title">Resumen operativo</h1>
+          </div>
+          <div class="topbar-actions">
+            <label class="municipality-picker" id="municipality-wrap" hidden>
+              <span>Ámbito</span>
+              <select id="municipality-select" aria-label="Seleccionar municipio"></select>
+            </label>
+            <button class="icon-button" id="refresh-data" type="button" title="Actualizar datos" aria-label="Actualizar datos">↻</button>
+            <button class="profile-button" id="profile-menu" type="button" aria-expanded="false">
+              <span class="profile-initial" id="profile-initial">G</span>
+              <span class="profile-copy"><b id="profile-name">Gestión</b><small id="profile-role">Municipio</small></span>
+              <span>⌄</span>
+            </button>
+            <div class="profile-popover" id="profile-popover" hidden>
+              <span id="profile-email"></span>
+              <button id="signout" type="button">Cerrar sesión</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="content-area">
+          <section class="view active" id="view-overview" data-view-panel="overview">
+            <div class="overview-heading">
+              <div>
+                <p class="eyebrow">PANORAMA DE HOY</p>
+                <h2 id="overview-heading">Priorizá dónde actuar primero.</h2>
+                <p class="muted" id="overview-subtitle">La información se actualiza cuando los vecinos y las cuadrillas registran novedades.</p>
+              </div>
+              <button class="button primary" id="overview-ai-button" type="button">✦ Analizar con IA</button>
+            </div>
+
+            <div class="metric-grid" id="metric-grid">
+              <article class="metric-card accent-red"><span class="metric-label">Abiertos</span><strong id="metric-open">—</strong><small id="metric-open-detail">Sincronizando</small></article>
+              <article class="metric-card accent-amber"><span class="metric-label">Sin asignar</span><strong id="metric-unassigned">—</strong><small>Requieren decisión</small></article>
+              <article class="metric-card accent-blue"><span class="metric-label">En campo</span><strong id="metric-field">—</strong><small>Cuadrillas activas</small></article>
+              <article class="metric-card accent-green"><span class="metric-label">Resueltos 7 días</span><strong id="metric-resolved">—</strong><small id="metric-resolved-detail">Sin datos</small></article>
+              <article class="metric-card accent-purple"><span class="metric-label">Tiempo de resolución</span><strong id="metric-resolution">—</strong><small>Promedio de casos cerrados</small></article>
+            </div>
+
+            <div class="dashboard-grid">
+              <article class="panel priority-panel">
+                <div class="panel-heading"><div><p class="eyebrow">COLA DE DECISIÓN</p><h3>Prioridad operativa</h3></div><button class="text-button" data-go-view="reports" type="button">Ver todos</button></div>
+                <div class="priority-list" id="priority-list"></div>
+              </article>
+              <article class="panel category-panel">
+                <div class="panel-heading"><div><p class="eyebrow">DEMANDA</p><h3>Por tipo de problema</h3></div><span class="panel-badge" id="category-total">0 reportes</span></div>
+                <div class="category-bars" id="category-bars"></div>
+              </article>
+            </div>
+
+            <div class="dashboard-grid lower-grid">
+              <article class="panel concentration-panel">
+                <div class="panel-heading"><div><p class="eyebrow">TERRITORIO</p><h3>Zonas con mayor concentración</h3></div><button class="text-button" data-go-view="map" type="button">Abrir mapa</button></div>
+                <div class="hotspot-list" id="hotspot-list"></div>
+              </article>
+              <article class="panel action-panel">
+                <div class="panel-heading"><div><p class="eyebrow">PRÓXIMAS ACCIONES</p><h3>Riesgos de gestión</h3></div></div>
+                <div class="action-list" id="risk-list"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="view" id="view-reports" data-view-panel="reports" hidden>
+            <div class="view-heading"><div><p class="eyebrow">SEGUIMIENTO DE SOLUCIONES</p><h2>Reportes y evidencia de cuadrillas</h2></div><span class="live-label"><i></i> EN VIVO</span></div>
+            <div class="filter-bar">
+              <label class="search-field"><span>⌕</span><input id="report-search" type="search" placeholder="Buscar por problema, categoría o zona"></label>
+              <select id="status-filter" aria-label="Filtrar por estado">
+                <option value="all">Todos los estados</option>
+                <option value="pending">Pendientes</option>
+                <option value="assigned">Asignados</option>
+                <option value="in_progress">En curso</option>
+                <option value="resolved">Resueltos</option>
+                <option value="rejected">Rechazados</option>
+                <option value="closed">Cerrados</option>
+              </select>
+              <select id="priority-filter" aria-label="Filtrar por prioridad">
+                <option value="all">Toda prioridad</option>
+                <option value="high">Alta prioridad</option>
+                <option value="unassigned">Sin cuadrilla</option>
+              </select>
+            </div>
+            <div class="report-count" id="report-count">Cargando reportes…</div>
+            <div class="table-shell">
+              <table class="report-table">
+                <thead><tr><th>Reporte</th><th>Estado</th><th>Prioridad</th><th>Cuadrilla</th><th>Fecha</th><th></th></tr></thead>
+                <tbody id="reports-body"></tbody>
+              </table>
+              <div class="empty-state" id="reports-empty" hidden><span>◎</span><h3>No hay reportes con este filtro.</h3><p>Cambiá los filtros o esperá nuevas novedades.</p></div>
+            </div>
+          </section>
+
+          <section class="view" id="view-map" data-view-panel="map" hidden>
+            <div class="view-heading"><div><p class="eyebrow">COBERTURA TERRITORIAL</p><h2>Mapa operativo y concentraciones</h2></div><div class="map-legend"><span><i class="legend-dot high"></i> Alta prioridad</span><span><i class="legend-dot medium"></i> Actividad</span></div></div>
+            <div class="map-layout">
+              <div class="map-shell"><div id="operations-map" aria-label="Mapa de reportes geolocalizados"></div><div class="map-overlay" id="map-summary">Cargando ubicación de reportes…</div></div>
+              <aside class="map-side panel"><div class="panel-heading"><div><p class="eyebrow">FOCOS DE ATENCIÓN</p><h3>Concentraciones activas</h3></div></div><div id="map-hotspots" class="hotspot-list"></div></aside>
+            </div>
+          </section>
+
+          <section class="view" id="view-teams" data-view-panel="teams" hidden>
+            <div class="view-heading"><div><p class="eyebrow">CAPACIDAD OPERATIVA</p><h2>Cuadrillas y responsables</h2><p class="muted">Registrá responsables, zonas y especialidades para asignar cada reporte con trazabilidad.</p></div><div class="teams-heading-actions"><span class="panel-badge" id="teams-summary">0 activas</span><button class="button primary" id="new-team" type="button">+ Nueva cuadrilla</button></div></div>
+            <section class="team-editor panel" id="team-editor" hidden aria-labelledby="team-editor-title">
+              <div class="panel-heading"><div><p class="eyebrow" id="team-editor-kicker">NUEVA CUADRILLA</p><h3 id="team-editor-title">Alta operativa</h3></div><button class="icon-button" id="cancel-team" type="button" aria-label="Cerrar formulario">×</button></div>
+              <form class="team-form" id="team-form" novalidate>
+                <input id="team-id" type="hidden">
+                <label>Nombre de la cuadrilla<input id="team-name" type="text" maxlength="80" required placeholder="Ej.: Cuadrilla Norte 1"></label>
+                <label>Municipio<select id="team-municipality" required></select></label>
+                <label>Zona o área de cobertura<input id="team-zone" type="text" maxlength="100" placeholder="Ej.: Casco urbano norte"></label>
+                <label>Encargado/a de zona<input id="team-zone-manager" type="text" maxlength="100" placeholder="Nombre y apellido"></label>
+                <label>Jefatura de mantenimiento<input id="team-maintenance-chief" type="text" maxlength="100" placeholder="Nombre y apellido"></label>
+                <label class="team-form-full">Especialidades<select id="team-categories" multiple size="4" aria-label="Especialidades de la cuadrilla"><option value="infrastructure">Infraestructura</option><option value="lighting">Alumbrado</option><option value="garbage">Residuos</option><option value="security">Seguridad</option><option value="health">Salud</option><option value="transport">Transporte</option><option value="environment">Ambiente</option><option value="other">Otros</option></select><small>Podés seleccionar más de una especialidad.</small></label>
+                <label class="team-form-full">Integrantes de la cuadrilla<textarea id="team-members" maxlength="1200" placeholder="Un nombre por línea o separado por comas"></textarea></label>
+                <label class="team-active"><input id="team-active" type="checkbox" checked> Cuadrilla disponible para nuevas asignaciones</label>
+                <div class="team-form-actions"><button class="button secondary" id="cancel-team-form" type="button">Cancelar</button><button class="button primary" id="save-team" type="submit">Guardar cuadrilla</button></div>
+              </form>
+            </section>
+            <div class="teams-grid" id="teams-grid"></div>
+            <div class="empty-state bordered" id="teams-empty" hidden><span>♟</span><h3>No hay cuadrillas registradas en este ámbito.</h3><p>Usá “Nueva cuadrilla” para cargar responsables y capacidad operativa.</p></div>
+          </section>
+
+          <section class="view" id="view-ads" data-view-panel="ads" hidden>
+            <div class="view-heading"><div><p class="eyebrow">PUBLICIDAD LOCAL</p><h2>Banners para vecinos</h2><p class="muted">Cargá la pauta, su vigencia y la condición de cierre según el abono contratado.</p></div><div class="teams-heading-actions"><span class="panel-badge" id="ads-summary">0 activas</span><button class="button primary" id="new-ad" type="button">+ Nuevo banner</button></div></div>
+            <section class="ad-editor panel" id="ad-editor" hidden aria-labelledby="ad-editor-title">
+              <div class="panel-heading"><div><p class="eyebrow" id="ad-editor-kicker">NUEVO BANNER</p><h3 id="ad-editor-title">Pauta comercial</h3></div><button class="icon-button" id="cancel-ad" type="button" aria-label="Cerrar formulario">×</button></div>
+              <form class="ad-form" id="ad-form" novalidate>
+                <input id="ad-id" type="hidden">
+                <label>Municipio<select id="ad-municipality" required></select></label>
+                <label>Comercio anunciante<input id="ad-business" type="text" maxlength="80" required placeholder="Ej.: Ferretería El Centro"></label>
+                <label class="ad-form-full">Mensaje del banner<textarea id="ad-message" maxlength="180" required placeholder="Beneficio o propuesta para los vecinos"></textarea></label>
+                <label>Enlace del comercio<input id="ad-link" type="url" maxlength="2048" required placeholder="https://..."></label>
+                <label>Imagen por URL (opcional)<input id="ad-image-url" type="url" maxlength="2048" placeholder="https://..."></label>
+                <label>Subir imagen<input id="ad-image-file" type="file" accept="image/jpeg,image/png,image/webp"></label>
+                <label>Modalidad de cierre<select id="ad-dismiss-mode" required><option value="close_now">Cierre inmediato</option><option value="wait_7_seconds">Cerrar luego de 7 segundos</option></select><small>La segunda opción mantiene el banner visible siete segundos.</small></label>
+                <label>Inicio<input id="ad-start-date" type="date" required></label>
+                <label>Fin<input id="ad-end-date" type="date" required></label>
+                <label class="team-active"><input id="ad-active" type="checkbox" checked> Banner disponible para vecinos</label>
+                <div class="team-form-actions"><button class="button secondary" id="cancel-ad-form" type="button">Cancelar</button><button class="button primary" id="save-ad" type="submit">Guardar banner</button></div>
+              </form>
+            </section>
+            <div class="ads-grid" id="ads-grid"></div>
+            <div class="empty-state bordered" id="ads-empty" hidden><span>▤</span><h3>No hay banners registrados en este ámbito.</h3><p>Usá “Nuevo banner” para cargar una pauta comercial.</p></div>
+          </section>
+
+          <section class="view" id="view-messages" data-view-panel="messages" hidden>
+            <div class="view-heading"><div><p class="eyebrow">COMUNICACIÓN CON VECINOS</p><h2>Mensajes y alertas por zona</h2><p class="muted">Redactá y enviá cada comunicación cuando lo necesites. Cada envío queda en Alertas y se muestra como notificación en los celulares habilitados.</p></div><span class="live-label"><i></i> ENTREGA EN VIVO</span></div>
+            <div class="communications-grid">
+              <article class="panel message-panel">
+                <div class="panel-heading"><div><p class="eyebrow">NUEVO MENSAJE</p><h3>Informar a vecinos</h3></div></div>
+                <form class="message-form" id="message-form" novalidate>
+                  <label>Destinatarios<select id="message-audience" required><option value="municipality">Todos los vecinos de un municipio</option><option value="selected">Vecinos seleccionados</option><option value="all" id="message-audience-all">Todos los vecinos activos</option></select></label>
+                  <label id="message-municipality-wrap">Municipio<select id="message-municipality"><option value="">Seleccionar municipio</option></select></label>
+                  <div class="recipient-picker" id="message-recipient-picker" hidden>
+                    <div class="recipient-heading"><b>Elegí destinatarios</b><span id="message-selected-count">0 seleccionados</span></div>
+                    <div class="recipient-list" id="message-residents"></div>
+                  </div>
+                  <label>Título<input id="message-title" type="text" maxlength="120" required placeholder="Ej.: Actualización de servicios"></label>
+                  <label class="message-form-full">Mensaje<textarea id="message-body" maxlength="4000" required placeholder="Escribí una comunicación clara para los vecinos. Podés incluir el enlace oficial de Google Play."></textarea></label>
+                  <p class="message-reach" id="message-reach">Cargando alcance…</p>
+                  <p class="message-result" id="message-result" hidden></p>
+                  <div class="team-form-actions"><button class="button primary" id="send-custom-message" type="submit">Enviar mensaje</button></div>
+                </form>
+              </article>
+              <aside class="panel weather-panel">
+                <div class="panel-heading"><div><p class="eyebrow">SERVICIO METEOROLÓGICO NACIONAL</p><h3>Alertas por zona</h3></div><span class="panel-badge">Cada 3 h</span></div>
+                <p class="muted">Las alertas oficiales se cruzan con el municipio de cada vecino y se distribuyen automáticamente.</p>
+                <div class="weather-alert-list" id="weather-alert-list"></div>
+              </aside>
+            </div>
+          </section>
+
+          <section class="view" id="view-usage" data-view-panel="usage" hidden>
+            <div class="view-heading"><div><p class="eyebrow">ADOPCIÓN TERRITORIAL</p><h2>Uso de la app</h2><p class="muted">Actividad agregada de vecinos que aceptaron la medición territorial.</p></div><span class="live-label"><i></i> ÚLTIMOS 30 DÍAS</span></div>
+            <div class="metric-grid usage-metric-grid">
+              <article class="metric-card accent-blue"><span class="metric-label">Sesiones</span><strong id="usage-total">—</strong><small>Sesiones diarias acumuladas</small></article>
+              <article class="metric-card accent-green"><span class="metric-label">Activos hoy</span><strong id="usage-today">—</strong><small>Última jornada local</small></article>
+              <article class="metric-card accent-purple"><span class="metric-label">Ciudades visibles</span><strong id="usage-cities">—</strong><small>Con umbral de privacidad</small></article>
+            </div>
+            <div class="usage-grid">
+              <article class="panel usage-panel">
+                <div class="panel-heading"><div><p class="eyebrow">EVOLUCIÓN</p><h3>Usuarios activos por día</h3></div></div>
+                <div class="usage-periods" id="usage-periods" aria-label="Evolución de usuarios activos por día"></div>
+                <p class="usage-notice" id="usage-notice">Cargando medición territorial…</p>
+              </article>
+              <article class="panel usage-panel">
+                <div class="panel-heading"><div><p class="eyebrow">DÓNDE SE USA</p><h3>Ciudades con actividad</h3></div></div>
+                <div class="usage-city-list" id="usage-city-list"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="view" id="view-release" data-view-panel="release" hidden>
+            <div class="view-heading"><div><p class="eyebrow">PUBLICACIÓN DE LA APP</p><h2>Actualización obligatoria</h2><p class="muted">Definí la compilación mínima que puede abrir ConDi. Las versiones anteriores quedan bloqueadas y se derivan a Google Play.</p></div><span class="live-label"><i></i> SOLO ADMINISTRACIÓN</span></div>
+            <article class="panel release-panel">
+              <div class="panel-heading"><div><p class="eyebrow">ANDROID · GOOGLE PLAY</p><h3>Versión mínima requerida</h3></div><span class="panel-badge" id="release-status">Cargando configuración…</span></div>
+              <form class="release-form" id="release-form" novalidate>
+                <label>Compilación mínima<input id="release-min-android-build" type="number" inputmode="numeric" min="1" max="2147483647" required></label>
+                <label>Enlace de Google Play<input id="release-android-store-url" type="url" maxlength="2048" required placeholder="https://play.google.com/store/apps/details?id=..."></label>
+                <label class="release-form-full">Mensaje para quienes deban actualizar<textarea id="release-android-message" maxlength="240" required placeholder="Indicá por qué necesitan actualizar la aplicación."></textarea></label>
+                <p class="release-note">Publicá primero el AAB con esa compilación en Play Console. Luego establecé aquí la misma compilación como mínimo; para una versión posterior, subí el mínimo nuevamente.</p>
+                <div class="team-form-actions"><button class="button primary" id="save-release" type="submit">Guardar actualización obligatoria</button></div>
+              </form>
+            </article>
+          </section>
+
+          <section class="view" id="view-strategy" data-view-panel="strategy" hidden>
+            <div class="view-heading"><div><p class="eyebrow">ASISTENCIA PARA LA DECISIÓN</p><h2>Análisis estratégico con IA</h2><p class="muted">El análisis usa únicamente datos operativos agregados. Las decisiones siempre requieren validación humana.</p></div><div class="ai-controls"><select id="ai-period" aria-label="Período de análisis"><option value="7">Últimos 7 días</option><option value="30" selected>Últimos 30 días</option><option value="90">Últimos 90 días</option></select><button class="button primary" id="generate-ai" type="button">✦ Generar análisis</button></div></div>
+            <div class="ai-notice"><span>✦</span><p>La IA no decide ni modifica reportes. Señala patrones, riesgos y alternativas para que la gestión municipal evalúe.</p></div>
+            <div class="ai-state panel" id="ai-state"><span class="ai-mark">✦</span><h3>Preparado para analizar la gestión.</h3><p>Elegí un período y generá un informe de prioridades, estrategia y riesgos.</p></div>
+            <div id="ai-results" hidden>
+              <article class="panel ai-summary"><p class="eyebrow">SÍNTESIS EJECUTIVA</p><h3 id="ai-summary-title">Análisis estratégico</h3><p id="ai-summary-text"></p></article>
+              <div class="strategy-grid"><article class="panel"><div class="panel-heading"><div><p class="eyebrow">PRIORIZAR</p><h3>Hallazgos operativos</h3></div></div><div id="ai-priorities" class="analysis-list"></div></article><article class="panel"><div class="panel-heading"><div><p class="eyebrow">ACTUAR</p><h3>Estrategias sugeridas</h3></div></div><div id="ai-strategies" class="analysis-list"></div></article></div>
+              <div class="strategy-grid"><article class="panel"><div class="panel-heading"><div><p class="eyebrow">VALIDAR</p><h3>Riesgos a monitorear</h3></div></div><div id="ai-risks" class="plain-list"></div></article><article class="panel"><div class="panel-heading"><div><p class="eyebrow">PROFUNDIZAR</p><h3>Preguntas para el equipo</h3></div></div><div id="ai-questions" class="plain-list"></div></article></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div class="backdrop" id="drawer-backdrop" hidden></div>
+    <aside class="report-drawer" id="report-drawer" aria-label="Detalle del reporte" aria-hidden="true">
+      <div class="drawer-header"><div><p class="eyebrow">GESTIÓN DEL REPORTE</p><h2 id="drawer-title">Detalle</h2></div><button class="icon-button" id="close-drawer" type="button" aria-label="Cerrar">×</button></div>
+      <div class="drawer-content" id="drawer-content"></div>
+    </aside>
+
+    <div class="photo-viewer" id="photo-viewer" hidden aria-hidden="true">
+      <div class="photo-viewer-backdrop" id="photo-viewer-backdrop"></div>
+      <div class="photo-viewer-dialog" role="dialog" aria-modal="true" aria-label="Foto del reporte">
+        <button class="photo-viewer-close" id="close-photo-viewer" type="button" aria-label="Cerrar foto">×</button>
+        <img id="photo-viewer-image" alt="">
+      </div>
+    </div>
+
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="./vendor/leaflet.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -18,21 +18,65 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="ConDi — Reportá lo que pasa en tu barrio. Participación ciudadana municipal.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="que_pasa_en_tu_barrio">
+  <meta name="apple-mobile-web-app-title" content="ConDi">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>que_pasa_en_tu_barrio</title>
+  <title>ConDi</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    #local-server-notice {
+      box-sizing: border-box;
+      display: none;
+      min-height: 100vh;
+      padding: 48px 24px;
+      background: #f4f7fb;
+      color: #102a4c;
+      font: 16px/1.5 Arial, sans-serif;
+    }
+    #local-server-notice section {
+      max-width: 620px;
+      margin: 10vh auto;
+      padding: 32px;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 14px 42px rgba(16, 42, 76, .14);
+    }
+    #local-server-notice a {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 12px 18px;
+      border-radius: 9px;
+      background: #1268c4;
+      color: #fff;
+      font-weight: 700;
+      text-decoration: none;
+    }
+  </style>
+
+  <!-- google_maps_flutter_web no inyecta el SDK: sin este script el mapa
+       falla con "Cannot read properties of undefined (reading 'MapTypeId')".
+       La clave es distinta a la de Android/iOS porque queda expuesta en la
+       página y va restringida por dominio de origen. -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCRKeRO6eCDNHLmfq-kZXeEXNI79Mc4tU4"></script>
 </head>
 <body>
+  <main id="local-server-notice" hidden>
+    <section>
+      <h1>ConDi necesita el servidor local</h1>
+      <p>Esta página no funciona abierta como archivo. Iniciá <b>Iniciar-ConDi-Local.cmd</b> y luego abrí la app o el centro de gestión desde el servidor local.</p>
+      <a href="http://127.0.0.1:5000/">Abrir ConDi local</a>
+      <a href="http://127.0.0.1:5000/admin/">Abrir gestión local</a>
+    </section>
+  </main>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
@@ -41,6 +85,17 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    if (window.location.protocol === 'file:') {
+      const notice = document.getElementById('local-server-notice');
+      notice.hidden = false;
+      notice.style.display = 'block';
+    } else {
+      const bootstrap = document.createElement('script');
+      bootstrap.src = 'flutter_bootstrap.js';
+      bootstrap.async = true;
+      document.body.append(bootstrap);
+    }
+  </script>
 </body>
 </html>
