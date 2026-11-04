@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-04T18:53:51Z",
+ "generated_at": "2026-11-04T19:04:14Z",
  "tablas": [
   {
    "tabla": "lluvia_era5_diaria.csv",
@@ -32,10 +32,10 @@
    ],
    "descripcion": "Alertas oficiales del SMN leídas en cada actualización (fenómeno, nivel, vigencia, zonas).",
    "fuente": "Servicio Meteorológico Nacional, API CAP oficial",
-   "registros": 40,
+   "registros": 41,
    "desde": "2026-11-04",
    "hasta": "2026-11-06",
-   "bytes": 4576
+   "bytes": 4752
   },
   {
    "tabla": "smn_horarios_*.csv",
