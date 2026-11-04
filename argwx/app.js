@@ -51,8 +51,10 @@
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
   [["satPane", 250], ["provPane", 370], ["smnPane", 380], ["muniPane", 390], ["stormPane", 420]].forEach(([n, z]) => { map.createPane(n).style.zIndex = z; });
-  const sat = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
-    {pane: "satPane", maxNativeZoom: 7, maxZoom: 11, opacity: 0.6, attribution: "Satélite: NASA GIBS · GOES-Este"});
+  // Imagen de hace ~1 hora (redondeada a 10 min): la más reciente suele no estar publicada todavía.
+  const satTime = () => new Date(Math.floor((Date.now() - 60 * 60e3) / 600e3) * 600e3).toISOString().slice(0, 19) + "Z";
+  const sat = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/{time}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
+    {pane: "satPane", time: satTime(), maxNativeZoom: 7, maxZoom: 11, opacity: 0.6, attribution: "Satélite: NASA GIBS · GOES-Este"});
   const G = {prov: L.layerGroup().addTo(map), smn: L.layerGroup().addTo(map), muni: L.layerGroup().addTo(map), storms: L.layerGroup().addTo(map),
              arrows: L.layerGroup().addTo(map), wx: L.layerGroup().addTo(map), me: L.layerGroup().addTo(map)};
 
@@ -471,7 +473,7 @@
     const l = b.dataset.l;
     S.layers[l] = !S.layers[l];
     b.classList.toggle("on", S.layers[l]);
-    if (l === "sat") { if (S.layers.sat) sat.addTo(map); else map.removeLayer(sat); }
+    if (l === "sat") { if (S.layers.sat) { sat.options.time = satTime(); sat.addTo(map); sat.redraw(); } else map.removeLayer(sat); }
     else if (l === "smn") drawSMN();
     else draw();
   });
