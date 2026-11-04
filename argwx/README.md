@@ -144,17 +144,19 @@ Para un servicio comercial hay que contratar su plan y cargar `ARGWX_OPEN_METEO_
 ## Qué está verificado y qué no
 
 **Verificado**
-- 38 tests automáticos (motor, parsers, API) pasan.
+- 38 tests automáticos (motor, parsers, API) pasan, también en GitHub Actions.
 - La API funciona con **SQLite** y con **PostgreSQL 16** (incluida la clave por archivo, como Docker Secret).
+- La imagen Docker se construye en GitHub Actions.
+- **Fuentes reales** (job `live-sources` del CI, 4/11/2026): Open-Meteo devolvió los 5 modelos para los
+  135 municipios y las 3 ventanas; NOAA CPC devolvió ONI, índices Niño semanales y SOI.
 - El panel se probó en navegador de escritorio y de celular.
 - Los 135 partidos y sus límites salen de fuentes públicas (ver `app/data/README.md`).
 
-**No verificado todavía (supuestos)**
-- El entorno donde se desarrolló **no tenía salida a internet** hacia las fuentes meteorológicas.
-  Los conectores siguen la documentación pública de cada servicio y se probaron con archivos de ejemplo,
-  pero **no contra las APIs reales**. El workflow de CI `live-sources` hace esa prueba en GitHub en cada push.
-- La URL del feed oficial de alertas del SMN no está confirmada: se prueban dos candidatas y se puede configurar otra.
-- `docker compose` no se pudo ejecutar en el entorno de desarrollo; el CI construye la imagen.
+**No verificado todavía**
+- **SMN:** el feed respondió con formato válido pero sin alertas asignadas a partidos bonaerenses en ese momento.
+  Falta ver una alerta real vigente para confirmar la asignación a municipios (el log del CI indica qué feed respondió).
+- `docker compose` completo (API + PostgreSQL + Nginx) no se ejecutó; la imagen sí se construye.
+- OpenWeather, Meteoblue y Weather Underground no se probaron: requieren claves.
 - Los umbrales son iniciales y deben calibrarse con la verificación estadística.
 
 ---

@@ -4,6 +4,7 @@ Cada alerta se asigna a los partidos cuyo punto de pronóstico cae dentro del po
 Si el área no trae polígono, se busca el nombre del partido en la descripción del área.
 """
 import email.utils
+import logging
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -11,6 +12,8 @@ from datetime import datetime
 from app.engine.geo import normalize, point_in_polygon
 from app.engine.levels import max_level
 from app.util import to_utc_naive
+
+log = logging.getLogger("argwx.smn")
 
 COLORS = [(r"\b(purpura|violeta)\b", "PURPLE"), (r"\b(roja|rojo)\b", "RED"), (r"\bnaranja\b", "ORANGE"),
           (r"\b(amarilla|amarillo)\b", "YELLOW")]
@@ -173,5 +176,7 @@ def fetch(settings, client, munis: list[dict]) -> list[dict]:
         except Exception as exc:
             errors.append(f"{url}: {type(exc).__name__}: {exc}"[:200])
             continue
-        return to_rows(alerts, munis)
+        rows = to_rows(alerts, munis)
+        log.info("Feed SMN %s: %d alertas en el feed, %d asignaciones a partidos de PBA", url, len(alerts), len(rows))
+        return rows
     raise RuntimeError("Ningún feed del SMN respondió con un formato válido. " + " | ".join(errors))
