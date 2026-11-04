@@ -1,0 +1,25 @@
+# Producción: clave por Docker Secret, Nginx delante, reinicio automático
+services:
+  db:
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    restart: unless-stopped
+  api:
+    environment:
+      ARGWX_ENV: production
+      ARGWX_DATABASE_URL: postgresql+psycopg://argwx:__PASSWORD__@db:5432/argwx
+      ARGWX_DB_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    restart: unless-stopped
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+    depends_on: [api]
+    restart: unless-stopped
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt

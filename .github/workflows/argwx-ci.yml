@@ -1,0 +1,50 @@
+name: ARGWX CI
+on:
+  push:
+    paths: ["argwx/**", ".github/workflows/argwx-ci.yml"]
+  pull_request:
+    paths: ["argwx/**", ".github/workflows/argwx-ci.yml"]
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: argwx
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t argwx:ci argwx
+
+  # Prueba contra las fuentes reales (Open-Meteo, NOAA CPC, SMN). No bloquea: depende de servicios externos.
+  live-sources:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: argwx
+    env:
+      ARGWX_DATA_MODE: live
+      ARGWX_DATABASE_URL: sqlite:///./ci-live.db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Sincronizar fuentes reales
+        run: python -m app.cli sync all || true
+      - name: Frescura por proveedor
+        run: python -m app.cli status
+      - name: Resumen de alertas
+        run: python -m app.cli resumen

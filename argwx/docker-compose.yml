@@ -1,0 +1,23 @@
+# Base común. Usar siempre con un override: make dev-up / make prod-up
+name: argwx
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: argwx
+      POSTGRES_USER: argwx
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U argwx -d argwx"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  api:
+    build: .
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  pgdata:

@@ -1,0 +1,15 @@
+# Desarrollo: recarga automática, puerto 8000 y clave tomada de .env
+services:
+  db:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD en .env (make env la genera)}
+    ports:
+      - "127.0.0.1:5432:5432"
+  api:
+    environment:
+      ARGWX_DATABASE_URL: postgresql+psycopg://argwx:${POSTGRES_PASSWORD}@db:5432/argwx
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./app:/srv/app
+    ports:
+      - "8000:8000"
