@@ -1,12 +1,29 @@
 {
-  "name": "ARGWX · Tiempo en vivo",
-  "short_name": "ARGWX",
-  "description": "Tormentas, viento y lluvia en tiempo real sobre Buenos Aires y la Argentina.",
+  "name": "ConDi · Tiempo en vivo",
+  "short_name": "ConDi",
+  "description": "ConDi · inteligencia territorial. Tormentas, viento y lluvia en tiempo real.",
   "lang": "es-AR",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0b2a4a",
-  "theme_color": "#0b2a4a",
-  "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]
+  "background_color": "#ffffff",
+  "theme_color": "#16346e",
+  "icons": [
+    {
+      "src": "img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }

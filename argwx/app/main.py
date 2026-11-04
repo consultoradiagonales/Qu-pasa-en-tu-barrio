@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 STATIC = Path(__file__).parent / "static"
 
 DESCRIPTION = """
-**ARGWX** genera alertas meteorológicas para los **135 partidos de la Provincia de Buenos Aires**.
+**ConDi** (motor ARGWX) genera alertas meteorológicas para los **135 partidos de la Provincia de Buenos Aires**.
 
 Cómo decide (sin IA generativa):
 1. Toma el pronóstico de **5 modelos** (GFS, ICON, ECMWF, GEM, UKMO) para cada partido.
@@ -55,7 +55,7 @@ async def _scheduler(minutes: int):
         await asyncio.to_thread(safe_sync)
 
 
-app = FastAPI(title="ARGWX - Motor meteorológico", version=__version__, description=DESCRIPTION, lifespan=lifespan)
+app = FastAPI(title="ConDi - Motor meteorológico (ARGWX)", version=__version__, description=DESCRIPTION, lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=get_settings().list_of("cors_origins") or ["*"],
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(health.router)

@@ -109,5 +109,5 @@ def test_live_grids_match_browser():
 
     regions = json.loads((Path(__file__).parents[1] / "app" / "site" / "regions.json").read_text())
     pba, ar = region_grid(regions["pba"]), region_grid(regions["ar"])
-    assert len(pba) == 14 * 12 and pba[0] == (-32.0, -64.5) and pba[-1] == (-41.75, -56.25)
-    assert len(ar) == 18 * 11 and ar[0] == (-22.0, -74.0) and ar[-1] == (-56.0, -54.0)
+    assert len(pba) == 10 * 9 and pba[0] == (-32.0, -64.5) and pba[-1] == (-41.0, -56.5)
+    assert len(ar) == 14 * 9 and ar[0] == (-22.0, -74.0) and ar[-1] == (-54.5, -54.0)

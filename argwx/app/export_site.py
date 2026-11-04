@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import shutil
+import time
 from calendar import monthrange
 from datetime import date, timedelta
 from pathlib import Path
@@ -337,16 +338,24 @@ def export_live_snapshots(out: Path, client) -> dict:
         settings = get_settings()
         if settings.open_meteo_api_key:
             base["apikey"] = settings.open_meteo_api_key
-        best = client.get(openmeteo_url(), params={**base, "hourly": "temperature_2m,precipitation,weather_code,"
-                                                   "wind_speed_10m,wind_direction_10m,wind_gusts_10m"})
-        best.raise_for_status()
-        models = client.get(openmeteo_url(), params={**base, "hourly": "precipitation,weather_code,wind_gusts_10m",
-                                                     "models": ",".join(LIVE_MODELS)})
-        models.raise_for_status()
+        best = _get_retry(client, {**base, "hourly": "temperature_2m,precipitation,weather_code,"
+                                   "wind_speed_10m,wind_direction_10m,wind_gusts_10m"})
+        models = _get_retry(client, {**base, "hourly": "precipitation,weather_code", "models": ",".join(LIVE_MODELS)})
         _write(out, f"live_{key}.json", {"generated_at": iso(utcnow()), "region": key, "best": best.json(),
                                           "models": models.json()})
         info[key] = len(pts)
     return info
+
+
+def _get_retry(client, params: dict):
+    """Open-Meteo limita las consultas por minuto: ante un 429 espera y reintenta una vez."""
+    for attempt in range(2):
+        resp = client.get(openmeteo_url(), params=params)
+        if resp.status_code != 429 or attempt:
+            resp.raise_for_status()
+            return resp
+        time.sleep(65)
+    return resp
 
 
 def openmeteo_url() -> str:
@@ -356,7 +365,7 @@ def openmeteo_url() -> str:
 
 # ------------------------------------------------------------------ armado
 def build(out_dir: str, cache_dir: str | None = None) -> dict:
-    settings, now = get_settings(), utcnow()
+    settings = get_settings()
     out = Path(out_dir)
     shutil.copytree(APP / "site", out, dirs_exist_ok=True)
     (out / "data").mkdir(parents=True, exist_ok=True)
@@ -388,7 +397,6 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
             oni.extend({"period": r["period"], "value": r["value"]}
                        for r in json.loads((cache / "enso.json").read_text(encoding="utf-8"))["oni"])
         run("smn", lambda: export_smn(data, client, settings))
-        run("tormentas_modelos", lambda: export_storm_outlook(data, client, settings, now), "tormentas_modelos.json", 3)
         for key in ("pba", "ar"):
             if _fresh(cache, f"live_{key}.json", 3):
                 shutil.copy(cache / f"live_{key}.json", data / f"live_{key}.json")

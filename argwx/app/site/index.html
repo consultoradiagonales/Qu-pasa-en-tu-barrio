@@ -3,14 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b2a4a">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="ARGWX">
+<meta name="apple-mobile-web-app-title" content="ConDi">
 <meta name="description" content="Tormentas, viento y lluvia en tiempo real sobre la Provincia de Buenos Aires y la Argentina, con alertas por consenso de 5 modelos.">
-<title>ARGWX · Tiempo en vivo</title>
+<title>ConDi · Tiempo en vivo</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="img/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -36,10 +37,18 @@
 </svg>
 
 <header class="top">
-  <div class="brand"><b>ARGWX</b><span>Tiempo en vivo</span></div>
-  <div class="live"><span class="pulse" id="pulse"></span><span id="live-txt">Cargando…</span>
-    <button class="iconbtn" id="refresh" aria-label="Actualizar datos">⟳</button></div>
+  <a class="brand" href="./" aria-label="ConDi · inteligencia territorial">
+    <img src="img/condi-emblema.png" alt="" class="emblem"><img src="img/condi-marca.png" alt="ConDi · inteligencia territorial" class="mark">
+  </a>
+  <div class="client">
+    <span class="client-lbl">Cliente</span>
+    <img id="client-logo" src="img/cliente.png" alt="Cámara de Diputados de la Provincia de Buenos Aires"
+         onerror="this.hidden=true;document.getElementById('client-txt').hidden=false">
+    <span id="client-txt" hidden>Cámara de Diputados<br>de la Provincia de Buenos Aires</span>
+  </div>
 </header>
+<div class="statusbar"><span class="pulse" id="pulse"></span><span id="live-txt">Cargando…</span>
+  <span class="muted sb-title">· Tiempo en vivo</span><button class="sbbtn" id="refresh" aria-label="Actualizar datos">⟳ Actualizar</button></div>
 <nav class="tabs" id="tabs">
   <button data-t="live" class="on">🗺️ En vivo</button><button data-t="alerts">⚠️ Alertas</button><button data-t="enso">🌊 El Niño</button>
 </nav>
@@ -110,7 +119,7 @@
     </div>
   </section>
 </main>
-<footer>Datos: modelos GFS, ICON, ECMWF, GEM y UKMO vía <a href="https://open-meteo.com">Open-Meteo</a> (actualización cada 15 min), alertas oficiales del SMN, ENSO de NOAA CPC, lluvia histórica ERA5 (Copernicus), satélite NASA GIBS, mapa © OpenStreetMap y CARTO. Los cálculos no usan IA generativa. <a href="https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio/tree/claude/weather-engine-mvp-jafv4d/argwx">Código</a>.</footer>
+<footer><b>ConDi · inteligencia territorial</b> — motor meteorológico ARGWX. Herramienta de análisis: no es un canal oficial de alertas; las alertas oficiales son las del SMN.<br>Datos: modelos GFS, ICON, ECMWF, GEM y UKMO vía <a href="https://open-meteo.com">Open-Meteo</a> (actualización cada 15 min), alertas oficiales del SMN, ENSO de NOAA CPC, lluvia histórica ERA5 (Copernicus), satélite NASA GIBS, mapa © OpenStreetMap y CARTO. Los cálculos no usan IA generativa. <a href="https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio/tree/claude/weather-engine-mvp-jafv4d/argwx">Código</a>.</footer>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="tracking.js"></script>
 <script src="app.js"></script>

@@ -17,7 +17,7 @@ function build(models) {
     const P = [], C = [], G = [];
     for (let h = 0; h < H; h++) {
       const p = new Array(N).fill(0), c = new Array(N).fill(3), g = new Array(N).fill(30);
-      const r0 = 6 + (k % 2), c0 = 2 + h, size = h < 3 ? 1 : 2;
+      const r0 = 4 + (k % 2), c0 = 1 + h, size = h < 3 ? 0 : 1;
       for (let dr = -size; dr <= size; dr++) for (let dc = -size; dc <= size; dc++) {
         const i = (r0 + dr) * grid.nLon + (c0 + dc);
         p[i] = 12; c[i] = 95; g[i] = 85;
@@ -36,7 +36,7 @@ assert.strictEqual(tr.points.length, H);
 assert.strictEqual(tr.probMax, 1);
 assert.ok(tr.dir > 70 && tr.dir < 110, "se mueve hacia el este: " + tr.dir);
 assert.strictEqual(tr.dirText, "hacia el este");
-assert.ok(tr.speed > 50 && tr.speed < 80, "velocidad ~67 km/h: " + tr.speed);
+assert.ok(tr.speed > 75 && tr.speed < 100, "velocidad ~89 km/h: " + tr.speed);
 assert.strictEqual(tr.level, "ORANGE");
 assert.strictEqual(tr.trend, "se intensifica");
 const hit = T.affected(tr, munis);
