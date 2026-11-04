@@ -42,6 +42,7 @@ PLACE_RANK = {"city": 0, "town": 1, "village": 2}
 # Umbrales iniciales (a calibrar)
 RAIN72 = {"YELLOW": 40, "ORANGE": 70, "RED": 110}   # mm promedio en los partidos que cruza el curso, 72 h
 WET_30D = 150                                       # mm en 30 días: suelo cargado, sube un nivel
+RECENT_7D = 50                                      # mm en 7 días: lluvia reciente que confirma una subida de caudal
 RATIO = {"YELLOW": 2, "ORANGE": 4, "RED": 8}        # caudal máximo 7 días / caudal típico 3 semanas
 MIN_RISE = 5.0                                      # m³/s: subidas menores no cuentan
 MIN_Q = 1.0                                         # m³/s: por debajo, GloFAS no representa el cauce ahí
@@ -436,12 +437,21 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
         basin = round(mean(v for _, v in rains), 1) if rains else None
         wet = [soil_m[p]["lluvia_30d"] for p in c["partidos"] if (soil_m.get(p) or {}).get("lluvia_30d") is not None]
         basin30 = round(mean(wet), 1) if wet else None
+        recent = [soil_m[p]["lluvia_7d"] for p in c["partidos"] if (soil_m.get(p) or {}).get("lluvia_7d") is not None]
+        basin7 = round(mean(recent), 1) if recent else None
         lv_rain = rain_level(basin, basin30)
-        pts = [{**s, **status[_key(s)]} for s in c["muestras"] if _key(s) in status]
-        rep = [p for p in pts if p.get("representado")]
-        lv_flow = max_level(*(p["nivel"] for p in rep)) if rep else "GREEN"
+        # Ríos con punto de referencia: se usa ese punto (cauce principal, historia 1984-hoy) y no los puntos de la
+        # red, que en ríos anchos o en el delta pueden caer en celdas de GloFAS fuera del cauce principal.
         ref = ref_by.get(ref_key(c["nombre"])) if c["tipo"] == "río" else None
         lv_ref = max_level(*(r["nivel_7d"] for r in ref)) if ref else "GREEN"
+        pts = [] if ref else [{**s, **status[_key(s)]} for s in c["muestras"] if _key(s) in status]
+        rep = [p for p in pts if p.get("representado")]
+        lv_model = max_level(*(p["nivel"] for p in rep)) if rep else "GREEN"
+        # Como en el consenso del motor, una sola fuente no alcanza para Naranja o Roja: la subida de caudal de
+        # GloFAS frente a las últimas 3 semanas queda en Amarilla salvo que la confirme la lluvia (prevista, de la
+        # última semana o del último mes).
+        confirmed = idx(lv_rain) >= 1 or (basin7 or 0) >= RECENT_7D or (basin30 or 0) >= WET_30D
+        lv_flow = lv_model if confirmed else LEVELS[min(idx(lv_model), 1)]
         level = max_level(lv_rain, lv_flow, lv_ref)
 
         motivos = []
@@ -455,8 +465,12 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
             motivos.append(f"Suelo cargado: {basin30:g} mm de lluvia en los últimos 30 días")
         hot = sorted((p for p in rep if p["nivel"] != "GREEN"), key=lambda p: (-idx(p["nivel"]), p["pico"]))
         if hot:
-            motivos.append(f"Caudal (GloFAS): hasta {hot[0]['relacion']:g} veces el típico de las últimas 3 semanas "
-                           f"en {names.get(hot[0]['partido'], hot[0]['partido'])}; pico estimado el {_dm(hot[0]['pico'])}")
+            h = hot[0]
+            motivos.append(f"Caudal (GloFAS) en {names.get(h['partido'], h['partido'])}: de {h['q_tipico']:g} a "
+                           f"{h['q_max_7d']:g} m³/s ({h['relacion']:g} veces el típico de las últimas 3 semanas); pico "
+                           f"estimado el {_dm(h['pico'])}")
+            if idx(lv_model) > idx(lv_flow):
+                motivos.append("Señal de un solo modelo, sin lluvia fuerte que la confirme: se informa como Amarilla")
         for r in ref or []:
             if r["nivel_7d"] != "GREEN":
                 motivos.append(f"Punto de referencia GloFAS en {r['lugar']}: caudal {r['estado_7d'].lower()} frente "
@@ -473,11 +487,12 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
             afectados = list(dict.fromkeys(senal + c["partidos"]))
         locs = sorted((loc for loc in c["localidades"] if loc[1] in afectados), key=lambda loc: loc[1] not in senal)
         out.append({"id": c["id"], "nombre": c["nombre"], "tipo": c["tipo"], "km": c["km"], "nivel": level,
-                    "nivel_lluvia": lv_rain, "nivel_caudal": lv_flow, "nivel_referencia": lv_ref if ref else None,
-                    "lluvia_72h": basin, "lluvia_30d": basin30, "motivos": motivos, "partidos": c["partidos"],
+                    "nivel_lluvia": lv_rain, "nivel_caudal": lv_flow, "caudal_confirmado": bool(rep) and confirmed,
+                    "nivel_referencia": lv_ref if ref else None, "lluvia_72h": basin, "lluvia_7d": basin7,
+                    "lluvia_30d": basin30, "motivos": motivos, "partidos": c["partidos"],
                     "partidos_senal": senal, "partidos_afectados": afectados, "localidades_afectadas": locs,
                     "localidades": c["localidades"], "pico": min((p["pico"] for p in hot), default=None),
-                    "con_caudal": bool(rep), "puntos": pts, "bbox": c["bbox"], "trazo": c["trazo"]})
+                    "con_caudal": bool(rep or ref), "puntos": pts, "bbox": c["bbox"], "trazo": c["trazo"]})
     out.sort(key=lambda x: (-idx(x["nivel"]), -(x["lluvia_72h"] or 0), -(x["km"] or 0)))
     por_nivel = {lv: sum(1 for x in out if x["nivel"] == lv) for lv in LEVELS[:4]}
     return {
@@ -489,8 +504,10 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
                   f"(Amarilla ≥ {RAIN72['YELLOW']} mm, Naranja ≥ {RAIN72['ORANGE']}, Roja ≥ {RAIN72['RED']}; sube un "
                   f"nivel si llovió ≥ {WET_30D} mm en 30 días), (b) el caudal GloFAS de los próximos 7 días respecto "
                   f"del típico de las últimas 3 semanas (Amarilla ≥ {RATIO['YELLOW']}×, Naranja ≥ {RATIO['ORANGE']}×, "
-                  f"Roja ≥ {RATIO['RED']}×, con una subida mínima de {MIN_RISE:g} m³/s) y (c) en los ríos con estación "
-                  "de referencia GloFAS, el caudal frente a su historia 1984-hoy. Umbrales iniciales, a calibrar.",
+                  f"Roja ≥ {RATIO['RED']}×, con una subida mínima de {MIN_RISE:g} m³/s; sin lluvia que lo confirme "
+                  f"—≥ {RAIN72['YELLOW']} mm previstos, ≥ {RECENT_7D} mm en 7 días o ≥ {WET_30D} mm en 30 días— queda en "
+                  "Amarilla, porque es una sola fuente) y (c) en los ríos con punto de referencia GloFAS, el caudal "
+                  "frente a su historia 1984-hoy. Umbrales iniciales, a calibrar.",
         "nota": "GloFAS representa bien los ríos grandes; en arroyos chicos y en la llanura del Salado pesa más el "
                 "criterio de lluvia. Si un curso tiene alerta se listan todos los partidos que cruza (primero donde "
                 "está la señal) y las localidades a menos de 4 km del cauce: es una referencia de cercanía, no un "

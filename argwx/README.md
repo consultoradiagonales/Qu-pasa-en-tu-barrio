@@ -210,9 +210,14 @@ Para un servicio comercial hay que contratar su plan y cargar `ARGWX_OPEN_METEO_
 3. **Caudal (GloFAS):** en hasta 400 puntos sobre los cauces de más de 15 km se compara el máximo esperado de los
    próximos 7 días (mediana del ensamble) con el caudal típico de las últimas 3 semanas: Amarilla ≥ 2×, Naranja ≥ 4×,
    Roja ≥ 8×, con una subida mínima de 5 m³/s. Si el caudal típico es menor a 1 m³/s, GloFAS no representa ese cauce
-   y solo cuenta la lluvia.
-4. **Puntos de referencia GloFAS:** en Paraná, Luján, Salado, Quequén Grande y Negro se suma la comparación con la
-   historia 1984-hoy del modelo (p90, p98 y máximo). Son celdas del modelo, no estaciones de aforo. El Negro no está
+   y solo cuenta la lluvia. **Como en el consenso de alertas, una sola fuente no alcanza para Naranja o Roja:** si la
+   subida de GloFAS no la confirma la lluvia (≥ 40 mm previstos, ≥ 50 mm en la última semana o ≥ 150 mm en 30 días),
+   se informa como Amarilla. Motivo: tras una semana con lluvias moderadas, los arroyos chicos parten de caudales muy
+   bajos y la relación con las últimas 3 semanas se infla (en la primera corrida real dio 8 a 17 veces con 26-48 mm
+   de lluvia en la semana).
+4. **Puntos de referencia GloFAS:** en Paraná, Luján, Salado, Quequén Grande y Negro se usa la comparación con la
+   historia 1984-hoy del modelo (p90, p98 y máximo) en lugar de los puntos de la red, que en ríos anchos o en el delta
+   pueden caer fuera del cauce principal. Son celdas del modelo, no estaciones de aforo. El Negro no está
    en la red de OpenStreetMap de la provincia (su cauce es el límite), así que figura solo con su punto de referencia.
 5. El nivel del curso es el mayor de los tres. Si tiene alerta, se listan todos los partidos que cruza (primero
    donde está la señal) y sus localidades ribereñas.

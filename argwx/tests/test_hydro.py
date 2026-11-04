@@ -110,12 +110,24 @@ def test_compute_floods_combines_criteria():
     assert any("Caudal (GloFAS)" in m for m in c["motivos"]) and any("Máximo en Junín: 80 mm" in m for m in c["motivos"])
     assert res["cursos"][0]["id"] == rio["id"] and res["resumen"]["en_alerta"] == 1
 
-    # Estación de referencia con caudal alto (historia 1984-hoy) aunque no llueva
+    # La misma subida de caudal sin lluvia que la confirme queda en Amarilla (una sola fuente)
+    dry = {"municipios": {"junin": {"lluvia_30d": 40, "lluvia_7d": 10}, "chacabuco": {"lluvia_30d": 40, "lluvia_7d": 5}}}
+    res = hydro.compute_floods(net, caudales, dry, {"junin": 5.0, "chacabuco": 3.0}, None, names)
+    c = next(x for x in res["cursos"] if x["id"] == rio["id"])
+    assert c["nivel"] == "YELLOW" and c["nivel_caudal"] == "YELLOW" and c["caudal_confirmado"] is False
+    assert any("de 10 a 50 m³/s" in m for m in c["motivos"]) and any("un solo modelo" in m for m in c["motivos"])
+    # ... y la confirma la lluvia de la última semana
+    wet7 = {"municipios": {"junin": {"lluvia_30d": 80, "lluvia_7d": 60}, "chacabuco": {"lluvia_30d": 80, "lluvia_7d": 55}}}
+    res = hydro.compute_floods(net, caudales, wet7, {"junin": 5.0, "chacabuco": 3.0}, None, names)
+    assert next(x for x in res["cursos"] if x["id"] == rio["id"])["nivel"] == "ORANGE"
+
+    # Punto de referencia con caudal alto (historia 1984-hoy) aunque no llueva
     refs = {"rios": [{"rio": "de Prueba", "lugar": "Junín", "nivel_7d": "YELLOW", "estado_7d": "Alto",
                       "partidos": ["junin"]}]}
-    res = hydro.compute_floods(net, None, None, {}, refs, names)
+    res = hydro.compute_floods(net, caudales, None, {}, refs, names)  # con punto de referencia se ignora la red
     c = next(x for x in res["cursos"] if x["id"] == rio["id"])
     assert c["nivel"] == "YELLOW" and c["nivel_referencia"] == "YELLOW" and c["partidos_senal"] == ["junin"]
+    assert c["puntos"] == [] and c["con_caudal"] is True
     assert c["partidos_afectados"][0] == "junin" and set(c["partidos_afectados"]) == set(rio["partidos"])
     assert [loc[0] for loc in c["localidades_afectadas"]] == ["Pueblo Ribereño", "Ciudad Ribereña"]  # señal primero
     # Río de referencia que no está en la red (como el Negro): figura igual, con su nivel
