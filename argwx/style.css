@@ -83,3 +83,6 @@ footer{padding:6px 16px 28px;color:var(--muted);font-size:12px;max-width:1440px;
 /* Mapa base más suave para que se lean las capas de tormenta y alertas */
 .leaflet-tile-pane{filter:grayscale(.5) brightness(1.03) contrast(.92)}
 @media (prefers-color-scheme:dark){.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.45) brightness(.88) contrast(.9)}}
+.obs span{display:inline-block;padding:1px 6px;border-radius:9px;color:#fff;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.8)}
+.rio span{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;font-size:15px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.costa span{display:inline-block;padding:1px 6px;border-radius:9px;background:var(--glass);color:var(--ink);font-size:11px;font-weight:700;white-space:nowrap;border:2px solid;box-shadow:0 1px 3px rgba(0,0,0,.35)}
