@@ -28,7 +28,8 @@
   const norm = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const fmtDay = d => d ? `${new Date(d + "T12:00:00").toLocaleDateString("es-AR", {weekday: "short"}).replace(".", "")} ${+d.slice(8, 10)}/${+d.slice(5, 7)}` : "–";
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-  const SOIL_COLOR = {saturado: "#1f4e9c", "húmedo": "#3a8fd6", adecuado: "#4caf50", seco: "#c9a227"};
+  const SOIL_COLOR = {"muy húmedo": "#1f4e9c", "húmedo": "#3a8fd6", adecuado: "#4caf50", seco: "#c9a227"};
+  const kmTxt = c => c.km ? ` · ${Math.round(c.km)} km` : "";
   const kindOf = tr => (tr.points.some(p => p.thunder) ? "Tormenta " : "Área de lluvia ") + INTENS[tr.level];
   const mobile = () => matchMedia("(max-width: 959px)").matches;
   function eta(unix) {
@@ -333,7 +334,7 @@
   function courseHTML(c) {
     const green = c.nivel === "GREEN", pa = green ? c.partidos : c.partidos_afectados;
     const locs = (green ? c.localidades : c.localidades_afectadas).slice(0, 12);
-    return `<div class="pop"><h3>💧 ${esc(c.nombre)}</h3><div class="muted">${esc(c.tipo)} · ${Math.round(c.km)} km · próximos 3 días</div>
+    return `<div class="pop"><h3>💧 ${esc(c.nombre)}</h3><div class="muted">${esc(c.tipo)}${kmTxt(c)} · próximos 3 días</div>
       <div class="row"><span>Crecida</span>${lvlBadge(c.nivel)}</div>
       ${c.pico ? `<div class="row"><span>Pico estimado (GloFAS)</span><b>${fmtDay(c.pico)}</b></div>` : ""}
       <ul class="mot">${c.motivos.map(m => `<li>${esc(m)}</li>`).join("")}
@@ -396,7 +397,7 @@
         ${hot.length ? `<p class="muted">Más cálido en PBA: ${esc(hot[0].estacion)} ${hot[0].temp_c} °C · más fresco: ${esc(hot[hot.length - 1].estacion)} ${hot[hot.length - 1].temp_c} °C.</p>` : ""}
         <p class="muted">Las observaciones de tormenta o granizo elevan la alerta del municipio: la observación prevalece sobre el modelo. Prendé "🌡️ Estaciones" para verlas en el mapa.</p>`;
     }
-    if (rios) $("rios-card").innerHTML = `<h2>💧 Ríos principales (estaciones de referencia)</h2><ul class="plain">${rios.rios.map(r => `<li><div>${lvlBadge(r.nivel_7d)} <b>${esc(r.rio)}</b> · ${esc(r.lugar)}</div>
+    if (rios) $("rios-card").innerHTML = `<h2>💧 Ríos principales (puntos de referencia GloFAS)</h2><ul class="plain">${rios.rios.map(r => `<li><div>${lvlBadge(r.nivel_7d)} <b>${esc(r.rio)}</b> · ${esc(r.lugar)}</div>
         <div class="muted">${esc(r.estado_7d)} próximos 7 días${r.tendencia ? ", " + esc(r.tendencia) : ""} · 30 días: ${esc(r.estado_30d)}</div></li>`).join("")}</ul>
         <p class="muted">${esc(rios.metodo)} Fuente: ${esc(rios.fuente)}.</p>
         <button class="lnk" data-tab="crec">Ver crecidas de todos los ríos, arroyos y canales →</button>`;
@@ -598,7 +599,7 @@
       lead = `✅ <b>Sin crecidas previstas:</b> ningún río, arroyo o canal supera los umbrales en los próximos 3 días.${top ? ` La cuenca con más lluvia prevista es la del ${esc(top.nombre)}: ${top.lluvia_72h} mm en 72 h.` : ""}`;
     }
     $("crec-sum").innerHTML = `<h2>💧 Crecidas: próximos 3 días</h2><p class="big">${lead}</p>
-      ${refs.length ? `<p>Estaciones de referencia con caudal alto frente a la historia 1984-hoy: ${refs.map(r => `<b>${esc(r.rio)}</b> en ${esc(r.lugar)} ${lvlBadge(r.nivel_7d)}`).join(", ")}.</p>` : ""}
+      ${refs.length ? `<p>Puntos de referencia GloFAS con caudal alto frente a su historia 1984-hoy: ${refs.map(r => `<b>${esc(r.rio)}</b> en ${esc(r.lugar)} ${lvlBadge(r.nivel_7d)}`).join(", ")}.</p>` : ""}
       <p class="muted">Se analizan ${R.cursos} cursos con nombre de OpenStreetMap (${plural(R.por_tipo["río"], "río", "ríos")}, ${plural(R.por_tipo.canal, "canal", "canales")} y ${plural(R.por_tipo.arroyo, "arroyo", "arroyos")}); ${R.con_caudal} con caudal GloFAS. Actualizado: ${fmtDT(cr.generated_at)}.</p>`;
     $("crec-method").innerHTML = `${esc(cr.metodo)}<br><br>${esc(cr.nota)}<br><br>${esc(cr.fuentes)}`;
     crecList();
@@ -610,13 +611,17 @@
     if (!cr) { $("crec-list").innerHTML = ""; return; }
     const q = norm($("crec-q").value.trim());
     let list = cr.cursos;
-    if (q) list = list.filter(c => norm(c.nombre).includes(q) || c.partidos.some(p => norm(MN(p)).includes(q)) || c.localidades.some(l => norm(l[0]).includes(q)));
+    if (q) {  // primero los que coinciden por nombre; después por partido o localidad
+      const byName = c => norm(c.nombre).includes(q);
+      list = list.filter(c => byName(c) || c.partidos.some(p => norm(MN(p)).includes(q)) || c.localidades.some(l => norm(l[0]).includes(q)))
+        .sort((a, b) => (byName(b) - byName(a)) || (LV.indexOf(b.nivel) - LV.indexOf(a.nivel)) || ((b.km || 0) - (a.km || 0)));
+    }
     else if (S.crecF === "alerta") list = list.filter(c => c.nivel !== "GREEN");
     const shown = list.slice(0, S.crecN);
     $("crec-list").innerHTML = shown.length ? shown.map(c => {
       const green = c.nivel === "GREEN", pa = green ? c.partidos : c.partidos_afectados;
       const locs = (green ? c.localidades : c.localidades_afectadas).slice(0, 8);
-      return `<li><div>${lvlBadge(c.nivel)} <b>${esc(c.nombre)}</b> <span class="muted">· ${esc(c.tipo)} · ${Math.round(c.km)} km${c.pico ? ` · pico ${fmtDay(c.pico)}` : ""}</span></div>
+      return `<li><div>${lvlBadge(c.nivel)} <b>${esc(c.nombre)}</b> <span class="muted">· ${esc(c.tipo)}${kmTxt(c)}${c.pico ? ` · pico ${fmtDay(c.pico)}` : ""}</span></div>
         ${c.motivos.length ? `<div class="muted" style="margin:4px 0">${c.motivos.map(esc).join(" · ")}</div>` : ""}
         ${!green && c.partidos_senal.length ? `<div style="margin:4px 0;font-size:13.5px">Señal más fuerte en <b>${c.partidos_senal.slice(0, 4).map(p => esc(MN(p))).join(", ")}</b>; podría afectar a los partidos sobre el curso:</div>` : ""}
         <div class="pl">${pa.slice(0, 10).map(p => `<span>${esc(MN(p))}</span>`).join("")}${pa.length > 10 ? `<span>+${pa.length - 10}</span>` : ""}</div>
@@ -630,11 +635,11 @@
     const su = S.st.suelo;
     if (!su) { $("suelo-card").innerHTML = ""; return; }
     const rows = Object.entries(su.municipios).map(([id, v]) => ({id, ...v}));
-    const cats = ["saturado", "húmedo", "adecuado", "seco"];
+    const cats = ["muy húmedo", "húmedo", "adecuado", "seco"];
     const cnt = Object.fromEntries(cats.map(c => [c, rows.filter(r => r.suelo === c).length]));
     const wet = rows.filter(r => r.lluvia_30d != null).sort((a, b) => b.lluvia_30d - a.lluvia_30d).slice(0, 8);
     const dry = rows.filter(r => r.humedad_suelo != null).sort((a, b) => a.humedad_suelo - b.humedad_suelo).slice(0, 6);
-    const risk = rows.filter(r => (r.suelo === "saturado" || r.suelo === "húmedo") && (S.r72[r.id] || 0) >= 20)
+    const risk = rows.filter(r => (r.suelo === "muy húmedo" || r.suelo === "húmedo") && (S.r72[r.id] || 0) >= 20)
       .sort((a, b) => S.r72[b.id] - S.r72[a.id]);
     const known = cats.some(c => cnt[c]);
     $("suelo-card").innerHTML = `<h2>🌱 Suelo y siembra</h2>
@@ -653,7 +658,7 @@
     if (S.region !== "pba") document.querySelector('#region button[data-r="pba"]').click();
     if (!S.layers.rios) document.querySelector('#layers button[data-l="rios"]').click();
     G.hl.clearLayers();
-    drawCourse(c, G.hl, true);
+    if (c.trazo.length) drawCourse(c, G.hl, true);
     window.scrollTo({top: 0});
     const bounds = L.latLngBounds([c.bbox[0], c.bbox[1]], [c.bbox[2], c.bbox[3]]);
     if (mobile()) openSheet(courseHTML(c), null);
@@ -695,7 +700,11 @@
     S.munis = S.st.munis || [];
     S.provs = S.st.prov ? S.st.prov.features : [];
     const failed = S.st.meta ? Object.entries(S.st.meta.parts).filter(([, v]) => !v.ok).map(([k]) => k) : [];
-    $("warns").innerHTML = failed.length ? `<div class="warn">Algunas fuentes no respondieron en la última actualización del servidor (${esc(failed.join(", "))}).</div>` : "";
+    const PART = {enso: "El Niño", smn: "alertas del SMN", en_vivo_respaldo: "copia de respaldo del mapa", observaciones_smn: "estaciones del SMN",
+                  rios: "ríos de referencia", costa: "olas", ambiente: "UV y calidad del aire", probabilidades: "probabilidades de lluvia",
+                  enso_pba: "El Niño en la provincia", red_hidrica: "red de ríos y arroyos", suelo: "humedad del suelo",
+                  caudales_red: "caudales de ríos y arroyos (GloFAS)", alertas_pba: "alertas por municipio", crecidas: "crecidas"};
+    $("warns").innerHTML = failed.length ? `<div class="warn">Algunas fuentes no respondieron en la última actualización del servidor: ${esc(failed.map(k => PART[k] || k).join(", "))}. Se muestran los datos disponibles.</div>` : "";
     S.r72 = {};
     if (S.st.pba) {
       const per = {};
