@@ -28,6 +28,11 @@
   const norm = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const fmtDay = d => d ? `${new Date(d + "T12:00:00").toLocaleDateString("es-AR", {weekday: "short"}).replace(".", "")} ${+d.slice(8, 10)}/${+d.slice(5, 7)}` : "–";
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const fmtDMY = d => d ? `${+d.slice(8, 10)}/${+d.slice(5, 7)}/${d.slice(0, 4)}` : "–";
+  const RIVER = {RIODELAPLATA: "Río de la Plata", PARANADELASPALMAS: "Paraná de las Palmas", PARANAINF: "Paraná inferior",
+                 PARANAGUAZU: "Paraná Guazú", PARANABRAVO: "Paraná Bravo", PARANAMINI: "Paraná Miní", LUJAN: "Luján",
+                 CHANA: "Chaná", BARADERO: "Baradero", URUGUAY: "Uruguay", SALADO: "Salado"};
+  const riverName = r => !r ? "" : RIVER[r] || (r === r.toUpperCase() ? r.charAt(0) + r.slice(1).toLowerCase() : r);
   const SOIL_COLOR = {"muy húmedo": "#1f4e9c", "húmedo": "#3a8fd6", adecuado: "#4caf50", seco: "#c9a227"};
   const kmTxt = c => c.km ? ` · ${Math.round(c.km)} km` : "";
   const kindOf = tr => (tr.points.some(p => p.thunder) ? "Tormenta " : "Área de lluvia ") + INTENS[tr.level];
@@ -346,7 +351,7 @@
 
   function gaugeHTML(st) {
     const num = v => v == null ? "–" : `${v.toFixed(2).replace(".", ",")} m`;
-    return `<div class="pop"><h3>📏 ${esc(st.estacion)}</h3><div class="muted">${esc(st.rio || "")} · ${esc(st.red || "")} · altura observada</div>
+    return `<div class="pop"><h3>📏 ${esc(st.estacion)}</h3><div class="muted">${esc(riverName(st.rio))} · ${esc(st.red || "")} · altura observada</div>
       <div class="row"><span>Estado</span>${st.nivel === "GREEN" ? `<b>${esc(st.estado)}</b>` : lvlBadge(st.nivel) + " " + esc(st.estado)}</div>
       <div class="row"><span>Altura</span><b>${num(st.altura_m)}</b></div>
       <div class="row"><span>Cambio en 24 h</span><b>${st.cambio_24h == null ? "–" : (st.cambio_24h > 0 ? "+" : "") + num(st.cambio_24h)}</b></div>
@@ -560,7 +565,7 @@
       const rel = ((cb.calibracion.tabla["30"] || {})["1"] || []);
       const BIN = ["ningún modelo", "hasta 1 de cada 4", "entre 1 de cada 4 y la mitad", "más de la mitad", "más de 3 de cada 4"];
       $("verif-card").innerHTML = `<h2>📊 ¿Qué tan bien aciertan los modelos?</h2>
-        <p class="muted">Lluvia pronosticada con 1 día de anticipación frente a la observada (ERA5) del ${fmtDay(cb.periodo[0])} al ${fmtDay(cb.periodo[1])}, en 8 puntos de la provincia (${cb.dias} días).</p>
+        <p class="muted">Lluvia pronosticada con 1 día de anticipación frente a la observada (ERA5) del ${fmtDMY(cb.periodo[0])} al ${fmtDMY(cb.periodo[1])}, en 8 puntos de la provincia (${cb.dias} días).</p>
         <table class="vt"><tr><th>Modelo</th><th>Detecta ≥ 20 mm</th><th>Falsas alarmas</th><th>Error medio</th></tr>
         ${rows.map(r => `<tr><td>${esc(r.mod)}</td><td>${pct(r.u.pod)}</td><td>${pct(r.u.far)}</td><td>${r.v.mae} mm</td></tr>`).join("")}</table>
         ${rel.length ? `<p style="margin-top:10px"><b>Probabilidad calibrada (≥ 30 mm, 1 día):</b> cuando lo pronosticó…</p>
@@ -705,7 +710,7 @@
     const hot = o.estaciones.filter(st => st.nivel !== "GREEN");
     $("obs-rios-card").innerHTML = `<h2>📏 Alturas observadas de los ríos</h2>
       <p>${hot.length ? `⚠️ <b>${plural(hot.length, "escala", "escalas")} sobre el nivel de alerta</b>.` : `✅ Ninguna escala de la provincia supera su nivel de alerta.`}</p>
-      <ul class="plain">${o.estaciones.slice(0, 14).map(st => `<li class="row"><span><b>${esc(st.estacion)}</b> <span class="muted">· ${esc(st.rio || "")}${st.alerta != null ? ` · alerta ${String(st.alerta).replace(".", ",")} m` : ""}</span></span>
+      <ul class="plain">${o.estaciones.slice(0, 14).map(st => `<li class="row"><span><b>${esc(st.estacion)}</b> <span class="muted">· ${esc(riverName(st.rio))}${st.alerta != null ? ` · alerta ${String(st.alerta).replace(".", ",")} m` : ""}</span></span>
         <b>${st.altura_m.toFixed(2).replace(".", ",")} m ${st.nivel !== "GREEN" ? lvlBadge(st.nivel) : `<span class="muted">${esc(st.estado)}</span>`}</b></li>`).join("")}</ul>
       <p class="muted">${esc(o.fuente)}. Cada escala tiene su propio cero: las alturas sirven para seguir un mismo puerto, no para comparar puertos entre sí. Se ven en el mapa con la capa Ríos.</p>`;
   }
