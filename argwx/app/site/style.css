@@ -8,7 +8,6 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:10p
 .brand{display:flex;align-items:center;gap:6px;text-decoration:none;min-width:0}
 .brand .emblem{height:44px;width:auto}.brand .mark{height:36px;width:auto}
 .client{display:flex;align-items:center;gap:6px;min-width:0;text-align:right}
-.client-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#7a8794;writing-mode:vertical-rl;transform:rotate(180deg)}
 #client-logo{height:42px;width:auto;max-width:44vw;object-fit:contain}
 #client-txt{font-size:12px;line-height:1.25;color:#46535f;font-weight:600}
 .statusbar{display:flex;align-items:center;gap:8px;padding:6px max(12px,env(safe-area-inset-left));background:var(--head);color:#fff;font-size:12.5px}
