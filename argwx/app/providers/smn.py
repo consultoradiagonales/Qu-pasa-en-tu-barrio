@@ -1,19 +1,25 @@
 """Alertas oficiales del SMN (Servicio Meteorológico Nacional): feeds CAP 1.2, Atom/RSS con CAP o GeoRSS.
 
-Cada alerta se asigna a los partidos cuyo punto de pronóstico cae dentro del polígono oficial.
-Si el área no trae polígono, se busca el nombre del partido en la descripción del área.
+Un partido queda bajo una alerta si el polígono oficial cubre su punto central o al menos el 20 % de
+su superficie (estimada con una grilla de puntos). Así se evitan falsos positivos por roces en los
+bordes entre provincias. Si el área no trae polígono, se busca el nombre del partido en la descripción.
 """
 import email.utils
+import json
 import logging
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 
 from app.engine.geo import normalize, point_in_polygon
 from app.engine.levels import max_level
 from app.util import to_utc_naive
 
 log = logging.getLogger("argwx.smn")
+GEOJSON = Path(__file__).resolve().parents[1] / "data" / "municipios_pba.geojson"
+COVERAGE_MIN = 0.2
 
 COLORS = [(r"\b(purpura|violeta)\b", "PURPLE"), (r"\b(roja|rojo)\b", "RED"), (r"\bnaranja\b", "ORANGE"),
           (r"\b(amarilla|amarillo)\b", "YELLOW")]
@@ -134,13 +140,49 @@ def parse_feed(xml_text: str, fetch=None) -> list[dict]:
     return alerts
 
 
+def _bbox(pts) -> tuple[float, float, float, float]:
+    lats, lons = [p[0] for p in pts], [p[1] for p in pts]
+    return min(lats), max(lats), min(lons), max(lons)
+
+
+def _bbox_overlap(a, b) -> bool:
+    return a[0] <= b[1] and b[0] <= a[1] and a[2] <= b[3] and b[2] <= a[3]
+
+
+@lru_cache
+def _samples() -> dict[str, tuple[list, tuple]]:
+    """Grilla de puntos interiores de cada partido, para estimar qué parte cubre una alerta."""
+    out = {}
+    for f in json.loads(GEOJSON.read_text(encoding="utf-8"))["features"]:
+        g = f["geometry"]
+        polys = [g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]
+        rings = [[(c[1], c[0]) for c in p[0]] for p in polys]
+        box = _bbox([pt for r in rings for pt in r])
+        n = 8
+        grid = [(box[0] + (i + 0.5) * (box[1] - box[0]) / n, box[2] + (j + 0.5) * (box[3] - box[2]) / n)
+                for i in range(n) for j in range(n)]
+        out[f["properties"]["id"]] = ([p for p in grid if any(point_in_polygon(p[0], p[1], r) for r in rings)], box)
+    return out
+
+
+def _covered(poly: list, box: tuple, m: dict) -> bool:
+    if point_in_polygon(m["lat"], m["lon"], poly):
+        return True
+    samples, mbox = _samples().get(m["id"], ([], None))
+    if not samples or not _bbox_overlap(box, mbox):
+        return False
+    inside = sum(point_in_polygon(lat, lon, poly) for lat, lon in samples)
+    return inside / len(samples) >= COVERAGE_MIN
+
+
 def affected(alert: dict, munis: list[dict]) -> list[str]:
     ids = set()
     by_length = sorted(munis, key=lambda m: -len(m["name"]))
     for area in alert.get("areas", []):
         if area["polygons"]:
             for poly in area["polygons"]:
-                ids.update(m["id"] for m in munis if point_in_polygon(m["lat"], m["lon"], poly))
+                box = _bbox(poly)
+                ids.update(m["id"] for m in munis if m["id"] not in ids and _covered(poly, box, m))
             continue
         text = f" {normalize(area['desc'])} "
         if any(p in text for p in OTHER_PROVINCES) and "buenos aires" not in text:

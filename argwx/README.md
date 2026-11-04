@@ -124,7 +124,7 @@ curl -X POST localhost:8000/api/v1/observations -H 'Content-Type: application/js
 |---|---|---|
 | GFS, ICON, ECMWF, GEM, UKMO vía [Open-Meteo](https://open-meteo.com) | Pronóstico horario (lluvia, ráfagas, temperatura, tormentas) | Implementado |
 | NOAA CPC | ENSO: ONI, Niño 1+2 / 3 / 3.4 / 4 semanales, SOI | Implementado |
-| SMN | Alertas oficiales (CAP 1.2 o GeoRSS) | Implementado; **URL del feed a confirmar** (`ARGWX_SMN_CAP_URLS`) |
+| SMN | Alertas oficiales (feed CAP 1.2 `https://ssl.smn.gob.ar/CAP/AR.php`) | Implementado y probado con el feed real |
 | OpenWeather, Meteoblue | Pronóstico adicional que entra al consenso | Beta; requiere API key |
 | Weather Underground | Observaciones de estaciones personales | Beta; requiere API key e IDs de estación |
 | GOES-Este (NOAA) | Imagen satelital | Enlace de referencia (sin procesamiento) |
@@ -148,13 +148,15 @@ Para un servicio comercial hay que contratar su plan y cargar `ARGWX_OPEN_METEO_
 - La API funciona con **SQLite** y con **PostgreSQL 16** (incluida la clave por archivo, como Docker Secret).
 - La imagen Docker se construye en GitHub Actions.
 - **Fuentes reales** (job `live-sources` del CI, 4/11/2026): Open-Meteo devolvió los 5 modelos para los
-  135 municipios y las 3 ventanas; NOAA CPC devolvió ONI, índices Niño semanales y SOI.
+  135 municipios y las 3 ventanas; NOAA CPC devolvió ONI, índices Niño semanales y SOI; el feed CAP del SMN
+  se leyó completo (niveles por color y fenómeno reconocidos).
 - El panel se probó en navegador de escritorio y de celular.
 - Los 135 partidos y sus límites salen de fuentes públicas (ver `app/data/README.md`).
 
 **No verificado todavía**
-- **SMN:** el feed respondió con formato válido pero sin alertas asignadas a partidos bonaerenses en ese momento.
-  Falta ver una alerta real vigente para confirmar la asignación a municipios (el log del CI indica qué feed respondió).
+- **SMN:** el feed oficial se leyó completo (51 alertas vigentes, CAP 1.2 con polígonos), pero en ese momento
+  todas eran de otras provincias. Falta ver una alerta real sobre Buenos Aires para confirmar la asignación a partidos
+  (`python -m app.cli smn-debug` muestra cada alerta y cuántos partidos toca).
 - `docker compose` completo (API + PostgreSQL + Nginx) no se ejecutó; la imagen sí se construye.
 - OpenWeather, Meteoblue y Weather Underground no se probaron: requieren claves.
 - Los umbrales son iniciales y deben calibrarse con la verificación estadística.

@@ -20,6 +20,7 @@ import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
+from shapely import force_2d
 from shapely.geometry import MultiPolygon, Polygon, mapping, shape
 from shapely.ops import unary_union
 from shapely.validation import make_valid
@@ -160,7 +161,7 @@ def main(circ_path, old_path):
         munis.append(m)
         parts = sorted(polys(g.simplify(0.003, preserve_topology=True)), key=lambda x: -x.area)
         parts = [x for i, x in enumerate(parts) if i == 0 or x.area > 0.0003]
-        geom = mapping(parts[0] if len(parts) == 1 else MultiPolygon(parts))
+        geom = mapping(force_2d(parts[0] if len(parts) == 1 else MultiPolygon(parts)))
         geom = json.loads(json.dumps(geom), parse_float=lambda v: round(float(v), 4))
         feats.append({"type": "Feature", "properties": {"id": m["id"], "name": n, "seccion": m["seccion"]},
                       "geometry": geom})

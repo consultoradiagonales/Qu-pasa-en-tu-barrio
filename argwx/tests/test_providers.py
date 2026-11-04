@@ -64,3 +64,13 @@ def test_georss_feed():
     alerts = smn.parse_feed(xml)
     assert alerts[0]["level"] == "ORANGE" and alerts[0]["issued_at"] == datetime(2026, 11, 4, 21)
     assert "la-plata" in smn.affected(alerts[0], load_municipalities())
+
+
+def test_alert_covering_part_of_a_partido():
+    munis = load_municipalities()
+    # Rectángulo que cubre casi todo Tandil (incluye su centro) -> Tandil en alerta
+    tandil = {"areas": [{"desc": "", "polygons": [[(-37.0, -59.6), (-37.0, -58.7), (-37.7, -58.7), (-37.7, -59.6)]]}]}
+    assert "tandil" in smn.affected(tandil, munis)
+    # Franja angosta sobre el límite con La Pampa: roza Pellegrini y Rivadavia pero no los cubre
+    borde = {"areas": [{"desc": "", "polygons": [[(-35.2, -63.45), (-35.2, -63.37), (-36.6, -63.37), (-36.6, -63.45)]]}]}
+    assert smn.affected(borde, munis) == []

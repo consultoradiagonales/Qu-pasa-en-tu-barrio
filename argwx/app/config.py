@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     oni_url: str = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt"
     nino_weekly_url: str = "https://www.cpc.ncep.noaa.gov/data/indices/wksst9120.for"
     soi_url: str = "https://www.cpc.ncep.noaa.gov/data/indices/soi"
-    # SMN: feeds CAP/GeoRSS candidatos (separados por coma). Se usa el primero que responda.
-    smn_cap_urls: str = "https://ssl.smn.gob.ar/CAP/AR.php,https://ssl.smn.gob.ar/feeds/avisocorto_GeoRSS.xml"
+    # SMN: feed CAP oficial (índice RSS con un CAP 1.2 por alerta). Admite varios separados por coma.
+    smn_cap_urls: str = "https://ssl.smn.gob.ar/CAP/AR.php"
     # Proveedores opcionales: se activan solo si hay API key
     openweather_api_key: str | None = None
     meteoblue_api_key: str | None = None
