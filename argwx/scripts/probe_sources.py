@@ -37,9 +37,6 @@ def second_round(c):
     try:
         wm = get(c, "https://api.rainviewer.com/public/weather-maps.json").json()
         frame = wm["radar"]["past"][-1]["path"]
-        from PIL import Image  # noqa: F401  (solo si está instalado)
-    except ImportError:
-        frame = None
     except Exception as e:
         show("RainViewer", False, repr(e))
         frame = None
