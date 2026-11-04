@@ -229,12 +229,37 @@ bandas orientativas (seco, adecuado, húmedo, muy húmedo) y no sube por sí sol
 referencia de cercanía, no un mapa de zonas inundables. La humedad del suelo es un valor de modelo (orientativo), no
 una medición en el lote.
 
+### Base histórica pública y probabilidades calibradas (`app/providers/historico.py`, `app/engine/calibration.py`)
+
+Se publica en `data/historico/` del dashboard (CSV y JSON, descargables desde la pestaña Alertas) y se actualiza sola en
+cada corrida, en forma incremental:
+
+| Tabla | Qué tiene | Fuente |
+|---|---|---|
+| `lluvia_era5_diaria.csv` | Lluvia diaria desde 1981 en un punto por sección electoral | ERA5 (Copernicus/ECMWF) vía Open-Meteo |
+| `verificacion_modelos.csv` | Lluvia pronosticada por los 9 modelos con 1, 2 y 3 días de anticipación y la observada (ERA5), desde el 30/9/2025 | Corridas anteriores vía Open-Meteo |
+| `alertas_smn.csv` | Registro de cada alerta oficial del SMN leída (fenómeno, nivel, vigencia, zonas) | API CAP del SMN |
+| `smn_horarios_AAAA-MM.csv` | Datos horarios de las estaciones del SMN en la provincia y CABA (temperatura, humedad, presión, viento) | Datos abiertos del SMN |
+| `pronosticos_condi_AAAA-MM.csv` | Lo que pronosticó ConDi para cada partido, una vez por día | ConDi |
+| `climatologia_lluvia.json` | Frecuencia histórica de lluvias por mes y percentiles | Cálculo sobre ERA5 |
+| `calibracion.json` | Aciertos y falsas alarmas de cada modelo; probabilidad calibrada | Cálculo sobre la verificación |
+
+**Probabilidad calibrada:** para cada partido y ventana se cuenta cuántos modelos pronostican 10, 30 o 60 mm o más, y se
+informa con qué frecuencia ocurrió eso en la base (por ejemplo: "cuando más de la mitad de los modelos pronosticó 30 mm
+o más, ocurrió en el X % de los casos"). Si hay menos de 10 casos se marca "pocos casos". La "verdad" es ERA5 (un
+reanálisis, no un pluviómetro): suaviza tormentas locales, pero es la misma referencia para todos los modelos.
+
+**Fuentes probadas y descartadas (4/11/2026, desde GitHub):** el archivo "alertas de 365 días" del SMN en datos.gob.ar
+se publica vacío; la API JSON del SMN (`ws.smn.gob.ar`) respondió 503 y la nueva (`ws1.smn.gob.ar`) pide autorización
+(401); los datos horarios del SMN no incluyen lluvia; la página de alturas de Prefectura no respondió desde GitHub.
+Las alertas oficiales siguen llegando por la API CAP del SMN (la que el SMN registra ante la OMM).
+
 ---
 
 ## Qué está verificado y qué no
 
 **Verificado**
-- 49 tests automáticos (motor, parsers, API, crecidas) pasan, también en GitHub Actions.
+- 59 tests automáticos (motor, parsers, API, crecidas, base histórica y calibración) pasan, también en GitHub Actions.
 - **Crecidas con datos reales** (4/11/2026): Overpass devolvió la red hídrica de la provincia (527 cursos con nombre:
   49 ríos, 65 canales y 413 arroyos; el Salado mide 640 km en OpenStreetMap y cruza 16 partidos) y Open-Meteo la
   humedad del suelo de los 135 partidos. En esa primera corrida la consulta de caudales GloFAS sobre los cauces se

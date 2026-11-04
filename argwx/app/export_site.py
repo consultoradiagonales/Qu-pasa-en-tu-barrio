@@ -23,7 +23,8 @@ from statistics import mean, median
 from app.config import get_settings
 from app.engine.geo import point_in_polygon
 from app.engine.levels import COLOR, LABEL
-from app.providers import enso, extras, hydro, openmeteo, smn
+from app.engine import calibration
+from app.providers import enso, extras, historico, hydro, openmeteo, smn
 from app.services.municipalities import SECCION_NOMBRE, by_id, load_municipalities
 from app.services.sync import http_client
 from app.util import iso, utcnow
@@ -277,8 +278,13 @@ def export_enso_pba(out: Path, client, settings, oni: list[dict], cache: Path | 
             log.warning("Cache ENSO-PBA inválida: %s", exc)
     pts = [by_id()[i] for i in ENSO_POINTS]
     end = utcnow().date() - timedelta(days=10)
-    data = _fetch_archive(client, settings, pts, end)
-    daily = {p["id"]: loc.get("daily") or {} for p, loc in zip(pts, data)}
+    hist = out / "historico"
+    series = historico.era5_series(hist, ENSO_POINTS) if (hist / historico.ERA5_FILE).exists() else {}
+    if series and all(len(s["time"]) > 10000 for s in series.values()):  # misma lluvia ERA5 de la base histórica
+        daily = {pid: {"time": s["time"], "precipitation_sum": s["rain"]} for pid, s in series.items()}
+    else:
+        data = _fetch_archive(client, settings, pts, end)
+        daily = {p["id"]: loc.get("daily") or {} for p, loc in zip(pts, data)}
     result = enso_rain_composites(daily, oni)
     result.update({
         "generated_at": iso(utcnow()),
@@ -308,7 +314,19 @@ def _obs_time(fecha: str, hora: str):
         return utcnow()
 
 
-def export_pba_alerts(out: Path, smn_obs: list[dict] | None = None) -> dict:
+def rain_probabilities(entry: dict, window: int, calib: dict | None) -> dict:
+    """Cuántos modelos pronostican >= 10/30/60 mm y con qué frecuencia ocurrió eso en la base histórica."""
+    vals = [v["rain_mm"] for v in (entry.get("models") or {}).values() if v.get("rain_mm") is not None]
+    lead = {24: 1, 48: 2, 72: 3}.get(int(window), 1)
+    out = {}
+    for t in (10, 30, 60):
+        k = sum(x >= t for x in vals)
+        p = calibration.calibrated_probability((calib or {}).get("calibracion"), t, lead, k, len(vals))
+        out[str(t)] = {"k": k, "n": len(vals), **(p or {})}
+    return out
+
+
+def export_pba_alerts(out: Path, smn_obs: list[dict] | None = None, calib: dict | None = None) -> dict:
     from app.db import init_db, new_session
     from app.models import Observation
     from app.services.municipalities import seed
@@ -337,6 +355,7 @@ def export_pba_alerts(out: Path, smn_obs: list[dict] | None = None) -> dict:
                         "summary": summary(v["municipalities"].values()),
                         "municipios": [{**{k: e[k] for k in keep if k != "drivers"},
                                         "lluvia_mm": (e["values"].get("rain_mm") or {}).get("median"),
+                                        "prob_lluvia": rain_probabilities(e, w, calib),
                                         "drivers": e["drivers"][:1] if e["alert_level"] != "GREEN" else []}
                                        for e in v["municipalities"].values()]}
                for w, v in st["windows"].items()}
@@ -473,6 +492,19 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
         run("ambiente", lambda: write("ambiente.json", extras.export_air(client, load_municipalities())), "ambiente.json", 6)
         run("probabilidades", lambda: write("probabilidades.json", extras.export_probabilities(
             client, [by_id()[i] for i in ENSO_POINTS])), "probabilidades.json", 6)
+        # Base histórica pública (data/historico): se arrastra la copia publicada y se actualiza en forma incremental.
+        hist = data / "historico"
+        if cache and (cache / "historico").is_dir():
+            shutil.copytree(cache / "historico", hist, dirs_exist_ok=True)
+        hist.mkdir(exist_ok=True)
+        points, models = [by_id()[i] for i in ENSO_POINTS], settings.list_of("open_meteo_models")
+        run("historico_lluvia", lambda: historico.update_era5(client, settings, hist, points))
+        run("historico_climatologia", lambda: historico.climatology_file(hist, points))
+        run("historico_verificacion", lambda: historico.update_verification(client, hist, points, models))
+        run("historico_calibracion", lambda: historico.calibration_file(hist, models))
+        run("historico_alertas_smn", lambda: historico.update_alert_registry(hist, _load(data / "smn_argentina.json")))
+        run("historico_smn_horarios", lambda: historico.update_smn_hourly(client, hist,
+                                                                           historico.pba_station_names(client)))
         if oni:
             run("enso_pba", lambda: export_enso_pba(data, client, settings, oni, cache))
         else:
@@ -489,7 +521,8 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
             fresh_net = not parts["red_hidrica"].get("reutilizado")  # puntos nuevos: pedir caudales otra vez
             run("caudales_red", lambda: write("caudales_red.json", hydro.export_discharge(client, net)),
                 "caudales_red.json", 12, reuse=not fresh_net)
-    run("alertas_pba", lambda: export_pba_alerts(data, smn_obs), "alertas_pba.json", 6)
+    run("alertas_pba", lambda: export_pba_alerts(data, smn_obs, _load(hist / historico.CALIB_FILE)), "alertas_pba.json", 6)
+    run("historico_pronosticos", lambda: historico.append_forecasts(hist, _load(data / "alertas_pba.json")))
 
     def floods_part():
         net = _load(data / "red_hidrica.json")
@@ -501,6 +534,7 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
         return {**write("crecidas.json", res), "en_alerta": res["resumen"]["en_alerta"]}
 
     run("crecidas", floods_part, "crecidas.json", reuse=False)
+    run("historico_catalogo", lambda: historico.write_catalog(hist))
     meta = {"generated_at": iso(utcnow()), "parts": parts,
             "repo": "https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio"}
     _write(data, "meta.json", meta)

@@ -474,6 +474,7 @@
 
   function alertsTab() {
     const all = S.st.smn ? S.st.smn.alerts : [], list = all.filter(a => S.smnFilter === "all" || a.storm);
+    $("smn-src").textContent = S.st.smn ? `API oficial del SMN (formato CAP) · ${all.length} alertas vigentes en el país · leídas el ${fmtDT(S.st.smn.generated_at)}` : "";
     $("smn-list").innerHTML = list.length ? list.map(a => `<li><div>${lvlBadge(a.level)} <b>${esc(a.title)}</b></div>
       <div class="muted">${esc(a.provincias.join(", ") || "Área sin provincia identificada")} · desde ${fmtDT(a.valid_from)} hasta ${fmtDT(a.valid_to)}</div>
       ${a.partidos_pba.length ? `<div class="muted"><b>Buenos Aires:</b> ${esc(a.partidos_pba.join(", "))}</div>` : ""}</li>`).join("")
@@ -481,8 +482,69 @@
     const win = S.st.pba && S.st.pba.windows[S.pwin];
     const alerted = win ? win.municipios.filter(m => m.alert_level !== "GREEN").sort((a, b) => LV.indexOf(b.alert_level) - LV.indexOf(a.alert_level)) : [];
     $("pba-info").textContent = win ? `${win.label} · ${135 - alerted.length} municipios en verde · consenso de ${(S.st.pba.models || []).length} modelos (${(S.st.pba.models || []).join(", ")}) + observaciones del SMN` : "Sin datos.";
-    $("pba-list").innerHTML = alerted.length ? alerted.map(m => `<li><div>${lvlBadge(m.alert_level)} <b>${esc(m.name)}</b> <span class="muted">${esc(m.hazard || "")} · confianza ${esc(m.confidence_label)}</span></div><div class="muted">${esc(m.drivers[0] || "")}</div></li>`).join("")
+    $("pba-list").innerHTML = alerted.length ? alerted.map(m => `<li><div>${lvlBadge(m.alert_level)} <b>${esc(m.name)}</b> <span class="muted">${esc(m.hazard || "")} · confianza ${esc(m.confidence_label)}</span></div><div class="muted">${esc(m.drivers[0] || "")}</div>${probLine(m.prob_lluvia, "30")}</li>`).join("")
       : `<li class="muted">Ningún municipio en alerta en esta ventana.</li>`;
+    // Probabilidad calibrada: los partidos con más chance de lluvia importante en la ventana elegida
+    const withP = win ? win.municipios.filter(m => m.prob_lluvia && m.prob_lluvia["10"] && m.prob_lluvia["10"].probabilidad != null) : [];
+    const rank = t => withP.filter(m => m.prob_lluvia[t].k > 0 && m.prob_lluvia[t].probabilidad != null)
+      .sort((a, b) => b.prob_lluvia[t].probabilidad - a.prob_lluvia[t].probabilidad || b.prob_lluvia[t].k - a.prob_lluvia[t].k);
+    const top30 = rank("30"), top10 = rank("10"), t = top30.length ? "30" : "10", top = (top30.length ? top30 : top10).slice(0, 8);
+    $("pba-prob").innerHTML = !withP.length ? `<p class="muted">La probabilidad calibrada aparece cuando la base histórica tiene suficientes pares pronóstico-observación.</p>`
+      : top.length ? `<p class="muted">Lluvia de ${t} mm o más en la ventana elegida: frecuencia con que ocurrió en el último año cuando una proporción parecida de modelos lo pronosticó.</p>
+        <ul class="plain">${top.map(m => `<li class="row"><span><b>${esc(m.name)}</b> <span class="muted">· ${m.prob_lluvia[t].k} de ${m.prob_lluvia[t].n} modelos</span></span><b>${probTxt(m.prob_lluvia[t])}</b></li>`).join("")}</ul>`
+      : `<p class="muted">Ningún modelo pronostica 10 mm o más en ningún partido para esta ventana.</p>`;
+  }
+
+  function probTxt(p) {
+    if (!p || p.probabilidad == null) return "–";
+    return `${Math.round(p.probabilidad)} %${p.confiable ? "" : " (pocos casos)"}`;
+  }
+
+  function probLine(pr, t) {
+    const p = pr && pr[t];
+    if (!p || p.probabilidad == null) return "";
+    return `<div class="muted">🎯 Lluvia ≥ ${t} mm: ${probTxt(p)} · ${p.k} de ${p.n} modelos · calibrado con ${p.casos} casos</div>`;
+  }
+
+  const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  function probRows(id) {
+    const win = S.st.pba && S.st.pba.windows["24"], m = win && win.municipios.find(x => x.id === id);
+    const mu = S.munis.find(x => x.id === id), cl = S.st.clima;
+    const month = new Date().getMonth() + 1, pid = cl && mu ? cl.por_seccion[String(mu.seccion)] : null;
+    const c = pid && cl.puntos[pid] ? cl.puntos[pid][String(month)] : null;
+    let html = "";
+    ["30", "10"].forEach(t => {
+      const p = m && m.prob_lluvia && m.prob_lluvia[t];
+      if (p && p.probabilidad != null && (t === "30" || !html)) html += `<div class="row"><span>🎯 Lluvia ≥ ${t} mm en 24 h (calibrada)</span><b>${probTxt(p)}</b></div>`;
+    });
+    if (c && c.p24) html += `<div class="row"><span>📅 Normal de ${MONTHS[month - 1]}: ≥ 30 mm en un día</span><b>${String(c.p24["30"]).replace(".", ",")} % de los días</b></div>`;
+    return html;
+  }
+
+  // ------------------------------------------------------------------ base histórica y verificación
+  function histCards() {
+    const cb = S.st.calib, cat = S.st.catalogo;
+    if (cb && cb.verificacion) {
+      const rows = Object.entries(cb.verificacion).map(([mod, v]) => ({mod, v: v["1"]})).filter(r => r.v)
+        .map(r => ({...r, u: r.v.umbrales["20"]})).sort((a, b) => (b.u.csi || 0) - (a.u.csi || 0));
+      const pct = x => x == null ? "–" : Math.round(x * 100) + " %";
+      const rel = ((cb.calibracion.tabla["30"] || {})["1"] || []);
+      const BIN = ["ningún modelo", "hasta 1 de cada 4", "entre 1 de cada 4 y la mitad", "más de la mitad", "más de 3 de cada 4"];
+      $("verif-card").innerHTML = `<h2>📊 ¿Qué tan bien aciertan los modelos?</h2>
+        <p class="muted">Lluvia pronosticada con 1 día de anticipación frente a la observada (ERA5) del ${fmtDay(cb.periodo[0])} al ${fmtDay(cb.periodo[1])}, en 8 puntos de la provincia (${cb.dias} días).</p>
+        <table class="vt"><tr><th>Modelo</th><th>Detecta ≥ 20 mm</th><th>Falsas alarmas</th><th>Error medio</th></tr>
+        ${rows.map(r => `<tr><td>${esc(r.mod)}</td><td>${pct(r.u.pod)}</td><td>${pct(r.u.far)}</td><td>${r.v.mae} mm</td></tr>`).join("")}</table>
+        ${rel.length ? `<p style="margin-top:10px"><b>Probabilidad calibrada (≥ 30 mm, 1 día):</b> cuando lo pronosticó…</p>
+          <ul class="plain">${rel.map((b, i) => b.casos ? `<li class="row"><span>${BIN[i]}</span><b>${b.frecuencia} % <span class="muted">(${b.ocurrio} de ${b.casos} casos${b.confiable ? "" : ", pocos"})</span></b></li>` : "").join("")}</ul>` : ""}
+        <p class="muted">${esc(cb.verdad)}. "Detecta": de los días que llovió 20 mm o más, cuántos pronosticó. "Falsas alarmas": de los días que pronosticó 20 mm o más, en cuántos no llovió eso.</p>`;
+    } else $("verif-card").innerHTML = "";
+    if (cat && cat.tablas) {
+      $("hist-card").innerHTML = `<h2>🗄️ Base histórica (datos públicos)</h2>
+        <ul class="plain">${cat.tablas.filter(t => t.archivos.length).map(t => `<li><div><b>${esc(t.descripcion)}</b></div>
+          <div class="muted">${t.registros != null ? `${t.registros.toLocaleString("es-AR")} registros` : "resumen"}${t.desde ? ` · ${fmtDay(t.desde)} a ${fmtDay(t.hasta)}` : ""} · ${esc(t.fuente)}</div>
+          <div>${t.archivos.map(f => `<a href="data/historico/${encodeURIComponent(f)}" download>${esc(f)}</a>`).join(" · ")}</div></li>`).join("")}</ul>
+        <p class="muted">${esc(cat.nota)}</p>`;
+    } else $("hist-card").innerHTML = "";
   }
 
   function divColor(v) {
@@ -565,6 +627,7 @@
       <div class="row"><span>🌧️ Lluvia</span><b>${p == null ? "–" : p + " mm/h"}</b></div>
       ${argwx ? `<div class="row"><span>ARGWX 24 h</span>${lvlBadge(argwx.alert_level)}</div>` : ""}
       ${f ? soilRows(f.properties.id) : ""}
+      ${f ? probRows(f.properties.id) : ""}
       ${amb ? `<div class="row"><span>☀️ UV máx. hoy</span><b>${amb.uv_max ?? "–"} ${amb.uv_categoria ? "(" + amb.uv_categoria + ")" : ""}</b></div>
               <div class="row"><span>🌫️ PM2.5 máx.</span><b>${amb.pm25_max ?? "–"} µg/m³</b></div>` : ""}
       ${st ? `<div class="row"><span>🌡️ SMN ${esc(st.estacion)} (${esc(st.hora)})</span><b>${esc(st.estado)}, ${st.temp_c ?? "–"} °C</b></div>` : ""}
@@ -694,7 +757,8 @@
                    pba: "data/alertas_pba.json", muniGeo: "geo/municipios_pba.geojson", munis: "geo/municipios_pba.json",
                    prov: "geo/provincias_ar.geojson", obs: "data/observaciones_smn.json", rios: "data/rios.json",
                    costa: "data/costa.json", ambiente: "data/ambiente.json", probs: "data/probabilidades.json",
-                   crec: "data/crecidas.json", suelo: "data/suelo.json"};
+                   crec: "data/crecidas.json", suelo: "data/suelo.json", clima: "data/historico/climatologia_lluvia.json",
+                   calib: "data/historico/calibracion.json", catalogo: "data/historico/catalogo.json"};
     const vals = await Promise.all(Object.values(files).map(u => getJSON(u).catch(() => null)));
     Object.keys(files).forEach((k, i) => { S.st[k] = vals[i]; });
     S.munis = S.st.munis || [];
@@ -711,7 +775,7 @@
       ["24", "48", "72"].forEach(w => (S.st.pba.windows[w] || {municipios: []}).municipios.forEach(m => { (per[m.id] = per[m.id] || []).push(m.lluvia_mm); }));
       Object.entries(per).forEach(([id, v]) => { if (v.length === 3 && v.every(x => x != null)) S.r72[id] = Math.round(v.reduce((a, b) => a + b, 0) * 10) / 10; });
     }
-    drawProvs(); drawSMN(); drawMunis(); drawExtras(); extrasCards(); alertsTab(); ensoTab(); crecTab();
+    drawProvs(); drawSMN(); drawMunis(); drawExtras(); extrasCards(); alertsTab(); ensoTab(); crecTab(); histCards();
   }
 
   function seg(id, fn) {
@@ -788,7 +852,7 @@
   function fitMap() {
     if (mobile()) document.documentElement.style.setProperty("--topH", $("topbar").offsetHeight + "px");
     else document.documentElement.style.removeProperty("--topH");
-    map.invalidateSize({pan: false});
+    if ($("map").offsetWidth) map.invalidateSize({pan: false});  // con el mapa oculto (otra pestaña) correría la vista
   }
   function setCompact(on) {
     if (document.body.classList.contains("compact") === on) return;

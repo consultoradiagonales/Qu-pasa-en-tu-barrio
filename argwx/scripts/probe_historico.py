@@ -131,6 +131,39 @@ def rivers(c):
             print("   muestra:", plain(text_of(r.content))[:300])
 
 
+def ina_and_normals(c):
+    print("\n==== INA (alturas de ríos) y normales del SMN ====")
+    for path in ("obs/puntual/estaciones?format=json", "obs/puntual/series?format=json&var_id=2",
+                 "obs/puntual/fuentes?format=json", "getRedes?format=json", "obs/puntual/redes?format=json",
+                 "obs/puntual/series?format=json&var_id=2&proc_id=1&estacion_id=29"):
+        r = get(c, f"INA a5/{path}", f"https://alerta.ina.gob.ar/a5/{path}")
+        if r is not None and r.status_code == 200:
+            body = text_of(r.content)
+            print("   muestra:", body[:400].replace("\n", " "))
+            if body.lstrip().startswith(("[", "{")):
+                try:
+                    data = json.loads(body)
+                    rows = data if isinstance(data, list) else data.get("rows") or data.get("features") or []
+                    pba = [x for x in rows if "Buenos Aires" in json.dumps(x, ensure_ascii=False)][:5]
+                    print(f"   filas: {len(rows)}; con 'Buenos Aires': {len(pba)} ->", json.dumps(pba, ensure_ascii=False)[:600])
+                except Exception as exc:
+                    print("   json:", exc)
+    for name, url in (("SMN estadísticas normales", "https://ssl.smn.gob.ar/dpd/observaciones/estadisticas.txt"),):
+        r = get(c, name, url)
+        if r is not None and r.status_code == 200:
+            lines = text_of(r.content).splitlines()
+            ba = [ln for ln in lines if "BUENOS AIRES" in ln.upper() or "LA PLATA" in ln.upper()][:4]
+            print(f"   lineas={len(lines)} |", " || ".join(lines[:6]), " ... ", " || ".join(ba))
+    for dato in ("regtemp", "observaciones"):
+        try:
+            r = c.get("https://ssl.smn.gob.ar/dpd/zipopendata.php", params={"dato": dato}, timeout=60)
+            z = zipfile.ZipFile(io.BytesIO(r.content))
+            lines = text_of(z.read(z.namelist()[0])).splitlines()
+            show(f"SMN {dato}", True, f"{z.namelist()[:3]} lineas={len(lines)} | " + " || ".join(lines[:4]))
+        except Exception as exc:
+            show(f"SMN {dato}", False, f"{type(exc).__name__}: {exc}")
+
+
 def previous_runs(c):
     print("\n==== Open-Meteo: pronósticos de corridas anteriores (verificación) ====")
     hourly = "precipitation,precipitation_previous_day1,precipitation_previous_day2,precipitation_previous_day3"
@@ -166,7 +199,7 @@ def previous_runs(c):
 
 def main():
     with httpx.Client(headers=UA, follow_redirects=True) as c:
-        for part in (smn, rivers, previous_runs):
+        for part in (ina_and_normals, smn, rivers, previous_runs):
             try:
                 part(c)
             except Exception as exc:
