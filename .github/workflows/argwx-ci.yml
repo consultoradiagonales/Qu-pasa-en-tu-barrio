@@ -50,5 +50,5 @@ jobs:
         run: python -m app.cli status
       - name: Resumen de alertas
         run: python -m app.cli resumen
-      - name: Diagnóstico SMN
-        run: python -m app.cli smn-debug || true
+      - name: Prueba de fuentes gratuitas
+        run: python scripts/probe_sources.py || true
