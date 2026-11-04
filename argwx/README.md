@@ -45,7 +45,7 @@ El logo del cliente (Cámara de Diputados de la Provincia de Buenos Aires, provi
 
 **https://consultoradiagonales.github.io/Qu-pasa-en-tu-barrio/argwx/** — pensado para celular (iOS y Android) y compu.
 
-**En vivo** (mapa interactivo, Buenos Aires o Argentina):
+**En vivo** (mapa interactivo: Buenos Aires, Argentina o Sudamérica):
 - **Tormentas en movimiento:** círculos semitransparentes del color de la alerta con la zona probable de cada
   tormenta hora por hora, flecha de dirección, recorrido previsto y lista de municipios por los que pasaría con
   la hora estimada. La opacidad indica cuántos de los 5 modelos coinciden (probabilidad); si el círculo crece, la
@@ -57,6 +57,9 @@ El logo del cliente (Cámara de Diputados de la Provincia de Buenos Aires, provi
 
 **Alertas:** alertas del SMN y alertas ARGWX de los 135 municipios (24/48/72 h).
 **El Niño:** fase actual, ONI desde 1950 y efecto histórico en la lluvia bonaerense (ERA5 desde 1981).
+
+**Mapa base:** OpenStreetMap, sin clave (con límites provinciales propios encima). Para uso intensivo o comercial
+conviene contratar un proveedor de mapas (sus servidores públicos son para uso liviano).
 
 **Qué significa "en vivo":** el navegador consulta directamente a Open-Meteo los 5 modelos (GFS, ICON, ECMWF, GEM,
 UKMO) y se actualiza cada 15 minutos. Es pronóstico numérico, **no radar ni observación**. Si Open-Meteo no responde,

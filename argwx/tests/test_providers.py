@@ -111,3 +111,5 @@ def test_live_grids_match_browser():
     pba, ar = region_grid(regions["pba"]), region_grid(regions["ar"])
     assert len(pba) == 10 * 9 and pba[0] == (-32.0, -64.5) and pba[-1] == (-41.0, -56.5)
     assert len(ar) == 14 * 9 and ar[0] == (-22.0, -74.0) and ar[-1] == (-54.5, -54.0)
+    sa = region_grid(regions["sa"])
+    assert len(sa) == 14 * 11 and sa[0] == (12.5, -82.5) and sa[-1] == (-52.5, -32.5)

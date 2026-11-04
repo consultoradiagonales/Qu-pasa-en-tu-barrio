@@ -1,3 +1,4 @@
+[hidden]{display:none!important}
 :root{--bg:#f3f5f7;--card:#fff;--ink:#14212b;--muted:#5b6b78;--line:#dde3e8;--accent:#0b5cad;--glass:rgba(255,255,255,.9);--head:#16346e}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1720;--card:#16212c;--ink:#e6edf3;--muted:#93a4b3;--line:#283646;--accent:#4d9dff;--glass:rgba(22,33,44,.9);--head:#0e2148}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -77,3 +78,8 @@ footer{padding:6px 16px 28px;color:var(--muted);font-size:12px;max-width:1440px;
 .pulse{flex:none;width:10px;height:10px;border-radius:50%;background:#2ecc71;animation:pulse 2s infinite}
 .pulse.snap{background:#f39c12}.pulse.off{background:#e74c3c;animation:none}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,204,113,.6)}70%{box-shadow:0 0 0 10px rgba(46,204,113,0)}100%{box-shadow:0 0 0 0 rgba(46,204,113,0)}}
+.seg{overflow-x:auto;scrollbar-width:none}.seg::-webkit-scrollbar{display:none}.seg button{flex:none}
+@media (max-width:360px){.seg button{padding:7px 9px;font-size:12px}}
+/* Mapa base más suave para que se lean las capas de tormenta y alertas */
+.leaflet-tile-pane{filter:grayscale(.5) brightness(1.03) contrast(.92)}
+@media (prefers-color-scheme:dark){.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.45) brightness(.88) contrast(.9)}}

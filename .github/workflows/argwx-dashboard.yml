@@ -41,6 +41,7 @@ jobs:
       - name: Verificar capa satelital (NASA GIBS)
         continue-on-error: true
         run: |
+          curl -s -o /tmp/o.png -A "ConDi-ARGWX-dashboard-check" -w "OSM %{http_code} %{content_type} %{size_download}\n" https://tile.openstreetmap.org/3/2/4.png
           for L in GOES-East_ABI_GeoColor; do
             curl -s -o /tmp/t.png -w "$L %{http_code} %{content_type} %{size_download}\n" \
               "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/$L/default/default/GoogleMapsCompatible_Level7/3/4/2.png"
