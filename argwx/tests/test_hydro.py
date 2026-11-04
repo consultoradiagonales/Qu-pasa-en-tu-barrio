@@ -139,3 +139,21 @@ def test_compute_floods_combines_criteria():
     assert negro["partidos_afectados"] == ["patagones"] and any("Punto de referencia GloFAS" in m for m in negro["motivos"])
     otro = next(x for x in res["cursos"] if x["nombre"] == "Arroyo de Prueba")
     assert otro["nivel"] == "GREEN" and otro["partidos_afectados"] == [] and otro["localidades_afectadas"] == []
+
+
+def test_observed_gauge_prevails_on_its_river():
+    net = hydro.build_network(_elements(), GEO, load_municipalities())
+    rio = next(c for c in net["cursos"] if c["nombre"] == "Río de Prueba")
+    names = {m["id"]: m["name"] for m in load_municipalities()}
+    gauge = {"estacion": "Escala Junín", "rio": "DEPRUEBA", "lat": -34.551, "lon": -60.95, "altura_m": 3.4,
+             "alerta": 3.0, "evacuacion": 3.6, "estado": "Alerta", "nivel": "ORANGE", "red": "escalas Prefectura",
+             "fecha": "2026-11-04T12:00:00Z", "cambio_24h": 0.3}
+    res = hydro.compute_floods(net, None, None, {}, None, names, observed={"estaciones": [gauge]})
+    c = next(x for x in res["cursos"] if x["id"] == rio["id"])
+    assert c["nivel"] == "ORANGE" and c["nivel_observado"] == "ORANGE" and c["observado"][0]["estacion"] == "Escala Junín"
+    assert any("Altura observada en Escala Junín: 3.4 m" in m for m in c["motivos"])
+    otro = next(x for x in res["cursos"] if x["nombre"] == "Arroyo de Prueba")
+    assert otro["nivel"] == "GREEN"   # otra cuenca: la escala no aplica
+    far = {**gauge, "rio": "OTRORIO"}
+    res = hydro.compute_floods(net, None, None, {}, None, names, observed={"estaciones": [far]})
+    assert next(x for x in res["cursos"] if x["id"] == rio["id"])["nivel"] == "GREEN"  # otro río aunque esté cerca

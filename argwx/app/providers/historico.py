@@ -311,6 +311,31 @@ def append_forecasts(folder: Path, alertas: dict | None) -> dict:
     return {"archivo": path.name, "nuevas": len(new)}
 
 
+# ------------------------------------------------------------------ 5. alturas de ríos observadas (INA / Prefectura)
+def append_river_obs(folder: Path, observed: dict | None) -> dict:
+    if not observed or not observed.get("estaciones"):
+        raise RuntimeError("Sin alturas observadas")
+    rows_new = []
+    for st in observed["estaciones"]:
+        for t, v in st.get("serie_30d") or []:
+            rows_new.append({"fecha": t, "estacion": st["estacion"], "rio": st.get("rio") or "", "altura_m": v,
+                             "alerta_m": st.get("alerta"), "evacuacion_m": st.get("evacuacion"),
+                             "red": st.get("red") or ""})
+    out = {}
+    for row in rows_new:
+        path = folder / f"rios_observados_{row['fecha'][:7]}.csv"
+        out.setdefault(path, []).append(row)
+    added = 0
+    fields = ["fecha", "estacion", "rio", "altura_m", "alerta_m", "evacuacion_m", "red"]
+    for path, rows in out.items():
+        prev = read_csv(path)
+        have = {(r["fecha"], r["estacion"]) for r in prev}
+        new = [r for r in rows if (r["fecha"], r["estacion"]) not in have]
+        added += len(new)
+        write_csv(path, fields, sorted(prev + new, key=lambda r: (r["fecha"], r["estacion"])))
+    return {"nuevas": added, "estaciones": len(observed["estaciones"])}
+
+
 # ------------------------------------------------------------------ catálogo
 TABLES = [
     (ERA5_FILE, "Lluvia diaria observada por el reanálisis ERA5 en un punto por sección electoral, desde 1981.",
@@ -323,6 +348,8 @@ TABLES = [
      "presión y viento (el SMN no publica la lluvia en este archivo).", "Servicio Meteorológico Nacional, datos abiertos"),
     ("pronosticos_condi_*.csv", "Lo que pronosticó ConDi para cada partido, una vez por día, para verificarlo después.",
      "ConDi · ARGWX (consenso de 9 modelos)"),
+    ("rios_observados_*.csv", "Alturas de los ríos observadas en escalas de la provincia, con los niveles oficiales de "
+     "alerta y evacuación.", "Prefectura Naval Argentina y Red Hidrológica Nacional, vía API pública del INA"),
     (CLIMA_FILE, "Frecuencia histórica de lluvias de 10 a 110 mm por mes y percentiles (sale de la tabla ERA5).",
      "Cálculo propio sobre ERA5"),
     (CALIB_FILE, "Aciertos y falsas alarmas de cada modelo y probabilidad calibrada según cuántos modelos coinciden.",
@@ -339,7 +366,7 @@ def write_catalog(folder: Path) -> dict:
             if f.suffix == ".csv":
                 rows = read_csv(f)
                 n += len(rows)
-                keys = [r.get("fecha") or r.get("emitido") or r.get("desde") or "" for r in rows]
+                keys = [r.get("fecha") or r.get("emitido") or r.get("desde") or r.get("visto") or "" for r in rows]
                 keys = [k[:10] for k in keys if k]
                 if keys:
                     first = min([first, min(keys)] if first else [min(keys)])

@@ -135,7 +135,8 @@ def ina_and_normals(c):
     print("\n==== INA (alturas de ríos) y normales del SMN ====")
     for path in ("obs/puntual/estaciones?format=json", "obs/puntual/series?format=json&var_id=2",
                  "obs/puntual/fuentes?format=json", "getRedes?format=json", "obs/puntual/redes?format=json",
-                 "obs/puntual/series?format=json&var_id=2&proc_id=1&estacion_id=29"):
+                 "obs/puntual/series?format=json&var_id=2&proc_id=1&estacion_id=29",
+                 "obs/puntual/series/85/observaciones?format=json&timestart=2026-10-28&timeend=2026-11-05"):
         r = get(c, f"INA a5/{path}", f"https://alerta.ina.gob.ar/a5/{path}")
         if r is not None and r.status_code == 200:
             body = text_of(r.content)

@@ -144,3 +144,4 @@ table.vt{width:100%;border-collapse:collapse;font-size:13px}table.vt th,table.vt
 table.vt th:first-child,table.vt td:first-child{text-align:left}table.vt th{font-weight:600;color:var(--muted);font-size:12px}
 #hist-card a{font-size:13px;word-break:break-all}
 ul.plain li.row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}ul.plain li.row>b{text-align:right;white-space:nowrap}
+.esc span{display:inline-block;padding:1px 6px;border-radius:9px;background:var(--glass);color:var(--ink);font-size:11px;font-weight:700;white-space:nowrap;border:2px solid;box-shadow:0 1px 3px rgba(0,0,0,.35)}

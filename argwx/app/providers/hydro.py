@@ -14,6 +14,7 @@ con registros de crecidas (Autoridad del Agua de la Provincia, INA).
 """
 import logging
 import math
+import re
 import time
 
 import httpx
@@ -412,8 +413,28 @@ def rain72_by_partido(alertas: dict | None) -> dict:
     return {k: round(sum(v), 1) for k, v in vals.items() if len(v) == 3 and None not in v}
 
 
+def _near_course(lat, lon, course, km=5.0) -> bool:
+    segs = [(a, b) for ln in course["trazo"] for a, b in zip(ln, ln[1:])]
+    bb = course["bbox"]
+    if not segs or not (bb[0] - 0.06 <= lat <= bb[2] + 0.06 and bb[1] - 0.07 <= lon <= bb[3] + 0.07):
+        return False
+    return min(_seg_km((lat, lon), a, b) for a, b in segs) <= km
+
+
+def _river_key(name: str | None) -> str:
+    k = re.sub(r"[^a-z]", "", normalize(name or ""))
+    k = re.sub(r"^(rio|arroyo|canal)", "", k)
+    return re.sub(r"(inferior|superior|inf|sup|medio)$", "", k)
+
+
+def same_river(station_river: str | None, course_name: str) -> bool:
+    """Une la escala con el curso por nombre (si la escala lo informa) además de la cercanía."""
+    sk = _river_key(station_river)
+    return not sk or sk in _river_key(course_name) or _river_key(course_name) in sk
+
+
 def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain72: dict, refs: dict | None,
-                   names: dict) -> dict:
+                   names: dict, observed: dict | None = None) -> dict:
     status = (caudales or {}).get("puntos", {})
     soil_m = (soil or {}).get("municipios", {})
     ref_by: dict[str, list] = {}
@@ -452,7 +473,11 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
         # última semana o del último mes).
         confirmed = idx(lv_rain) >= 1 or (basin7 or 0) >= RECENT_7D or (basin30 or 0) >= WET_30D
         lv_flow = lv_model if confirmed else LEVELS[min(idx(lv_model), 1)]
-        level = max_level(lv_rain, lv_flow, lv_ref)
+        # Escalas oficiales (Prefectura / Red Hidrológica Nacional) sobre el curso: la observación prevalece.
+        obs = [st for st in (observed or {}).get("estaciones", [])
+               if same_river(st.get("rio"), c["nombre"]) and _near_course(st["lat"], st["lon"], c)]
+        lv_obs = max_level(*(st["nivel"] for st in obs)) if obs else "GREEN"
+        level = max_level(lv_rain, lv_flow, lv_ref, lv_obs)
 
         motivos = []
         if basin is not None:
@@ -471,6 +496,10 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
                            f"estimado el {_dm(h['pico'])}")
             if idx(lv_model) > idx(lv_flow):
                 motivos.append("Señal de un solo modelo, sin lluvia fuerte que la confirme: se informa como Amarilla")
+        for st in obs:
+            if st["nivel"] != "GREEN":
+                motivos.append(f"Altura observada en {st['estacion']}: {st['altura_m']:g} m (alerta {st['alerta']} m, "
+                               f"evacuación {st['evacuacion']} m) · {st['red']}")
         for r in ref or []:
             if r["nivel_7d"] != "GREEN":
                 motivos.append(f"Punto de referencia GloFAS en {r['lugar']}: caudal {r['estado_7d'].lower()} frente "
@@ -492,7 +521,10 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
                     "lluvia_30d": basin30, "motivos": motivos, "partidos": c["partidos"],
                     "partidos_senal": senal, "partidos_afectados": afectados, "localidades_afectadas": locs,
                     "localidades": c["localidades"], "pico": min((p["pico"] for p in hot), default=None),
-                    "con_caudal": bool(rep or ref), "puntos": pts, "bbox": c["bbox"], "trazo": c["trazo"]})
+                    "con_caudal": bool(rep or ref), "puntos": pts, "bbox": c["bbox"], "trazo": c["trazo"],
+                    "nivel_observado": lv_obs if obs else None,
+                    "observado": [{k: st.get(k) for k in ("estacion", "altura_m", "alerta", "evacuacion", "estado", "nivel",
+                                                          "fecha", "cambio_24h")} for st in obs]})
     out.sort(key=lambda x: (-idx(x["nivel"]), -(x["lluvia_72h"] or 0), -(x["km"] or 0)))
     por_nivel = {lv: sum(1 for x in out if x["nivel"] == lv) for lv in LEVELS[:4]}
     return {

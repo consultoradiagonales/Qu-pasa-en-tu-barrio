@@ -24,7 +24,7 @@ from app.config import get_settings
 from app.engine.geo import point_in_polygon
 from app.engine.levels import COLOR, LABEL
 from app.engine import calibration
-from app.providers import enso, extras, historico, hydro, openmeteo, smn
+from app.providers import enso, extras, historico, hydro, ina, openmeteo, smn
 from app.services.municipalities import SECCION_NOMBRE, by_id, load_municipalities
 from app.services.sync import http_client
 from app.util import iso, utcnow
@@ -488,6 +488,8 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
 
         run("observaciones_smn", obs_part)
         run("rios", lambda: write("rios.json", extras.export_rivers(client, cached("rios.json"))), "rios.json", 6)
+        run("rios_observados", lambda: write("rios_observados.json", ina.export_observed(client, load_municipalities())),
+            "rios_observados.json", 1)
         run("costa", lambda: write("costa.json", extras.export_coast(client)), "costa.json", 3)
         run("ambiente", lambda: write("ambiente.json", extras.export_air(client, load_municipalities())), "ambiente.json", 6)
         run("probabilidades", lambda: write("probabilidades.json", extras.export_probabilities(
@@ -505,6 +507,7 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
         run("historico_alertas_smn", lambda: historico.update_alert_registry(hist, _load(data / "smn_argentina.json")))
         run("historico_smn_horarios", lambda: historico.update_smn_hourly(client, hist,
                                                                            historico.pba_station_names(client)))
+        run("historico_rios_observados", lambda: historico.append_river_obs(hist, _load(data / "rios_observados.json")))
         if oni:
             run("enso_pba", lambda: export_enso_pba(data, client, settings, oni, cache))
         else:
@@ -530,7 +533,8 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
             raise RuntimeError("Sin red hídrica: Overpass no respondió y no hay copia anterior")
         res = hydro.compute_floods(net, _load(data / "caudales_red.json"), _load(data / "suelo.json"),
                                    hydro.rain72_by_partido(_load(data / "alertas_pba.json")), _load(data / "rios.json"),
-                                   {m["id"]: m["name"] for m in load_municipalities()})
+                                   {m["id"]: m["name"] for m in load_municipalities()},
+                                   observed=_load(data / "rios_observados.json"))
         return {**write("crecidas.json", res), "en_alerta": res["resumen"]["en_alerta"]}
 
     run("crecidas", floods_part, "crecidas.json", reuse=False)

@@ -176,6 +176,7 @@ Todas gratuitas y sin clave, probadas desde GitHub con `scripts/probe_sources.py
 | NOAA STAR · GOES-19 | Imagen satelital cada 10 min | Tarjeta satelital |
 | GloFAS (Copernicus) vía Open-Meteo Flood | Caudal de ríos pronosticado e histórico desde 1984 | Estaciones de referencia (Paraná, Luján, Salado, Quequén, Negro) y caudal en hasta 400 puntos de cauces |
 | OpenStreetMap · Overpass API | Ríos, arroyos y canales con nombre, y localidades (ODbL) | Red hídrica de la provincia para las crecidas |
+| INA · Sistema de Alerta Hidrológico (API alerta5, pública) | Alturas observadas de escalas de Prefectura Naval y de la Red Hidrológica Nacional, con niveles oficiales de alerta y evacuación | Escalas en el mapa; la altura observada prevalece en las crecidas |
 | Open-Meteo (modelo de mejor ajuste / ICON / ECMWF / GFS) | Lluvia de los últimos 30 días y humedad del suelo | Suelo y siembra; suelo cargado eleva la crecida |
 | Open-Meteo Marine | Altura de olas | Costa atlántica bonaerense |
 | CAMS (Copernicus) vía Open-Meteo Air Quality | Índice UV y PM2.5 | Ambiente por municipio |
@@ -219,7 +220,9 @@ Para un servicio comercial hay que contratar su plan y cargar `ARGWX_OPEN_METEO_
    historia 1984-hoy del modelo (p90, p98 y máximo) en lugar de los puntos de la red, que en ríos anchos o en el delta
    pueden caer fuera del cauce principal. Son celdas del modelo, no estaciones de aforo. El Negro no está
    en la red de OpenStreetMap de la provincia (su cauce es el límite), así que figura solo con su punto de referencia.
-5. El nivel del curso es el mayor de los tres. Si tiene alerta, se listan todos los partidos que cruza (primero
+5. **Alturas observadas:** si una escala oficial sobre el curso (mismo río, a menos de 5 km del cauce) supera su nivel
+   de alerta, el curso queda al menos en Naranja; si supera el de evacuación, en Roja. La observación prevalece.
+6. El nivel del curso es el mayor de todos. Si tiene alerta, se listan todos los partidos que cruza (primero
    donde está la señal) y sus localidades ribereñas.
 
 **Límites, dicho claro:** los umbrales son iniciales y propios, hay que calibrarlos con registros de crecidas
@@ -241,6 +244,7 @@ cada corrida, en forma incremental:
 | `alertas_smn.csv` | Registro de cada alerta oficial del SMN leída (fenómeno, nivel, vigencia, zonas) | API CAP del SMN |
 | `smn_horarios_AAAA-MM.csv` | Datos horarios de las estaciones del SMN en la provincia y CABA (temperatura, humedad, presión, viento) | Datos abiertos del SMN |
 | `pronosticos_condi_AAAA-MM.csv` | Lo que pronosticó ConDi para cada partido, una vez por día | ConDi |
+| `rios_observados_AAAA-MM.csv` | Alturas de los ríos en escalas de la provincia, con alerta y evacuación | Prefectura Naval / Red Hidrológica Nacional vía INA |
 | `climatologia_lluvia.json` | Frecuencia histórica de lluvias por mes y percentiles | Cálculo sobre ERA5 |
 | `calibracion.json` | Aciertos y falsas alarmas de cada modelo; probabilidad calibrada | Cálculo sobre la verificación |
 
@@ -251,7 +255,8 @@ reanálisis, no un pluviómetro): suaviza tormentas locales, pero es la misma re
 
 **Fuentes probadas y descartadas (4/11/2026, desde GitHub):** el archivo "alertas de 365 días" del SMN en datos.gob.ar
 se publica vacío; la API JSON del SMN (`ws.smn.gob.ar`) respondió 503 y la nueva (`ws1.smn.gob.ar`) pide autorización
-(401); los datos horarios del SMN no incluyen lluvia; la página de alturas de Prefectura no respondió desde GitHub.
+(401); los datos horarios del SMN no incluyen lluvia; la página de alturas de Prefectura no respondió desde GitHub, pero esas mismas escalas llegan por la API pública del
+INA (4695 estaciones y 1144 series de altura verificadas).
 Las alertas oficiales siguen llegando por la API CAP del SMN (la que el SMN registra ante la OMM).
 
 ---
@@ -259,7 +264,7 @@ Las alertas oficiales siguen llegando por la API CAP del SMN (la que el SMN regi
 ## Qué está verificado y qué no
 
 **Verificado**
-- 59 tests automáticos (motor, parsers, API, crecidas, base histórica y calibración) pasan, también en GitHub Actions.
+- 63 tests automáticos (motor, parsers, API, crecidas, base histórica, calibración e INA) pasan, también en GitHub Actions.
 - **Crecidas con datos reales** (4/11/2026): Overpass devolvió la red hídrica de la provincia (527 cursos con nombre:
   49 ríos, 65 canales y 413 arroyos; el Salado mide 640 km en OpenStreetMap y cruza 16 partidos) y Open-Meteo la
   humedad del suelo de los 135 partidos. En esa primera corrida la consulta de caudales GloFAS sobre los cauces se
