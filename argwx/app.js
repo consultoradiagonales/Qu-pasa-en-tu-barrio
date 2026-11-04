@@ -344,6 +344,29 @@
       ${locs.length ? `<div class="muted" style="margin-top:6px">Localidades a menos de 4 km del cauce:</div><div class="pl">${locs.map(l => `<span>${esc(l[0])}</span>`).join("")}</div>` : ""}</div>`;
   }
 
+  function gaugeHTML(st) {
+    const num = v => v == null ? "–" : `${v.toFixed(2).replace(".", ",")} m`;
+    return `<div class="pop"><h3>📏 ${esc(st.estacion)}</h3><div class="muted">${esc(st.rio || "")} · ${esc(st.red || "")} · altura observada</div>
+      <div class="row"><span>Estado</span>${st.nivel === "GREEN" ? `<b>${esc(st.estado)}</b>` : lvlBadge(st.nivel) + " " + esc(st.estado)}</div>
+      <div class="row"><span>Altura</span><b>${num(st.altura_m)}</b></div>
+      <div class="row"><span>Cambio en 24 h</span><b>${st.cambio_24h == null ? "–" : (st.cambio_24h > 0 ? "+" : "") + num(st.cambio_24h)}</b></div>
+      <div class="row"><span>Nivel de alerta</span><b>${num(st.alerta)}</b></div>
+      <div class="row"><span>Nivel de evacuación</span><b>${num(st.evacuacion)}</b></div>
+      <div class="row"><span>Medición</span><b>${fmtDT(st.fecha)}</b></div>${heightChart(st)}</div>`;
+  }
+
+  function heightChart(st) {
+    const pts = (st.serie_30d || []).map(x => x[1]);
+    if (pts.length < 2) return "";
+    const W = 240, H = 64, lim = [st.alerta, st.evacuacion].filter(v => v != null);
+    const lo = Math.min(...pts), hi = Math.max(...pts, ...lim), pad = (hi - lo) * 0.1 || 0.1;
+    const y = v => H - 3 - ((v - lo + pad) / (hi - lo + 2 * pad)) * (H - 6), x = i => (i / (pts.length - 1)) * W;
+    const line = (v, c) => v == null ? "" : `<line x1="0" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="${c}" stroke-dasharray="3 3"/>`;
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block;margin-top:6px">${line(st.alerta, "#f07c00")}${line(st.evacuacion, "#d62828")}
+      <polyline points="${pts.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}" fill="none" stroke="#1e88e5" stroke-width="2"/></svg>
+      <div class="muted">Últimos 30 días. Naranja: alerta. Roja: evacuación (niveles oficiales de la escala).</div>`;
+  }
+
   function drawCourse(c, group, hl) {
     const col = c.nivel === "GREEN" ? "#1e88e5" : COLOR[c.nivel];
     L.polyline(c.trazo, {color: "#fff", weight: hl ? 10 : 7, opacity: 0.8, interactive: false}).addTo(group);
@@ -354,6 +377,11 @@
   function drawExtras() {
     G.obs.clearLayers(); G.rios.clearLayers(); G.costa.clearLayers(); G.cauces.clearLayers();
     if (S.layers.rios && S.st.crec) S.st.crec.cursos.filter(c => c.nivel !== "GREEN").forEach(c => drawCourse(c, G.cauces, false));
+    if (S.layers.rios && S.st.obsRios) S.st.obsRios.estaciones.forEach(st => {
+      L.marker([st.lat, st.lon], {icon: L.divIcon({className: "esc", iconSize: [64, 22], iconAnchor: [32, 11],
+        html: `<span style="border-color:${COLOR[st.nivel]}">📏 ${st.altura_m.toFixed(2).replace(".", ",")} m</span>`})})
+        .bindPopup(() => gaugeHTML(st), {maxWidth: 300}).addTo(G.rios);
+    });
     if (S.layers.obs && S.st.obs) S.st.obs.estaciones.forEach(o => {
       const storm = /tormenta|granizo/i.test(o.estado);
       L.marker([o.lat, o.lon], {icon: L.divIcon({className: "obs", iconSize: [40, 20], iconAnchor: [20, 10],
@@ -497,7 +525,8 @@
 
   function probTxt(p) {
     if (!p || p.probabilidad == null) return "–";
-    return `${Math.round(p.probabilidad)} %${p.confiable ? "" : " (pocos casos)"}`;
+    const v = p.probabilidad > 0 && p.probabilidad < 1 ? "menos de 1" : Math.round(p.probabilidad);
+    return `${v} %${p.confiable ? "" : " (pocos casos)"}`;
   }
 
   function probLine(pr, t) {
@@ -664,9 +693,21 @@
     $("crec-sum").innerHTML = `<h2>💧 Crecidas: próximos 3 días</h2><p class="big">${lead}</p>
       ${refs.length ? `<p>Puntos de referencia GloFAS con caudal alto frente a su historia 1984-hoy: ${refs.map(r => `<b>${esc(r.rio)}</b> en ${esc(r.lugar)} ${lvlBadge(r.nivel_7d)}`).join(", ")}.</p>` : ""}
       <p class="muted">Se analizan ${R.cursos} cursos con nombre de OpenStreetMap (${plural(R.por_tipo["río"], "río", "ríos")}, ${plural(R.por_tipo.canal, "canal", "canales")} y ${plural(R.por_tipo.arroyo, "arroyo", "arroyos")}); ${R.con_caudal} con caudal GloFAS. Actualizado: ${fmtDT(cr.generated_at)}.</p>`;
-    $("crec-method").innerHTML = `${esc(cr.metodo)}<br><br>${esc(cr.nota)}<br><br>${esc(cr.fuentes)}`;
+    $("crec-method").innerHTML = `${esc(cr.metodo)} Las alturas observadas en escalas oficiales (Prefectura, Red Hidrológica Nacional) prevalecen: sobre el nivel de alerta el curso queda al menos en Naranja y sobre el de evacuación, en Roja.<br><br>${esc(cr.nota)}<br><br>${esc(cr.fuentes)}`;
     crecList();
     sueloCard();
+    gaugesCard();
+  }
+
+  function gaugesCard() {
+    const o = S.st.obsRios;
+    if (!o || !o.estaciones.length) { $("obs-rios-card").innerHTML = ""; return; }
+    const hot = o.estaciones.filter(st => st.nivel !== "GREEN");
+    $("obs-rios-card").innerHTML = `<h2>📏 Alturas observadas de los ríos</h2>
+      <p>${hot.length ? `⚠️ <b>${plural(hot.length, "escala", "escalas")} sobre el nivel de alerta</b>.` : `✅ Ninguna escala de la provincia supera su nivel de alerta.`}</p>
+      <ul class="plain">${o.estaciones.slice(0, 14).map(st => `<li class="row"><span><b>${esc(st.estacion)}</b> <span class="muted">· ${esc(st.rio || "")}${st.alerta != null ? ` · alerta ${String(st.alerta).replace(".", ",")} m` : ""}</span></span>
+        <b>${st.altura_m.toFixed(2).replace(".", ",")} m ${st.nivel !== "GREEN" ? lvlBadge(st.nivel) : `<span class="muted">${esc(st.estado)}</span>`}</b></li>`).join("")}</ul>
+      <p class="muted">${esc(o.fuente)}. Cada escala tiene su propio cero: las alturas sirven para seguir un mismo puerto, no para comparar puertos entre sí. Se ven en el mapa con la capa Ríos.</p>`;
   }
 
   function crecList() {
@@ -758,7 +799,8 @@
                    prov: "geo/provincias_ar.geojson", obs: "data/observaciones_smn.json", rios: "data/rios.json",
                    costa: "data/costa.json", ambiente: "data/ambiente.json", probs: "data/probabilidades.json",
                    crec: "data/crecidas.json", suelo: "data/suelo.json", clima: "data/historico/climatologia_lluvia.json",
-                   calib: "data/historico/calibracion.json", catalogo: "data/historico/catalogo.json"};
+                   calib: "data/historico/calibracion.json", catalogo: "data/historico/catalogo.json",
+                   obsRios: "data/rios_observados.json"};
     const vals = await Promise.all(Object.values(files).map(u => getJSON(u).catch(() => null)));
     Object.keys(files).forEach((k, i) => { S.st[k] = vals[i]; });
     S.munis = S.st.munis || [];
