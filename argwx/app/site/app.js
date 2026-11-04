@@ -14,7 +14,7 @@
   const SEAS = {DJF: "DEF", JFM: "EFM", FMA: "FMA", MAM: "MAM", AMJ: "AMJ", MJJ: "MJJ", JJA: "JJA", JAS: "JAS", ASO: "ASO",
                 SON: "SON", OND: "OND", NDJ: "NDE"};
   const DARK = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
-  const S = {region: "pba", hour: 0, layers: {storms: true, wind: true, wx: true, smn: true, sat: false, radar: true, obs: true, rios: true, costa: true}, grids: {},
+  const S = {region: "pba", hour: 0, layers: {storms: true, wind: true, wx: true, smn: true, sat: false, radar: true, obs: false, rios: true, costa: false}, grids: {},
              cur: null, st: {}, munis: [], provs: [], smnFilter: "storm", pwin: "24", oniRange: "30", play: null, me: null};
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
@@ -318,7 +318,7 @@
       <line x1="0" x2="${W}" y1="${y(ref.p90)}" y2="${y(ref.p90)}" stroke="#f2c200" stroke-dasharray="3 3"/>
       <line x1="0" x2="${W}" y1="${y(ref.p98)}" y2="${y(ref.p98)}" stroke="#f07c00" stroke-dasharray="3 3"/>
       <polyline points="${pts}" fill="none" stroke="#1e88e5" stroke-width="2"/></svg>
-      <div class="muted">Línea amarilla: caudal alto (p90). Naranja: muy alto (p98). Próximos 30 días.</div>`;
+      <div class="muted">Caudal esperado (mediana) próximos 30 días. Línea amarilla: alto (p90). Naranja: muy alto (p98).</div>`;
   }
 
   function drawExtras() {
@@ -340,7 +340,8 @@
           <div class="row"><span>Próx. 7 días</span>${lvlBadge(r.nivel_7d)}</div><div class="row"><span>Próx. 30 días</span>${lvlBadge(r.nivel_30d)}</div>
           <div class="row"><span>Caudal hoy</span><b>${r.caudal_hoy == null ? "–" : Math.round(r.caudal_hoy) + " m³/s"}</b></div>
           <div class="row"><span>Máximo 7 días</span><b>${r.max_7d == null ? "–" : Math.round(r.max_7d) + " m³/s"}</b></div>
-          <div class="row"><span>Tendencia</span><b>${esc(r.tendencia || "–")}</b></div>${sparkline(r.serie, r.ref)}</div>`, {maxWidth: 280})
+          <div class="row"><span>Tendencia</span><b>${esc(r.tendencia || "–")}</b></div>
+          <div class="row"><span>Peor escenario 30 días</span><b>${r.peor_escenario_30d == null ? "–" : Math.round(r.peor_escenario_30d) + " m³/s"}</b></div>${sparkline(r.serie, r.ref)}</div>`, {maxWidth: 280})
         .addTo(G.rios);
     });
     if (S.layers.costa && S.st.costa) S.st.costa.puntos.forEach(p => {
@@ -361,16 +362,16 @@
       const hot = [...pba].filter(x => x.temp_c != null).sort((a, b) => b.temp_c - a.temp_c);
       $("obs-card").innerHTML = `<h2>🌡️ Observado ahora (estaciones del SMN)</h2>
         <p>${o.estaciones.length} estaciones informando en el país, ${pba.length} en Buenos Aires.
-        ${storms.length ? `<b>Tormenta observada en:</b> ${esc(storms.map(x => x.estacion).join(", "))}.` : "Ninguna estación informa tormenta en este momento."}</p>
+        ${storms.length ? `<b>Tormenta observada en:</b> ${esc(storms.map(x => x.municipio ? x.estacion : `${x.estacion} (${x.provincia.charAt(0) + x.provincia.slice(1).toLowerCase()})`).join(", "))}.` : "Ninguna estación informa tormenta en este momento."}</p>
         ${hot.length ? `<p class="muted">Más cálido en PBA: ${esc(hot[0].estacion)} ${hot[0].temp_c} °C · más fresco: ${esc(hot[hot.length - 1].estacion)} ${hot[hot.length - 1].temp_c} °C.</p>` : ""}
-        <p class="muted">Las observaciones de tormenta o granizo elevan la alerta del municipio: la observación prevalece sobre el modelo.</p>`;
+        <p class="muted">Las observaciones de tormenta o granizo elevan la alerta del municipio: la observación prevalece sobre el modelo. Prendé "🌡️ Estaciones" para verlas en el mapa.</p>`;
     }
     if (rios) $("rios-card").innerHTML = `<h2>💧 Ríos (crecidas)</h2><ul class="plain">${rios.rios.map(r => `<li><div>${lvlBadge(r.nivel_7d)} <b>${esc(r.rio)}</b> · ${esc(r.lugar)}</div>
         <div class="muted">${esc(r.estado_7d)} próximos 7 días${r.tendencia ? ", " + esc(r.tendencia) : ""} · 30 días: ${esc(r.estado_30d)}</div></li>`).join("")}</ul>
         <p class="muted">${esc(rios.metodo)} Fuente: ${esc(rios.fuente)}.</p>`;
     if (costa) $("costa-card").innerHTML = `<h2>🌊 Costa atlántica (olas)</h2><ul class="plain">${costa.puntos.map(p => `<li class="row"><span>${esc(p.lugar)}</span>
         <span>${lvlBadge(p.nivel)} <b>${p.ola_max_24h == null ? "–" : p.ola_max_24h.toFixed(1) + " m"}</b></span></li>`).join("")}</ul>
-        <p class="muted">Altura máxima de olas en las próximas 24 h. Umbrales iniciales: 2,5 m amarilla, 3,5 m naranja, 5 m roja.</p>`;
+        <p class="muted">Altura máxima de olas en las próximas 24 h. Umbrales iniciales: 2,5 m amarilla, 3,5 m naranja, 5 m roja. Prendé "🌊 Costa" para verlas en el mapa.</p>`;
     if (amb) {
       const rows = Object.entries(amb.municipios).filter(([, v]) => v.uv_max != null), name = id => (S.munis.find(m => m.id === id) || {}).name || id;
       const uv = rows.sort((a, b) => b[1].uv_max - a[1].uv_max), pm = [...rows].filter(([, v]) => v.pm25_max != null).sort((a, b) => b[1].pm25_max - a[1].pm25_max);

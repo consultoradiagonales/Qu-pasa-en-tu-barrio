@@ -107,12 +107,17 @@ def export_rivers(client, cached: dict | None) -> dict:
                    "p98": round(cuts[97], 1), "max": round(q[-1], 1), "desde": hist["daily"]["time"][0],
                    "calculado": date.today().isoformat()}
         fc = _get(client, FLOOD, {"latitude": ref["lat"], "longitude": ref["lon"],
-                                  "daily": "river_discharge,river_discharge_max", "past_days": 3, "forecast_days": 30})
+                                  "daily": "river_discharge,river_discharge_median,river_discharge_max",
+                                  "past_days": 3, "forecast_days": 30})
         d = fc["daily"]
-        times, mean_q, max_q = d["time"], d.get("river_discharge") or [], d.get("river_discharge_max") or []
+        times, mean_q = d["time"], d.get("river_discharge") or []
+        # Estado con la mediana del ensamble (lo esperable); el máximo es solo el peor escenario.
+        med_q = [m if m is not None else q for m, q in zip(d.get("river_discharge_median") or mean_q, mean_q)]
+        max_q = d.get("river_discharge_max") or []
         today_i = min(3, len(times) - 1)
-        week = [v for v in (max_q or mean_q)[today_i:today_i + 7] if v is not None]
-        month = [v for v in (max_q or mean_q)[today_i:] if v is not None]
+        week = [v for v in med_q[today_i:today_i + 7] if v is not None]
+        month = [v for v in med_q[today_i:] if v is not None]
+        worst = [v for v in max_q[today_i:] if v is not None]
         now_q = mean_q[today_i] if today_i < len(mean_q) else None
         level, label = river_status(max(week) if week else 0, ref)
         level30, label30 = river_status(max(month) if month else 0, ref)
@@ -123,10 +128,11 @@ def export_rivers(client, cached: dict | None) -> dict:
         out.append({**{k: river[k] for k in ("id", "rio", "lugar", "partidos")}, "lat": ref["lat"], "lon": ref["lon"],
                     "caudal_hoy": now_q, "max_7d": max(week) if week else None, "max_30d": max(month) if month else None,
                     "nivel_7d": level, "estado_7d": label, "nivel_30d": level30, "estado_30d": label30,
-                    "tendencia": trend, "ref": ref, "serie": {"time": times, "q": mean_q}})
+                    "peor_escenario_30d": max(worst) if worst else None,
+                    "tendencia": trend, "ref": ref, "serie": {"time": times[today_i:], "q": med_q[today_i:]}})
     return {"fuente": "GloFAS (Copernicus) vía Open-Meteo Flood API", "unidad": "m³/s",
-            "metodo": "Caudal máximo pronosticado vs. percentiles históricos de la misma celda (1984-hoy): "
-                      "Alto ≥ p90, Muy alto ≥ p98, Rojo si supera el máximo registrado.", "rios": out}
+            "metodo": "Caudal pronosticado (mediana del ensamble) vs. percentiles históricos de la misma celda "
+                      "(1984-hoy): Alto ≥ p90, Muy alto ≥ p98, Rojo si supera el máximo registrado.", "rios": out}
 
 
 # ------------------------------------------------------------------ costa (olas)
