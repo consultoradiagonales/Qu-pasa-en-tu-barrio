@@ -19,6 +19,8 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
+      - name: Test del seguimiento de tormentas (JavaScript)
+        run: node tests/js/tracking.test.js
 
   docker:
     runs-on: ubuntu-latest

@@ -11,6 +11,7 @@ Cada parte se genera por separado: si una fuente falla, el resto se publica igua
 """
 import json
 import logging
+import os
 import shutil
 from calendar import monthrange
 from datetime import date, timedelta
@@ -35,6 +36,20 @@ ENSO_POINTS = ["lujan", "pergamino", "canuelas", "9-de-julio", "general-pueyrred
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 ARCHIVE_CUSTOMER_URL = "https://customer-archive-api.open-meteo.com/v1/archive"
 START_YEAR = 1981
+
+
+def _fresh(cache: Path | None, name: str, max_hours: float) -> bool:
+    """True si la copia publicada anteriormente tiene menos de max_hours (evita consultas innecesarias)."""
+    if not cache or os.environ.get("ARGWX_FORCE", "").lower() == "true" or not (cache / name).exists():
+        return False
+    try:
+        prev = json.loads((cache / name).read_text(encoding="utf-8"))
+        from datetime import datetime
+
+        age = utcnow() - datetime.fromisoformat(prev["generated_at"].replace("Z", ""))
+        return age.total_seconds() < max_hours * 3600
+    except Exception:
+        return False
 
 
 def _write(out: Path, name: str, data) -> None:
@@ -295,19 +310,67 @@ def export_pba_alerts(out: Path) -> dict:
     return {"modo": st["data_mode"], "en_alerta_24h": 135 - windows["24"]["summary"]["GREEN"]}
 
 
+# ------------------------------------------------------------------ copia de respaldo de los datos en vivo
+LIVE_MODELS = ["gfs_seamless", "icon_seamless", "ecmwf_ifs025", "gem_seamless", "ukmo_seamless"]
+
+
+def region_grid(spec: dict) -> list[tuple[float, float]]:
+    """Misma grilla que tracking.js (filas de norte a sur, columnas de oeste a este)."""
+    lats, lons, la, lo = [], [], spec["latN"], spec["lonW"]
+    while la >= spec["latS"] - 1e-9:
+        lats.append(round(la, 4))
+        la -= spec["step"]
+    while lo <= spec["lonE"] + 1e-9:
+        lons.append(round(lo, 4))
+        lo += spec["step"]
+    return [(a, b) for a in lats for b in lons]
+
+
+def export_live_snapshots(out: Path, client) -> dict:
+    """Guarda las mismas consultas que hace el navegador, para usarlas si Open-Meteo no responde."""
+    regions = json.loads((APP / "site" / "regions.json").read_text(encoding="utf-8"))
+    info = {}
+    for key, spec in regions.items():
+        pts = region_grid(spec)
+        base = {"latitude": ",".join(f"{a:.2f}" for a, _ in pts), "longitude": ",".join(f"{b:.2f}" for _, b in pts),
+                "forecast_hours": 12, "timezone": "UTC", "timeformat": "unixtime", "wind_speed_unit": "kmh"}
+        settings = get_settings()
+        if settings.open_meteo_api_key:
+            base["apikey"] = settings.open_meteo_api_key
+        best = client.get(openmeteo_url(), params={**base, "hourly": "temperature_2m,precipitation,weather_code,"
+                                                   "wind_speed_10m,wind_direction_10m,wind_gusts_10m"})
+        best.raise_for_status()
+        models = client.get(openmeteo_url(), params={**base, "hourly": "precipitation,weather_code,wind_gusts_10m",
+                                                     "models": ",".join(LIVE_MODELS)})
+        models.raise_for_status()
+        _write(out, f"live_{key}.json", {"generated_at": iso(utcnow()), "region": key, "best": best.json(),
+                                          "models": models.json()})
+        info[key] = len(pts)
+    return info
+
+
+def openmeteo_url() -> str:
+    s = get_settings()
+    return openmeteo.CUSTOMER_URL if s.open_meteo_api_key and "api.open-meteo.com" in s.open_meteo_url else s.open_meteo_url
+
+
 # ------------------------------------------------------------------ armado
 def build(out_dir: str, cache_dir: str | None = None) -> dict:
     settings, now = get_settings(), utcnow()
     out = Path(out_dir)
+    shutil.copytree(APP / "site", out, dirs_exist_ok=True)
     (out / "data").mkdir(parents=True, exist_ok=True)
     (out / "geo").mkdir(exist_ok=True)
-    shutil.copy(APP / "site" / "index.html", out / "index.html")
-    for name in ("provincias_ar.geojson", "municipios_pba.geojson"):
+    for name in ("provincias_ar.geojson", "municipios_pba.geojson", "municipios_pba.json"):
         shutil.copy(APP / "data" / name, out / "geo" / name)
     data, cache = out / "data", Path(cache_dir) if cache_dir else None
     parts, oni = {}, []
 
-    def run(name, fn):
+    def run(name, fn, file=None, max_hours=0):
+        if file and _fresh(cache, file, max_hours):
+            shutil.copy(cache / file, data / file)
+            parts[name] = {"ok": True, "reutilizado": True}
+            return
         try:
             parts[name] = {"ok": True, **(fn() or {})}
         except Exception as exc:
@@ -321,15 +384,23 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
             return info
 
         run("enso", enso_part)
+        if not oni and cache and (cache / "enso.json").exists():
+            oni.extend({"period": r["period"], "value": r["value"]}
+                       for r in json.loads((cache / "enso.json").read_text(encoding="utf-8"))["oni"])
         run("smn", lambda: export_smn(data, client, settings))
-        run("tormentas_modelos", lambda: export_storm_outlook(data, client, settings, now))
+        run("tormentas_modelos", lambda: export_storm_outlook(data, client, settings, now), "tormentas_modelos.json", 3)
+        for key in ("pba", "ar"):
+            if _fresh(cache, f"live_{key}.json", 3):
+                shutil.copy(cache / f"live_{key}.json", data / f"live_{key}.json")
+        if not all((data / f"live_{k}.json").exists() for k in ("pba", "ar")):
+            run("en_vivo_respaldo", lambda: export_live_snapshots(data, client))
         if oni:
             run("enso_pba", lambda: export_enso_pba(data, client, settings, oni, cache))
         else:
             parts["enso_pba"] = {"ok": False, "error": "Sin ONI"}
             if cache and (cache / "enso_pba.json").exists():
                 shutil.copy(cache / "enso_pba.json", data / "enso_pba.json")
-    run("alertas_pba", lambda: export_pba_alerts(data))
+    run("alertas_pba", lambda: export_pba_alerts(data), "alertas_pba.json", 3)
     meta = {"generated_at": iso(utcnow()), "parts": parts,
             "repo": "https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio"}
     _write(data, "meta.json", meta)

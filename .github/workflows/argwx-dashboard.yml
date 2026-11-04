@@ -6,7 +6,7 @@ on:
     branches: [claude/weather-engine-mvp-jafv4d, main]
     paths: ["argwx/**", ".github/workflows/argwx-dashboard.yml"]
   schedule:
-    - cron: "17 */3 * * *"   # cada 3 horas (GitHub solo lo ejecuta desde la rama principal)
+    - cron: "17 * * * *"   # cada hora (GitHub solo lo ejecuta desde la rama principal)
   workflow_dispatch:
 
 concurrency:
@@ -36,7 +36,15 @@ jobs:
           ARGWX_DATA_MODE: live
           ARGWX_DATABASE_URL: sqlite:///./dashboard.db
           ARGWX_OPEN_METEO_API_KEY: ${{ secrets.ARGWX_OPEN_METEO_API_KEY }}
+          ARGWX_FORCE: ${{ github.event_name != 'schedule' }}
         run: python -m app.cli export-site ../_site ../ghp/argwx/data
+      - name: Verificar capa satelital (NASA GIBS)
+        continue-on-error: true
+        run: |
+          for L in GOES-East_ABI_Band13_Clean_Infrared GOES-East_ABI_GeoColor; do
+            curl -s -o /tmp/t.png -w "$L %{http_code} %{content_type} %{size_download}\n" \
+              "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/$L/default/default/GoogleMapsCompatible_Level7/3/4/2.png"
+          done
       - name: Publicar solo la carpeta argwx/
         run: |
           rm -rf ghp/argwx

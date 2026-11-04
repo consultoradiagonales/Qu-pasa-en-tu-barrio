@@ -99,3 +99,15 @@ def test_export_helpers():
     mjj = res["provincia"]
     assert abs(mjj["EL_NINO"]["media"][5] - 50) < 1 and abs(mjj["LA_NINA"]["media"][5] + 25) < 1
     assert res["resumen"]["nino_max"]["valor"] > 40 and res["estaciones"][0]["es"] == "DEF"
+
+
+def test_live_grids_match_browser():
+    import json
+    from pathlib import Path
+
+    from app.export_site import region_grid
+
+    regions = json.loads((Path(__file__).parents[1] / "app" / "site" / "regions.json").read_text())
+    pba, ar = region_grid(regions["pba"]), region_grid(regions["ar"])
+    assert len(pba) == 14 * 12 and pba[0] == (-32.0, -64.5) and pba[-1] == (-41.75, -56.25)
+    assert len(ar) == 18 * 11 and ar[0] == (-22.0, -74.0) and ar[-1] == (-56.0, -54.0)

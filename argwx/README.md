@@ -37,17 +37,31 @@ make run    # datos reales (si una fuente falla, cae a simulado y lo avisa en pa
 
 ## Dashboard público (sin instalar nada)
 
-**https://consultoradiagonales.github.io/Qu-pasa-en-tu-barrio/argwx/**
+**https://consultoradiagonales.github.io/Qu-pasa-en-tu-barrio/argwx/** — pensado para celular (iOS y Android) y compu.
 
-- **Tormentas en Argentina:** alertas oficiales vigentes del SMN sobre el mapa del país y, encima, cuántos
-  de los 5 modelos prevén tormenta en cada zona (0-24, 24-48 y 48-72 h).
-- **El Niño en Buenos Aires:** fase actual, historia del ONI desde 1950 y cuánto cambió la lluvia en la
-  provincia en cada trimestre según la fase (reanálisis ERA5 desde 1981, un punto por sección electoral).
-- **Alertas en los 135 municipios:** el motor ARGWX con datos reales.
+**En vivo** (mapa interactivo, Buenos Aires o Argentina):
+- **Tormentas en movimiento:** círculos semitransparentes del color de la alerta con la zona probable de cada
+  tormenta hora por hora, flecha de dirección, recorrido previsto y lista de municipios por los que pasaría con
+  la hora estimada. La opacidad indica cuántos de los 5 modelos coinciden (probabilidad); si el círculo crece, la
+  tormenta se amplía o los modelos dudan más; si se achica, se debilita.
+- **Viento:** flechas animadas que muestran hacia dónde sopla (color por velocidad) y partículas en movimiento.
+- **Lluvia:** íconos de nube con rayo (tormenta eléctrica), gotas grandes (lluvia fuerte) y gotitas (lluvia débil).
+- **Línea de tiempo:** botón ▶ para animar las próximas 12 horas.
+- **Alertas oficiales del SMN** sombreadas, **satélite GOES-Este** (NASA GIBS) opcional y botón **📍 Mi ubicación**.
 
-Lo genera el workflow `.github/workflows/argwx-dashboard.yml` con datos reales y lo publica en la rama
-`gh-pages`, **solo dentro de la carpeta `argwx/`** (no toca la app web publicada en esa rama). Se actualiza en cada
-cambio del código y, una vez que el workflow esté en `main`, cada 3 horas.
+**Alertas:** alertas del SMN y alertas ARGWX de los 135 municipios (24/48/72 h).
+**El Niño:** fase actual, ONI desde 1950 y efecto histórico en la lluvia bonaerense (ERA5 desde 1981).
+
+**Qué significa "en vivo":** el navegador consulta directamente a Open-Meteo los 5 modelos (GFS, ICON, ECMWF, GEM,
+UKMO) y se actualiza cada 15 minutos. Es pronóstico numérico, **no radar ni observación**. Si Open-Meteo no responde,
+usa la última copia guardada por el servidor y lo indica arriba ("Copia del servidor"). El seguimiento de tormentas
+se calcula en el navegador (`app/site/tracking.js`) con umbrales horarios propios iniciales: tormenta si hay código
+WMO de tormenta o ≥ 4 mm/h; naranja ≥ 10 mm/h o ráfagas ≥ 80 km/h; roja ≥ 20 mm/h o ≥ 100 km/h; púrpura ≥ 40 mm/h
+o ≥ 120 km/h.
+
+Lo publica el workflow `.github/workflows/argwx-dashboard.yml` en la rama `gh-pages`, **solo dentro de la carpeta
+`argwx/`** (no toca la app web publicada en esa rama). Corre en cada cambio del código y, una vez que esté en `main`,
+cada hora (alertas del SMN cada hora; el resto se reutiliza hasta 3 horas para no saturar las fuentes).
 
 ## Qué se ve
 
