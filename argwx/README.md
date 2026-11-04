@@ -211,14 +211,16 @@ Para un servicio comercial hay que contratar su plan y cargar `ARGWX_OPEN_METEO_
    próximos 7 días (mediana del ensamble) con el caudal típico de las últimas 3 semanas: Amarilla ≥ 2×, Naranja ≥ 4×,
    Roja ≥ 8×, con una subida mínima de 5 m³/s. Si el caudal típico es menor a 1 m³/s, GloFAS no representa ese cauce
    y solo cuenta la lluvia.
-4. **Estaciones de referencia:** en Paraná, Luján, Salado, Quequén Grande y Negro se suma la comparación con la
-   historia 1984-hoy (p90, p98 y máximo).
+4. **Puntos de referencia GloFAS:** en Paraná, Luján, Salado, Quequén Grande y Negro se suma la comparación con la
+   historia 1984-hoy del modelo (p90, p98 y máximo). Son celdas del modelo, no estaciones de aforo. El Negro no está
+   en la red de OpenStreetMap de la provincia (su cauce es el límite), así que figura solo con su punto de referencia.
 5. El nivel del curso es el mayor de los tres. Si tiene alerta, se listan todos los partidos que cruza (primero
    donde está la señal) y sus localidades ribereñas.
 
 **Límites, dicho claro:** los umbrales son iniciales y propios, hay que calibrarlos con registros de crecidas
 (Autoridad del Agua, INA). GloFAS funciona mejor en ríos grandes; en arroyos chicos y en la llanura del Salado, donde
-el agua se mueve lento y se desborda en bajos, pesa más el criterio de lluvia. "Localidad a menos de 4 km" es una
+el agua se mueve lento y se desborda en bajos, pesa más el criterio de lluvia. La humedad del suelo se informa en
+bandas orientativas (seco, adecuado, húmedo, muy húmedo) y no sube por sí sola el nivel de crecida. "Localidad a menos de 4 km" es una
 referencia de cercanía, no un mapa de zonas inundables. La humedad del suelo es un valor de modelo (orientativo), no
 una medición en el lote.
 
@@ -227,7 +229,11 @@ una medición en el lote.
 ## Qué está verificado y qué no
 
 **Verificado**
-- 38 tests automáticos (motor, parsers, API) pasan, también en GitHub Actions.
+- 49 tests automáticos (motor, parsers, API, crecidas) pasan, también en GitHub Actions.
+- **Crecidas con datos reales** (4/11/2026): Overpass devolvió la red hídrica de la provincia (527 cursos con nombre:
+  49 ríos, 65 canales y 413 arroyos; el Salado mide 640 km en OpenStreetMap y cruza 16 partidos) y Open-Meteo la
+  humedad del suelo de los 135 partidos. En esa primera corrida la consulta de caudales GloFAS sobre los cauces se
+  cortó por un tiempo de espera de conexión; se agregaron reintentos.
 - La API funciona con **SQLite** y con **PostgreSQL 16** (incluida la clave por archivo, como Docker Secret).
 - La imagen Docker se construye en GitHub Actions.
 - **Fuentes reales** (job `live-sources` del CI, 4/11/2026): Open-Meteo devolvió los 5 modelos para los

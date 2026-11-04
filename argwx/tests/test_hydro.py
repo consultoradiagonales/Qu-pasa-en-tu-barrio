@@ -82,7 +82,7 @@ def test_rain_level_and_wet_soil():
     assert hydro.rain_level(25, 200) == "YELLOW"
     assert hydro.rain_level(15, 200) == "GREEN"
     assert hydro.rain_level(150, 300) == "RED"     # nunca pasa de Roja
-    assert hydro.soil_category(0.42) == "saturado" and hydro.soil_category(0.1) == "seco"
+    assert hydro.soil_category(0.42) == "muy húmedo" and hydro.soil_category(0.1) == "seco"
     assert hydro.soil_category(None) is None
 
 
@@ -118,5 +118,12 @@ def test_compute_floods_combines_criteria():
     assert c["nivel"] == "YELLOW" and c["nivel_referencia"] == "YELLOW" and c["partidos_senal"] == ["junin"]
     assert c["partidos_afectados"][0] == "junin" and set(c["partidos_afectados"]) == set(rio["partidos"])
     assert [loc[0] for loc in c["localidades_afectadas"]] == ["Pueblo Ribereño", "Ciudad Ribereña"]  # señal primero
+    # Río de referencia que no está en la red (como el Negro): figura igual, con su nivel
+    refs["rios"].append({"rio": "Negro", "lugar": "Carmen de Patagones", "nivel_7d": "YELLOW", "estado_7d": "Alto",
+                         "partidos": ["patagones"], "lat": -40.8, "lon": -62.98})
+    res = hydro.compute_floods(net, None, None, {"patagones": 2.0}, refs, names)
+    negro = next(x for x in res["cursos"] if x["id"] == "ref-negro")
+    assert negro["nombre"] == "Río Negro" and negro["nivel"] == "YELLOW" and negro["km"] is None
+    assert negro["partidos_afectados"] == ["patagones"] and any("Punto de referencia GloFAS" in m for m in negro["motivos"])
     otro = next(x for x in res["cursos"] if x["nombre"] == "Arroyo de Prueba")
     assert otro["nivel"] == "GREEN" and otro["partidos_afectados"] == [] and otro["localidades_afectadas"] == []

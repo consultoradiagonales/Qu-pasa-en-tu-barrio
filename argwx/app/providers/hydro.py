@@ -15,6 +15,8 @@ con registros de crecidas (Autoridad del Agua de la Provincia, INA).
 import logging
 import math
 import time
+
+import httpx
 from datetime import timedelta
 from statistics import mean, median
 
@@ -58,9 +60,17 @@ def _many(data):
 
 
 def _get(client, url, params, timeout=120):
-    for attempt in range(2):
-        r = client.get(url, params=params, timeout=timeout)
-        if r.status_code == 429 and not attempt:
+    """GET con reintentos: 429 (límite por minuto) y cortes de conexión, que en las APIs gratuitas son frecuentes."""
+    for attempt in range(3):
+        try:
+            r = client.get(url, params=params, timeout=httpx.Timeout(timeout, connect=30))
+        except httpx.TransportError as exc:
+            if attempt == 2:
+                raise
+            log.warning("%s: %s; reintento", url, type(exc).__name__)
+            time.sleep(20 * (attempt + 1))
+            continue
+        if r.status_code == 429 and attempt < 2:
             time.sleep(65)
             continue
         r.raise_for_status()
@@ -268,7 +278,7 @@ def soil_category(sm: float | None) -> str | None:
     """Humedad volumétrica (m³/m³). Bandas orientativas: varían con el tipo de suelo."""
     if sm is None:
         return None
-    return "saturado" if sm >= 0.40 else "húmedo" if sm >= 0.30 else "adecuado" if sm >= 0.15 else "seco"
+    return "muy húmedo" if sm >= 0.40 else "húmedo" if sm >= 0.30 else "adecuado" if sm >= 0.15 else "seco"
 
 
 def _soil_now(loc: dict, var: str) -> float | None:
@@ -308,8 +318,9 @@ def fetch_soil(client, munis: list[dict]) -> dict:
     layer = var.replace("soil_moisture_", "").replace("_to_", "-").replace("cm", " cm") if var else None
     return {"fuente": "Open-Meteo: lluvia de los últimos 30 días y humedad del suelo "
                       f"({layer or 'sin datos'}, modelo {model or 'de mejor ajuste'})",
-            "nota": "Bandas orientativas de humedad: seco < 0,15; adecuado < 0,30; húmedo < 0,40; saturado ≥ 0,40 m³/m³. "
-                    "Es un valor de modelo, no una medición en el lote.",
+            "nota": "Bandas orientativas de humedad: seco < 0,15; adecuado < 0,30; húmedo < 0,40; muy húmedo ≥ 0,40 m³/m³. "
+                    "Es un valor de modelo, no una medición en el lote: sirve para comparar partidos, no para decidir "
+                    "una labor.",
             "municipios": out}
 
 
@@ -407,8 +418,20 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
     ref_by: dict[str, list] = {}
     for r in (refs or {}).get("rios", []):
         ref_by.setdefault(ref_key(r["rio"]), []).append(r)
+    # Ríos de referencia que no están en la red de OpenStreetMap (p. ej. el Negro, cuyo cauce es el límite
+    # provincial): se agregan igual para que su estado figure en la lista.
+    mapped = {ref_key(c["nombre"]) for c in network["cursos"] if c["tipo"] == "río"}
+    extra = []
+    for key, rs in ref_by.items():
+        if key in mapped:
+            continue
+        lat, lon = rs[0]["lat"], rs[0]["lon"]
+        extra.append({"id": "ref-" + key.replace(" ", "-"), "nombre": "Río " + rs[0]["rio"].split(" (")[0], "tipo": "río",
+                      "km": None, "partidos": list(dict.fromkeys(p for r in rs for p in r["partidos"])),
+                      "localidades": [], "muestras": [], "trazo": [],
+                      "bbox": [round(lat - 0.25, 3), round(lon - 0.3, 3), round(lat + 0.25, 3), round(lon + 0.3, 3)]})
     out = []
-    for c in network["cursos"]:
+    for c in network["cursos"] + extra:
         rains = [(p, rain72[p]) for p in c["partidos"] if rain72.get(p) is not None]
         basin = round(mean(v for _, v in rains), 1) if rains else None
         wet = [soil_m[p]["lluvia_30d"] for p in c["partidos"] if (soil_m.get(p) or {}).get("lluvia_30d") is not None]
@@ -423,7 +446,8 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
 
         motivos = []
         if basin is not None:
-            motivos.append(f"Lluvia prevista en la cuenca: {basin:g} mm en 72 h (promedio de {len(rains)} partidos)")
+            where = f"promedio de {len(rains)} partidos" if len(rains) > 1 else f"en {names.get(rains[0][0], rains[0][0])}"
+            motivos.append(f"Lluvia prevista en la cuenca: {basin:g} mm en 72 h ({where})")
             top_p, top_v = max(rains, key=lambda x: x[1])
             if len(rains) > 1 and top_v >= RAIN72["YELLOW"]:
                 motivos.append(f"Máximo en {names.get(top_p, top_p)}: {top_v:g} mm")
@@ -435,8 +459,8 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
                            f"en {names.get(hot[0]['partido'], hot[0]['partido'])}; pico estimado el {_dm(hot[0]['pico'])}")
         for r in ref or []:
             if r["nivel_7d"] != "GREEN":
-                motivos.append(f"Estación de referencia {r['lugar']}: caudal {r['estado_7d'].lower()} respecto de "
-                               "la historia 1984-hoy")
+                motivos.append(f"Punto de referencia GloFAS en {r['lugar']}: caudal {r['estado_7d'].lower()} frente "
+                               "a la historia 1984-hoy del modelo")
 
         # Señal: dónde se detecta (caudal, lluvia fuerte o estación de referencia). Si el curso tiene alerta, el agua
         # recorre todo el cauce: se listan todos los partidos que cruza, primero los de la señal.
@@ -454,7 +478,7 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
                     "partidos_senal": senal, "partidos_afectados": afectados, "localidades_afectadas": locs,
                     "localidades": c["localidades"], "pico": min((p["pico"] for p in hot), default=None),
                     "con_caudal": bool(rep), "puntos": pts, "bbox": c["bbox"], "trazo": c["trazo"]})
-    out.sort(key=lambda x: (-idx(x["nivel"]), -(x["lluvia_72h"] or 0), -x["km"]))
+    out.sort(key=lambda x: (-idx(x["nivel"]), -(x["lluvia_72h"] or 0), -(x["km"] or 0)))
     por_nivel = {lv: sum(1 for x in out if x["nivel"] == lv) for lv in LEVELS[:4]}
     return {
         "resumen": {"cursos": len(out), "por_nivel": por_nivel, "en_alerta": len(out) - por_nivel["GREEN"],
@@ -466,7 +490,7 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
                   f"nivel si llovió ≥ {WET_30D} mm en 30 días), (b) el caudal GloFAS de los próximos 7 días respecto "
                   f"del típico de las últimas 3 semanas (Amarilla ≥ {RATIO['YELLOW']}×, Naranja ≥ {RATIO['ORANGE']}×, "
                   f"Roja ≥ {RATIO['RED']}×, con una subida mínima de {MIN_RISE:g} m³/s) y (c) en los ríos con estación "
-                  "de referencia, el caudal frente a la historia 1984-hoy. Umbrales iniciales, a calibrar.",
+                  "de referencia GloFAS, el caudal frente a su historia 1984-hoy. Umbrales iniciales, a calibrar.",
         "nota": "GloFAS representa bien los ríos grandes; en arroyos chicos y en la llanura del Salado pesa más el "
                 "criterio de lluvia. Si un curso tiene alerta se listan todos los partidos que cruza (primero donde "
                 "está la señal) y las localidades a menos de 4 km del cauce: es una referencia de cercanía, no un "
