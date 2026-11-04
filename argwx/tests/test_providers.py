@@ -74,3 +74,28 @@ def test_alert_covering_part_of_a_partido():
     # Franja angosta sobre el límite con La Pampa: roza Pellegrini y Rivadavia pero no los cubre
     borde = {"areas": [{"desc": "", "polygons": [[(-35.2, -63.45), (-35.2, -63.37), (-36.6, -63.37), (-36.6, -63.45)]]}]}
     assert smn.affected(borde, munis) == []
+
+
+def test_export_helpers():
+    from datetime import date as d, timedelta as td
+
+    from app.export_site import _season_months, enso_rain_composites, storm_grid
+
+    assert _season_months(0, 2000) == [(1999, 12), (2000, 1), (2000, 2)]
+    assert _season_months(11, 2000) == [(2000, 11), (2000, 12), (2001, 1)]
+    ids = {p["id"] for p in storm_grid()}
+    assert len(ids) > 50 and "-36.0_-60.0" in ids and "-34.5_-80.0" not in ids
+    # Años con El Niño (año % 3 == 0) llueve el doble: +50 % vs climatología; el resto -25 %
+    oni = [{"period": f"{s} {y}", "value": 1.0 if y % 3 == 0 else (-1.0 if y % 3 == 1 else 0.0)}
+           for y in range(1981, 2026) for s in ("DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO",
+                                                "SON", "OND", "NDJ")]
+    times, vals, day = [], [], d(1980, 12, 1)
+    while day <= d(2025, 12, 31):
+        times.append(day.isoformat())
+        vals.append(2.0 if day.year % 3 == 0 else 1.0)
+        day += td(days=1)
+    res = enso_rain_composites({"a": {"time": times, "precipitation_sum": vals},
+                                "b": {"time": times, "precipitation_sum": vals}}, oni)
+    mjj = res["provincia"]
+    assert abs(mjj["EL_NINO"]["media"][5] - 50) < 1 and abs(mjj["LA_NINA"]["media"][5] + 25) < 1
+    assert res["resumen"]["nino_max"]["valor"] > 40 and res["estaciones"][0]["es"] == "DEF"

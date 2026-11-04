@@ -3,6 +3,8 @@
   python -m app.cli sync [all|models|gfs|enso|smn|alerts|obs]
   python -m app.cli status     frescura de datos por proveedor
   python -m app.cli resumen    resumen de alertas (próximas 24 h)
+  python -m app.cli export-site SALIDA [CACHE]   dashboard estático (GitHub Pages)
+  python -m app.cli smn-debug  diagnóstico del feed de alertas del SMN
 """
 import json
 import logging
@@ -36,6 +38,15 @@ def main(argv: list[str]) -> int:
 
         with new_session() as s:
             print(json.dumps(freshness(s), ensure_ascii=False, indent=2, default=str))
+        return 0
+    if cmd == "export-site":
+        from app.export_site import build
+
+        if len(argv) < 2:
+            print("Uso: python -m app.cli export-site CARPETA_SALIDA [CARPETA_CACHE]")
+            return 2
+        meta = build(argv[1], argv[2] if len(argv) > 2 else None)
+        print(json.dumps(meta, ensure_ascii=False, indent=2))
         return 0
     if cmd == "smn-debug":
         import re

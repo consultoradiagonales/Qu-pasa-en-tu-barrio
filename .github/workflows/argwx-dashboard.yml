@@ -1,0 +1,50 @@
+name: ARGWX dashboard
+# Genera el dashboard con datos reales y lo publica en GitHub Pages, SOLO en la carpeta argwx/ de la rama
+# gh-pages (el resto del sitio publicado no se toca).
+on:
+  push:
+    branches: [claude/weather-engine-mvp-jafv4d, main]
+    paths: ["argwx/**", ".github/workflows/argwx-dashboard.yml"]
+  schedule:
+    - cron: "17 */3 * * *"   # cada 3 horas (GitHub solo lo ejecuta desde la rama principal)
+  workflow_dispatch:
+
+concurrency:
+  group: argwx-dashboard
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Traer el sitio publicado (rama gh-pages)
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: ghp
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r argwx/requirements.txt
+      - name: Generar dashboard con datos reales
+        working-directory: argwx
+        env:
+          ARGWX_DATA_MODE: live
+          ARGWX_DATABASE_URL: sqlite:///./dashboard.db
+          ARGWX_OPEN_METEO_API_KEY: ${{ secrets.ARGWX_OPEN_METEO_API_KEY }}
+        run: python -m app.cli export-site ../_site ../ghp/argwx/data
+      - name: Publicar solo la carpeta argwx/
+        run: |
+          rm -rf ghp/argwx
+          mkdir -p ghp/argwx
+          cp -R _site/. ghp/argwx/
+          cd ghp
+          git add -A argwx
+          if git diff --cached --quiet; then echo "Sin cambios"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "ARGWX dashboard: datos $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push origin HEAD:gh-pages

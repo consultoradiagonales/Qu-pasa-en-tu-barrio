@@ -35,6 +35,20 @@ make run    # datos reales (si una fuente falla, cae a simulado y lo avisa en pa
 
 ---
 
+## Dashboard público (sin instalar nada)
+
+**https://consultoradiagonales.github.io/Qu-pasa-en-tu-barrio/argwx/**
+
+- **Tormentas en Argentina:** alertas oficiales vigentes del SMN sobre el mapa del país y, encima, cuántos
+  de los 5 modelos prevén tormenta en cada zona (0-24, 24-48 y 48-72 h).
+- **El Niño en Buenos Aires:** fase actual, historia del ONI desde 1950 y cuánto cambió la lluvia en la
+  provincia en cada trimestre según la fase (reanálisis ERA5 desde 1981, un punto por sección electoral).
+- **Alertas en los 135 municipios:** el motor ARGWX con datos reales.
+
+Lo genera el workflow `.github/workflows/argwx-dashboard.yml` con datos reales y lo publica en la rama
+`gh-pages`, **solo dentro de la carpeta `argwx/`** (no toca la app web publicada en esa rama). Se actualiza en cada
+cambio del código y, una vez que el workflow esté en `main`, cada 3 horas.
+
 ## Qué se ve
 
 - **Panel web** (`/`): mapa de los 135 partidos coloreado por nivel, ventanas *próximas 24 h / 24-48 h / 48-72 h*,

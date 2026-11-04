@@ -28,3 +28,8 @@ Generados con `scripts/build_municipios.py` (reproducible).
   pero conviene validarlos contra la Junta Electoral bonaerense.
 - No se incluyen todavía los códigos INDEC/Georef de cada partido: se pueden agregar consultando
   `https://apis.datos.gob.ar/georef/api/departamentos?provincia=06&max=200`.
+
+## Límites provinciales (`provincias_ar.geojson`)
+
+Unión de los circuitos electorales 2025 de cada distrito (misma fuente, CC BY 4.0), sin huecos internos y
+simplificada (~4 km). Generado con `scripts/build_provincias.py`. Se usa solo como fondo del mapa nacional.
