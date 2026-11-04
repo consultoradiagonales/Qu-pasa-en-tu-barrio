@@ -9,7 +9,8 @@ from datetime import datetime, timedelta
 MODEL_LABELS = {
     "gfs_seamless": "GFS", "gfs_global": "GFS", "icon_seamless": "ICON", "icon_global": "ICON",
     "ecmwf_ifs025": "ECMWF", "ecmwf_ifs": "ECMWF", "gem_seamless": "GEM", "gem_global": "GEM",
-    "ukmo_seamless": "UKMO", "ukmo_global_deterministic_10km": "UKMO",
+    "ukmo_seamless": "UKMO", "ukmo_global_deterministic_10km": "UKMO", "ecmwf_aifs025_single": "ECMWF-IA",
+    "jma_seamless": "JMA", "meteofrance_seamless": "ARPEGE", "cma_grapes_global": "CMA",
 }
 HOURLY = ("precipitation", "wind_gusts_10m", "temperature_2m", "weather_code")
 WINDOWS = (24, 48, 72)

@@ -60,7 +60,9 @@
         <div class="seg" id="region"><button data-r="pba" class="on">Buenos Aires</button><button data-r="ar">Argentina</button><button data-r="sa">Sudamérica</button></div>
         <div class="chips" id="layers">
           <button data-l="storms" class="on">⛈️ Tormentas</button><button data-l="wind" class="on">💨 Viento</button>
-          <button data-l="wx" class="on">🌧️ Lluvia</button><button data-l="smn" class="on">⚠️ Alertas SMN</button>
+          <button data-l="wx" class="on">🌧️ Lluvia</button><button data-l="radar" class="on">📡 Radar</button>
+          <button data-l="smn" class="on">⚠️ Alertas SMN</button><button data-l="obs" class="on">🌡️ Estaciones</button>
+          <button data-l="rios" class="on">💧 Ríos</button><button data-l="costa" class="on">🌊 Costa</button>
         </div>
       </div>
       <button id="locate" aria-label="Mi ubicación">📍</button>
@@ -73,6 +75,12 @@
     <div class="cards">
       <div class="card" id="now-card"><h2>Ahora</h2><p class="muted">Cargando datos…</p></div>
       <div class="card"><h2>⛈️ Tormentas en movimiento</h2><div id="tracks"><p class="muted">Calculando…</p></div></div>
+      <div class="card" id="obs-card"></div>
+      <div class="card" id="prob-card"></div>
+      <div class="card" id="rios-card"></div>
+      <div class="card" id="costa-card"></div>
+      <div class="card" id="amb-card"></div>
+      <div class="card" id="sat-card"></div>
       <div class="card legend">
         <h2>Cómo leer el mapa</h2>
         <div><svg width="34" height="34"><circle cx="17" cy="17" r="14" fill="#f07c00" fill-opacity=".3" stroke="#f07c00" stroke-width="2"/></svg>
@@ -117,7 +125,7 @@
     </div>
   </section>
 </main>
-<footer><b>ConDi · inteligencia territorial</b> — motor meteorológico ARGWX. Herramienta de análisis: no es un canal oficial de alertas; las alertas oficiales son las del SMN.<br>Datos: modelos GFS, ICON, ECMWF, GEM y UKMO vía <a href="https://open-meteo.com">Open-Meteo</a> (actualización cada 15 min), alertas oficiales del SMN, ENSO de NOAA CPC, lluvia histórica ERA5 (Copernicus), satélite NASA GIBS, mapa © OpenStreetMap. Los cálculos no usan IA generativa. <a href="https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio/tree/claude/weather-engine-mvp-jafv4d/argwx">Código</a>.</footer>
+<footer><b>ConDi · inteligencia territorial</b> — motor meteorológico ARGWX. Herramienta de análisis: no es un canal oficial de alertas; las alertas oficiales son las del SMN.<br>Datos: modelos GFS, ICON, ECMWF (IFS e IA), GEM, UKMO, JMA, ARPEGE y CMA vía <a href="https://open-meteo.com">Open-Meteo</a>; alertas y estaciones del SMN; radar RainViewer; satélite GOES-19 (NOAA); ríos GloFAS, calidad del aire CAMS y lluvia histórica ERA5 (Copernicus); ensamble ECMWF; olas Open-Meteo Marine; ENSO NOAA CPC; mapa © OpenStreetMap. Los cálculos no usan IA generativa. <a href="https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio/tree/claude/weather-engine-mvp-jafv4d/argwx">Código</a>.</footer>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="tracking.js"></script>
 <script src="app.js"></script>

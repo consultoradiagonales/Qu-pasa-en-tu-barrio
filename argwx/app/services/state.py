@@ -18,9 +18,15 @@ HAZARD_VERB = {"lluvia": "lluvia", "tormenta": "tormentas", "viento": "viento", 
 _cache: dict = {"key": None, "value": None}
 
 
+def weather_level(notes: str | None) -> str:
+    """Estado del tiempo observado (texto de la estación): granizo -> Naranja, tormenta -> Amarilla."""
+    t = (notes or "").lower()
+    return "ORANGE" if "granizo" in t else "YELLOW" if "tormenta" in t else "GREEN"
+
+
 def observed_level(o: Observation) -> str:
     return max_level(level_for("rain_mm", o.rain_mm_24h), level_for("gust_kmh", o.gust_kmh),
-                     level_for("tmax_c", o.temp_c))
+                     level_for("tmax_c", o.temp_c), weather_level(o.notes))
 
 
 def _overlaps(a: Alert, wf, wt, window: int) -> bool:
@@ -60,8 +66,8 @@ def _entry(m, window, per_model, smn_items, obs, wf, wt, min_agreeing) -> dict:
     for a in smn_items:
         drivers.append(f"SMN oficial: {a.title}")
     if obs is not None:
-        drivers.append(f"Observación ({obs.source}): lluvia 24 h {obs.rain_mm_24h} mm, ráfaga {obs.gust_kmh} km/h "
-                       f"-> {LABEL[obs_level]}. La observación prevalece sobre el modelo.")
+        detail = obs.notes if obs.notes and obs.rain_mm_24h is None else f"lluvia 24 h {obs.rain_mm_24h} mm, ráfaga {obs.gust_kmh} km/h"
+        drivers.append(f"Observación ({obs.source}): {detail} -> {LABEL[obs_level]}. La observación prevalece sobre el modelo.")
     if obs is not None and obs_level == final and final != "GREEN":
         basis.append("observación")
     if smn_level == final and final != "GREEN":
@@ -71,8 +77,8 @@ def _entry(m, window, per_model, smn_items, obs, wf, wt, min_agreeing) -> dict:
 
     if "observación" in basis:
         confidence, conf_label = 1.0, "Observado"
-        observed = {"lluvia": level_for("rain_mm", obs.rain_mm_24h), "viento": level_for("gust_kmh", obs.gust_kmh),
-                    "calor": level_for("tmax_c", obs.temp_c)}
+        observed = {"tormenta": weather_level(obs.notes), "lluvia": level_for("rain_mm", obs.rain_mm_24h),
+                    "viento": level_for("gust_kmh", obs.gust_kmh), "calor": level_for("tmax_c", obs.temp_c)}
         hazard = max(observed, key=lambda h: idx(observed[h]))
     elif "consenso ARGWX" in basis:
         confidence, conf_label, hazard = cons["consensus"], cons["confidence_label"], cons["hazard"]

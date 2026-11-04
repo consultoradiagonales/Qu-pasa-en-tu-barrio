@@ -24,7 +24,8 @@ class Settings(BaseSettings):
     # Modelos numéricos vía Open-Meteo (GFS, ICON, ECMWF, GEM, UKMO)
     open_meteo_url: str = "https://api.open-meteo.com/v1/forecast"
     open_meteo_api_key: str | None = None         # uso comercial: plan pago de Open-Meteo
-    open_meteo_models: str = "gfs_seamless,icon_seamless,ecmwf_ifs025,gem_seamless,ukmo_seamless"
+    open_meteo_models: str = ("gfs_seamless,icon_seamless,ecmwf_ifs025,ecmwf_aifs025_single,gem_seamless,ukmo_seamless,"
+                              "jma_seamless,meteofrance_seamless,cma_grapes_global")
     # ENSO (NOAA CPC)
     oni_url: str = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt"
     nino_weekly_url: str = "https://www.cpc.ncep.noaa.gov/data/indices/wksst9120.for"

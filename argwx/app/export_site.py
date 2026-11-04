@@ -22,7 +22,7 @@ from statistics import mean, median
 from app.config import get_settings
 from app.engine.geo import point_in_polygon
 from app.engine.levels import COLOR, LABEL
-from app.providers import enso, openmeteo, smn
+from app.providers import enso, extras, openmeteo, smn
 from app.services.municipalities import SECCION_NOMBRE, by_id, load_municipalities
 from app.services.sync import http_client
 from app.util import iso, utcnow
@@ -286,8 +286,25 @@ def export_enso_pba(out: Path, client, settings, oni: list[dict], cache: Path | 
 
 
 # ------------------------------------------------------------------ 3. alertas en los 135 partidos
-def export_pba_alerts(out: Path) -> dict:
+MONTHS_ES = {m: i + 1 for i, m in enumerate(["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+                                               "septiembre", "octubre", "noviembre", "diciembre"])}
+
+
+def _obs_time(fecha: str, hora: str):
+    """'04-noviembre-2026' + '11:00' (hora argentina) -> UTC sin tzinfo."""
+    from datetime import datetime
+
+    try:
+        d, mname, y = fecha.split("-")
+        hh, mm = hora.split(":")
+        return datetime(int(y), MONTHS_ES[mname.lower()], int(d), int(hh), int(mm)) + timedelta(hours=3)
+    except Exception:
+        return utcnow()
+
+
+def export_pba_alerts(out: Path, smn_obs: list[dict] | None = None) -> dict:
     from app.db import init_db, new_session
+    from app.models import Observation
     from app.services.municipalities import seed
     from app.services.state import compute_state, summary
     from app.services.sync import sync
@@ -296,6 +313,14 @@ def export_pba_alerts(out: Path) -> dict:
     with new_session() as s:
         seed(s)
     sync()
+    with new_session() as s:  # estaciones del SMN: la observación prevalece sobre el modelo
+        for o in smn_obs or []:
+            if o.get("municipio"):
+                s.add(Observation(municipality_id=o["municipio"], source=f"SMN {o['estacion']}",
+                                  observed_at=_obs_time(o["fecha"], o["hora"]), temp_c=o["temp_c"],
+                                  notes=f"{o['estado']}; viento {o['viento_dir'] or ''} {o['viento_kmh'] or ''} km/h",
+                                  data_mode="live", created_at=utcnow()))
+        s.commit()
     with new_session() as s:
         st = compute_state(s)
     if st["data_mode"] == "sin_datos":
@@ -375,7 +400,7 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
     for name in ("provincias_ar.geojson", "municipios_pba.geojson", "municipios_pba.json"):
         shutil.copy(APP / "data" / name, out / "geo" / name)
     data, cache = out / "data", Path(cache_dir) if cache_dir else None
-    parts, oni = {}, []
+    parts, oni, smn_obs = {}, [], []
 
     def run(name, fn, file=None, max_hours=0):
         if file and _fresh(cache, file, max_hours):
@@ -405,15 +430,38 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
         for key in ("pba", "ar"):
             if _fresh(cache, f"live_{key}.json", 3):
                 shutil.copy(cache / f"live_{key}.json", data / f"live_{key}.json")
-        if not all((data / f"live_{k}.json").exists() for k in ("pba", "ar")):
+        if not all((data / f"live_{k}.json").exists() for k in ("pba", "ar", "sa")):
             run("en_vivo_respaldo", lambda: export_live_snapshots(data, client))
+
+        def write(name, payload):
+            _write(data, name, {"generated_at": iso(utcnow()), **payload})
+            return {k: (len(v) if isinstance(v, (list, dict)) else v) for k, v in payload.items()
+                    if k in ("rios", "puntos", "municipios", "estaciones", "sin_ubicacion")}
+
+        def cached(name):
+            try:
+                return json.loads((cache / name).read_text(encoding="utf-8")) if cache else None
+            except Exception:
+                return None
+
+        def obs_part():
+            res = extras.export_smn_observations(client, load_municipalities())
+            smn_obs.extend(res["estaciones"])
+            return write("observaciones_smn.json", res)
+
+        run("observaciones_smn", obs_part)
+        run("rios", lambda: write("rios.json", extras.export_rivers(client, cached("rios.json"))), "rios.json", 6)
+        run("costa", lambda: write("costa.json", extras.export_coast(client)), "costa.json", 3)
+        run("ambiente", lambda: write("ambiente.json", extras.export_air(client, load_municipalities())), "ambiente.json", 6)
+        run("probabilidades", lambda: write("probabilidades.json", extras.export_probabilities(
+            client, [by_id()[i] for i in ENSO_POINTS])), "probabilidades.json", 6)
         if oni:
             run("enso_pba", lambda: export_enso_pba(data, client, settings, oni, cache))
         else:
             parts["enso_pba"] = {"ok": False, "error": "Sin ONI"}
             if cache and (cache / "enso_pba.json").exists():
                 shutil.copy(cache / "enso_pba.json", data / "enso_pba.json")
-    run("alertas_pba", lambda: export_pba_alerts(data), "alertas_pba.json", 3)
+    run("alertas_pba", lambda: export_pba_alerts(data, smn_obs), "alertas_pba.json", 6)
     meta = {"generated_at": iso(utcnow()), "parts": parts,
             "repo": "https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio"}
     _write(data, "meta.json", meta)

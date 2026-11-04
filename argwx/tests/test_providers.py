@@ -113,3 +113,24 @@ def test_live_grids_match_browser():
     assert len(ar) == 14 * 9 and ar[0] == (-22.0, -74.0) and ar[-1] == (-54.5, -54.0)
     sa = region_grid(regions["sa"])
     assert len(sa) == 14 * 11 and sa[0] == (12.5, -82.5) and sa[-1] == (-52.5, -32.5)
+
+
+def test_extras_smn_and_thresholds():
+    # Formato real de los archivos abiertos del SMN (línea de Belgrano II y de Azul tomadas del archivo publicado;
+    # "Villa Ejemplo" es ficticia, solo para la prueba).
+    from app.providers import extras
+    from app.services.state import weather_level
+
+    st = extras.parse_stations((FIX / "smn_estaciones_sample.txt").read_text())
+    assert round(st["BASE BELGRANO II"]["lat"], 3) == -77.867 and round(st["BASE BELGRANO II"]["lon"], 3) == -34.617
+    assert st["VILLA EJEMPLO AERO"]["provincia"] == "BUENOS AIRES"
+    obs = extras.parse_present_weather((FIX / "smn_tiepre_sample.txt").read_text())
+    assert obs[0]["temp_c"] == 19.3 and obs[0]["humedad"] == 61 and obs[0]["viento_dir"] == "Oeste"
+    assert obs[0]["viento_kmh"] == 11 and obs[0]["presion_hpa"] == 992.6
+    assert obs[1]["viento_dir"] == "Calma" and obs[1]["viento_kmh"] is None
+    assert extras.match_station("Villa Ejemplo", st)["name"] == "VILLA EJEMPLO AERO"
+    assert weather_level("Tormenta con lluvia") == "YELLOW" and weather_level("Granizo") == "ORANGE"
+    ref = {"p90": 100, "p98": 200, "max": 300}
+    assert [extras.river_status(q, ref)[0] for q in (50, 150, 250, 350)] == ["GREEN", "YELLOW", "ORANGE", "RED"]
+    assert [extras.wave_level(h) for h in (1, 2.6, 4, 6)] == ["GREEN", "YELLOW", "ORANGE", "RED"]
+    assert [extras.uv_category(u) for u in (2, 7, 11.5)] == ["Bajo", "Alto", "Extremo"]

@@ -37,6 +37,10 @@ jobs:
           ARGWX_DATABASE_URL: sqlite:///./dashboard.db
           ARGWX_OPEN_METEO_API_KEY: ${{ secrets.ARGWX_OPEN_METEO_API_KEY }}
           ARGWX_FORCE: ${{ github.event_name != 'schedule' }}
+          ARGWX_OPENWEATHER_API_KEY: ${{ secrets.ARGWX_OPENWEATHER_API_KEY }}
+          ARGWX_METEOBLUE_API_KEY: ${{ secrets.ARGWX_METEOBLUE_API_KEY }}
+          ARGWX_WUNDERGROUND_API_KEY: ${{ secrets.ARGWX_WUNDERGROUND_API_KEY }}
+          ARGWX_WUNDERGROUND_STATIONS: ${{ vars.ARGWX_WUNDERGROUND_STATIONS }}
         run: python -m app.cli export-site ../_site ../ghp/argwx/data
       - name: Verificar capa satelital (NASA GIBS)
         continue-on-error: true

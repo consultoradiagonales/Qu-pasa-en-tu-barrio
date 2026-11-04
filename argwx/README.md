@@ -158,16 +158,29 @@ curl -X POST localhost:8000/api/v1/observations -H 'Content-Type: application/js
 
 ## Fuentes de datos
 
-| Fuente | Aporta | Estado |
+Todas gratuitas y sin clave, probadas desde GitHub con `scripts/probe_sources.py` (4/11/2026):
+
+| Fuente | Aporta | Uso en ConDi |
 |---|---|---|
-| GFS, ICON, ECMWF, GEM, UKMO vía [Open-Meteo](https://open-meteo.com) | Pronóstico horario (lluvia, ráfagas, temperatura, tormentas) | Implementado |
-| NOAA CPC | ENSO: ONI, Niño 1+2 / 3 / 3.4 / 4 semanales, SOI | Implementado |
-| SMN | Alertas oficiales (feed CAP 1.2 `https://ssl.smn.gob.ar/CAP/AR.php`) | Implementado y probado con el feed real |
-| OpenWeather, Meteoblue | Pronóstico adicional que entra al consenso | Beta; requiere API key |
-| Weather Underground | Observaciones de estaciones personales | Beta; requiere API key e IDs de estación |
-| GOES-Este (NOAA) | Imagen satelital | Enlace de referencia (sin procesamiento) |
-| Observaciones manuales | Datos de estaciones propias, municipios, etc. | Implementado |
-| Radar | Estimación de llegada (velocidad = distancia / tiempo; ETA = distancia restante / velocidad) | Calculadora; sin ingesta de radar todavía |
+| Open-Meteo: GFS, ICON, ECMWF IFS, **ECMWF IA (AIFS)**, GEM, UKMO, **JMA**, **ARPEGE**, **CMA** | Pronóstico horario de 9 modelos | Consenso de alertas en los 135 municipios (el mapa en vivo usa 5 para no saturar) |
+| Open-Meteo Ensemble (ECMWF, 51 escenarios) | Probabilidades reales | Probabilidad de ≥10/30/60 mm por zona |
+| SMN · alertas CAP (`ssl.smn.gob.ar/CAP/AR.php`) | Alertas oficiales con polígonos | Capa del mapa y nivel final de cada municipio |
+| SMN · datos abiertos (tiempo presente + estaciones) | Observación real en ~120 estaciones | Capa de estaciones; tormenta o granizo observado **eleva la alerta** (la observación prevalece) |
+| RainViewer | Radar de los últimos minutos (donde hay cobertura) | Capa de radar |
+| NOAA STAR · GOES-19 | Imagen satelital cada 10 min | Tarjeta satelital |
+| GloFAS (Copernicus) vía Open-Meteo Flood | Caudal de ríos pronosticado e histórico desde 1984 | Riesgo de crecida: Paraná, Luján, Salado, Quequén, Negro |
+| Open-Meteo Marine | Altura de olas | Costa atlántica bonaerense |
+| CAMS (Copernicus) vía Open-Meteo Air Quality | Índice UV y PM2.5 | Ambiente por municipio |
+| NOAA CPC | ONI, Niño 1+2/3/3.4/4, SOI | El Niño |
+| ERA5 (Copernicus) vía Open-Meteo Archive | Lluvia histórica 1981-hoy | Efecto de El Niño en la provincia |
+| OpenStreetMap | Mapa base | Fondo del mapa |
+
+Disponibles pero no usadas: MET Noruega (repite ECMWF). No respondieron: KMA (Corea), BOM (Australia),
+GraphCast; capa satelital de NASA GIBS (inestable).
+
+**Con registro (gratis para empezar, pagas al escalar):** OpenWeather, Meteoblue y Weather Underground ya tienen
+conector (`ARGWX_OPENWEATHER_API_KEY`, `ARGWX_METEOBLUE_API_KEY`, `ARGWX_WUNDERGROUND_API_KEY`); se cargan como
+*secrets* del repositorio en GitHub y el motor los suma al consenso.
 
 **Importante para uso con clientes:** el plan gratuito de Open-Meteo es para uso **no comercial**.
 Para un servicio comercial hay que contratar su plan y cargar `ARGWX_OPEN_METEO_API_KEY`.
