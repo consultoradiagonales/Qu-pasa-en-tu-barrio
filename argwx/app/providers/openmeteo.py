@@ -3,6 +3,7 @@
 Se piden datos horarios para los 135 puntos (en lotes) y se agregan en ventanas de 24 h:
 lluvia acumulada, ráfaga máxima, temperatura máxima/mínima y código de tiempo WMO máximo.
 """
+import time
 from datetime import datetime, timedelta
 
 MODEL_LABELS = {
@@ -81,6 +82,9 @@ def fetch(munis: list[dict], settings, client, now: datetime) -> list[dict]:
         if settings.open_meteo_api_key:
             params["apikey"] = settings.open_meteo_api_key
         resp = client.get(url, params=params)
+        if resp.status_code == 429:  # límite de consultas por minuto: esperar y reintentar una vez
+            time.sleep(65)
+            resp = client.get(url, params=params)
         resp.raise_for_status()
         data = resp.json()
         data = [data] if isinstance(data, dict) else data

@@ -100,20 +100,52 @@
           if (storm[j] && !seen[j]) { seen[j] = 1; queue.push(j); }
         }
       }
-      let wsum = 0, lat = 0, lon = 0, level = 0, pmax = 0, thunder = 0;
-      for (const k of comp) {
-        const w = Math.max(1, P[k] || 0), pt = grid.points[k];
-        wsum += w; lat += pt.lat * w; lon += pt.lon * w;
-        level = Math.max(level, cellLevel(P[k], C[k], G[k]));
-        pmax = Math.max(pmax, P[k] || 0);
-        if ((C[k] || 0) >= 95) thunder++;
-      }
-      lat /= wsum; lon /= wsum;
-      let radius = half;
-      for (const k of comp) radius = Math.max(radius, hav(lat, lon, grid.points[k].lat, grid.points[k].lon) + half);
-      out.push({lat, lon, radius, cells: comp.length, level, pmax, thunder});
+      for (const part of split(grid, comp, MAX_CELLS)) out.push(describe(grid, part, P, C, G, half));
     }
     return out;
+  }
+
+  /* Un área de tormenta muy grande se parte en celdas de hasta MAX_CELLS puntos (k-medias simple),
+     para que cada círculo represente una tormenta y no media provincia o medio país. */
+  const MAX_CELLS = 5;
+  function split(grid, comp, maxCells) {
+    if (comp.length <= maxCells) return [comp];
+    const k = Math.ceil(comp.length / maxCells), pts = comp.map(i => grid.points[i]);
+    const seeds = [pts[0]];
+    while (seeds.length < k) {
+      let best = null, bd = -1;
+      for (const p of pts) { const d = Math.min(...seeds.map(s => hav(p.lat, p.lon, s.lat, s.lon))); if (d > bd) { bd = d; best = p; } }
+      seeds.push(best);
+    }
+    let centers = seeds.map(s => ({lat: s.lat, lon: s.lon})), groups = [];
+    for (let it = 0; it < 8; it++) {
+      groups = centers.map(() => []);
+      comp.forEach((i, j) => {
+        const p = pts[j];
+        let bi = 0, bd = Infinity;
+        centers.forEach((c, ci) => { const d = hav(p.lat, p.lon, c.lat, c.lon); if (d < bd) { bd = d; bi = ci; } });
+        groups[bi].push(i);
+      });
+      centers = groups.map((g, gi) => g.length ? {lat: g.reduce((s, i) => s + grid.points[i].lat, 0) / g.length,
+                                                  lon: g.reduce((s, i) => s + grid.points[i].lon, 0) / g.length} : centers[gi]);
+    }
+    return groups.filter(g => g.length);
+  }
+
+  function describe(grid, comp, P, C, G, half) {
+    let wsum = 0, lat = 0, lon = 0, level = 0, pmax = 0, thunder = 0;
+    for (const k of comp) {
+      const w = Math.max(1, P[k] || 0), pt = grid.points[k];
+      wsum += w; lat += pt.lat * w; lon += pt.lon * w;
+      level = Math.max(level, cellLevel(P[k], C[k], G ? G[k] : 0));
+      pmax = Math.max(pmax, P[k] || 0);
+      if ((C[k] || 0) >= 95) thunder++;
+    }
+    lat /= wsum; lon /= wsum;
+    // Radio equivalente: el de un círculo con la misma superficie que los puntos con tormenta.
+    const cellKm2 = (grid.spec.step * 111.2) ** 2 * Math.cos(lat * RAD);
+    const radius = Math.max(half, Math.sqrt(comp.length * cellKm2 / Math.PI));
+    return {lat, lon, radius, cells: comp.length, level, pmax, thunder};
   }
 
   function systemsAt(grid, data, h, nModels) {
@@ -126,14 +158,16 @@
     const gap = 1.5 * grid.spec.step * 111.2;
     for (let a = 0; a < items.length; a++) for (let b = a + 1; b < items.length; b++) {
       const d = hav(items[a].lat, items[a].lon, items[b].lat, items[b].lon);
-      if (d <= Math.max(gap, items[a].radius + items[b].radius)) parent[find(a)] = find(b);
+      if (d <= gap) parent[find(a)] = find(b);
     }
     const groups = {};
     items.forEach((it, i) => { const k = find(i); (groups[k] = groups[k] || []).push(it); });
     return Object.values(groups).map(g => {
       const w = g.reduce((s, x) => s + x.cells, 0);
       const lat = g.reduce((s, x) => s + x.lat * x.cells, 0) / w, lon = g.reduce((s, x) => s + x.lon * x.cells, 0) / w;
-      const radius = Math.max(...g.map(x => hav(lat, lon, x.lat, x.lon) + x.radius));
+      // Círculo probabilístico: tamaño típico de la tormenta + dispersión entre modelos (incertidumbre).
+      const spread = Math.sqrt(g.reduce((s, x) => s + hav(lat, lon, x.lat, x.lon) ** 2, 0) / g.length);
+      const radius = Math.min(g.reduce((s, x) => s + x.radius * x.cells, 0) / w + spread, 2.5 * grid.spec.step * 111.2);
       const byModel = {};
       g.forEach(x => { byModel[x.model] = Math.max(byModel[x.model] || 0, x.level); });
       const models = Object.keys(byModel), lv = Object.values(byModel);
@@ -151,10 +185,10 @@
     const dir = hours > 0 && dist > 15 ? bearing(a.lat, a.lon, z.lat, z.lon) : null;
     const levelMax = Math.max(...pts.map(p => p.level)), probMax = Math.max(...pts.map(p => p.prob));
     const dl = z.level - a.level, dr = z.radius / a.radius;
-    const trend = hours === 0 ? "sin evolución calculable" : (dl > 0 || dr > 1.25) ? "se intensifica"
+    const trend = hours === 0 ? "aparece solo en una hora" : (dl > 0 || dr > 1.25) ? "se intensifica"
       : (dl < 0 || dr < 0.8) ? "se debilita" : "se mantiene";
     return {points: pts.map(p => Object.assign({}, p, {t: times[p.h]})), speed: hours > 0 ? Math.round(dist / hours) : 0,
-            dir, dirText: dir == null ? "casi estacionaria" : "hacia el " + cardinal(dir), trend, levelMax,
+            dir, dirText: dir == null ? (hours === 0 ? "sin desplazamiento estimable" : "casi estacionaria") : "hacia el " + cardinal(dir), trend, levelMax,
             level: LEVELS[levelMax], probMax, start: times[a.h], end: times[z.h]};
   }
 
@@ -186,7 +220,8 @@
       open = nextOpen;
     }
     const minProb = opts.minProb == null ? 0.4 : opts.minProb;
-    return tracks.map(t => summarize(t, data.times)).filter(t => t.probMax >= minProb)
+    // Se descartan señales débiles: menos de 2 modelos, o una sola hora sin mayoría de modelos.
+    return tracks.map(t => summarize(t, data.times)).filter(t => t.probMax >= minProb && (t.points.length >= 2 || t.probMax >= 0.6))
       .sort((x, y) => y.levelMax - x.levelMax || y.probMax - x.probMax);
   }
 

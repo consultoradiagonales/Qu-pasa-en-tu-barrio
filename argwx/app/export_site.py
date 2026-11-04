@@ -298,6 +298,8 @@ def export_pba_alerts(out: Path) -> dict:
     sync()
     with new_session() as s:
         st = compute_state(s)
+    if st["data_mode"] == "sin_datos":
+        raise RuntimeError("Sin datos de modelos (posible límite de consultas de Open-Meteo)")
     keep = ("id", "name", "seccion", "alert_level", "alert_label", "color", "hazard", "confidence_label",
             "consensus", "drivers")
     windows = {str(w): {"label": v["label"], "valid_from": v["valid_from"], "valid_to": v["valid_to"],
@@ -385,6 +387,9 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
         except Exception as exc:
             log.exception("Falló %s", name)
             parts[name] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
+            if file and cache and (cache / file).exists():  # mejor una copia anterior que nada
+                shutil.copy(cache / file, data / file)
+                parts[name]["usando_copia_anterior"] = True
 
     with http_client(settings) as client:
         def enso_part():
