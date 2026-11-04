@@ -47,13 +47,13 @@
   // ------------------------------------------------------------------ mapa
   const map = L.map("map", {zoomControl: false, minZoom: 3, maxZoom: 11, zoomSnap: 0.25});
   if (!L.Browser.mobile) L.control.zoom({position: "topright"}).addTo(map);
-  L.tileLayer(`https://{s}.basemaps.cartocdn.com/${DARK ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png`, {
-    subdomains: "abcd", maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
+  // Mapa base: OpenStreetMap (sin clave). En producción conviene un proveedor de mapas contratado.
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+  [["satPane", 250], ["provPane", 370], ["smnPane", 380], ["muniPane", 390], ["stormPane", 420]].forEach(([n, z]) => { map.createPane(n).style.zIndex = z; });
   const sat = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
-    {maxNativeZoom: 7, maxZoom: 11, opacity: 0.5, attribution: "Satélite: NASA GIBS · GOES-Este"});
-  [["smnPane", 380], ["muniPane", 390], ["stormPane", 420]].forEach(([n, z]) => { map.createPane(n).style.zIndex = z; });
-  const G = {smn: L.layerGroup().addTo(map), muni: L.layerGroup().addTo(map), storms: L.layerGroup().addTo(map),
+    {pane: "satPane", maxNativeZoom: 7, maxZoom: 11, opacity: 0.6, attribution: "Satélite: NASA GIBS · GOES-Este"});
+  const G = {prov: L.layerGroup().addTo(map), smn: L.layerGroup().addTo(map), muni: L.layerGroup().addTo(map), storms: L.layerGroup().addTo(map),
              arrows: L.layerGroup().addTo(map), wx: L.layerGroup().addTo(map), me: L.layerGroup().addTo(map)};
 
   /* Partículas de viento: líneas que avanzan con el viento interpolado. */
@@ -206,6 +206,13 @@
     }
   }
 
+  function drawProvs() {
+    G.prov.clearLayers();
+    if (!S.st.prov) return;
+    L.geoJSON(S.st.prov, {pane: "provPane", interactive: false,
+      style: {color: DARK ? "#9fb3c8" : "#33475b", weight: S.region === "pba" ? 1 : 1.3, fill: false, opacity: 0.85}}).addTo(G.prov);
+  }
+
   function drawMunis() {
     G.muni.clearLayers();
     if (S.region !== "pba" || !S.st.muniGeo) return;
@@ -284,8 +291,8 @@
         <span class="muted">${Math.round(tr.probMax * 5)} de 5 modelos (${Math.round(tr.probMax * 100)} %)</span></div>
       <div class="trk-m">🧭 ${esc(tr.dirText)}${tr.speed ? ` a ${tr.speed} km/h` : ""} · ${tr.trend === "se intensifica" ? "📈" : tr.trend === "se debilita" ? "📉" : "➖"} ${esc(tr.trend)}
         <span class="muted">· entre ${hhmm(tr.start)} y ${hhmm(tr.end)} · ahora: ${Math.round(cur.radius)} km de radio</span></div>
-      ${places.length ? `<div class="muted">Pasaría por${S.region === "pba" ? "" : " (provincias)"}:</div><div class="pl">${list}${places.length > 24 ? `<span>+${places.length - 24} más</span>` : ""}</div>`
-        : `<div class="muted">No toca ${S.region === "pba" ? "municipios bonaerenses" : "provincias"} en las próximas horas.</div>`}`;
+      ${places.length ? `<div class="muted">Pasaría por${S.region === "pba" ? "" : " (provincias argentinas)"}:</div><div class="pl">${list}${places.length > 24 ? `<span>+${places.length - 24} más</span>` : ""}</div>`
+        : `<div class="muted">No toca ${S.region === "pba" ? "municipios bonaerenses" : "provincias argentinas"} en las próximas horas.</div>`}`;
     return popup ? `<div class="pop">${html}</div>` : html;
   }
 
@@ -308,9 +315,9 @@
       const first = (S.region === "pba" ? top.affected : top.provincias)[0];
       lead = `⛈️ <b>${n} ${n === 1 ? "tormenta" : "tormentas"} en seguimiento</b> en las próximas ${D.H} horas. La principal es ${INTENS[top.level]} (${Math.round(top.probMax * 5)} de 5 modelos), se mueve ${esc(top.dirText)}${top.speed ? ` a ${top.speed} km/h` : ""} y ${esc(top.trend)}${first ? `; llegaría a <b>${esc(first.name)}</b> ${eta(first.t)}` : ""}.`;
     } else {
-      lead = `✅ Sin tormentas organizadas en ${S.region === "pba" ? "la provincia" : "el país"} en las próximas ${D.H} horas, según el consenso de ${D.nModels || 5} modelos.`;
+      lead = `✅ Sin tormentas organizadas en ${{pba: "la provincia", ar: "el país", sa: "Sudamérica"}[S.region]} en las próximas ${D.H} horas, según el consenso de ${D.nModels || 5} modelos.`;
     }
-    $("now-card").innerHTML = `<h2>Ahora en ${S.region === "pba" ? "Buenos Aires" : "la Argentina"}</h2><p class="big">${lead}</p>
+    $("now-card").innerHTML = `<h2>Ahora en ${{pba: "Buenos Aires", ar: "la Argentina", sa: "Sudamérica"}[S.region]}</h2><p class="big">${lead}</p>
       <p class="muted">⚠️ SMN: ${smnStorm.length} alertas por tormentas vigentes en el país${S.region === "pba" ? `, ${pbaSMN.length} sobre partidos bonaerenses` : ""}.
       ${D.source === "live" ? "Datos de modelos actualizados cada 15 minutos." : "No se pudo consultar en vivo: se muestra la última copia guardada por el servidor."}</p>`;
     $("tracks").innerHTML = n ? D.tracks.map((tr, i) => `<div class="trk" data-i="${i}" style="--c:${COLOR[tr.level]}">${trackHTML(tr, false)}</div>`).join("")
@@ -414,7 +421,7 @@
     S.region = r;
     const b = S.regions[r].bounds;
     map.fitBounds(b, {padding: [10, 10]});
-    drawMunis(); drawSMN();
+    drawProvs(); drawMunis(); drawSMN();
     refresh(false);
   }
 
@@ -439,7 +446,7 @@
     S.provs = S.st.prov ? S.st.prov.features : [];
     const failed = S.st.meta ? Object.entries(S.st.meta.parts).filter(([, v]) => !v.ok).map(([k]) => k) : [];
     $("warns").innerHTML = failed.length ? `<div class="warn">Algunas fuentes no respondieron en la última actualización del servidor (${esc(failed.join(", "))}).</div>` : "";
-    drawSMN(); drawMunis(); alertsTab(); ensoTab();
+    drawProvs(); drawSMN(); drawMunis(); alertsTab(); ensoTab();
   }
 
   function seg(id, fn) {
