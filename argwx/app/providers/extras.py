@@ -17,6 +17,8 @@ import zipfile
 from datetime import date
 from statistics import quantiles
 
+import httpx
+
 from app.engine.geo import haversine_km
 
 log = logging.getLogger("argwx.extras")
@@ -28,9 +30,17 @@ SMN_ZIP = "https://ssl.smn.gob.ar/dpd/zipopendata.php"
 
 
 def _get(client, url, params, timeout=90):
-    for attempt in range(2):
-        r = client.get(url, params=params, timeout=timeout)
-        if r.status_code == 429 and not attempt:
+    """GET con reintentos: 429 (límite por minuto) y cortes de conexión, que en las APIs gratuitas son frecuentes."""
+    for attempt in range(3):
+        try:
+            r = client.get(url, params=params, timeout=httpx.Timeout(timeout, connect=30))
+        except httpx.TransportError as exc:
+            if attempt == 2:
+                raise
+            log.warning("%s: %s; reintento", url, type(exc).__name__)
+            time.sleep(20 * (attempt + 1))
+            continue
+        if r.status_code == 429 and attempt < 2:
             time.sleep(65)
             continue
         r.raise_for_status()
