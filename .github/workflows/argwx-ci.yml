@@ -54,3 +54,5 @@ jobs:
         run: |
           python scripts/probe_sources.py || true
           python scripts/probe_sources.py --detalle || true
+      - name: Prueba de fuentes históricas y API del SMN
+        run: python scripts/probe_historico.py || true
