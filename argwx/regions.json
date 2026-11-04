@@ -1,0 +1,6 @@
+{
+  "pba": {"name": "Buenos Aires", "latN": -32.0, "latS": -41.75, "lonW": -64.5, "lonE": -56.25, "step": 0.75,
+          "bounds": [[-41.2, -63.5], [-33.2, -56.6]]},
+  "ar": {"name": "Argentina", "latN": -22.0, "latS": -56.0, "lonW": -74.0, "lonE": -54.0, "step": 2.0,
+         "bounds": [[-55.2, -73.6], [-21.8, -53.6]]}
+}

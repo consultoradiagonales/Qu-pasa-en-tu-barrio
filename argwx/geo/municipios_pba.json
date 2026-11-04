@@ -1,0 +1,1217 @@
+[
+ {
+  "id": "25-de-mayo",
+  "name": "25 de Mayo",
+  "seccion": 7,
+  "codigo_electoral": "121",
+  "conurbano": false,
+  "lat": -35.5264,
+  "lon": -60.229
+ },
+ {
+  "id": "9-de-julio",
+  "name": "9 de Julio",
+  "seccion": 4,
+  "codigo_electoral": "083",
+  "conurbano": false,
+  "lat": -35.4815,
+  "lon": -60.975
+ },
+ {
+  "id": "adolfo-alsina",
+  "name": "Adolfo Alsina",
+  "seccion": 6,
+  "codigo_electoral": "001",
+  "conurbano": false,
+  "lat": -37.1967,
+  "lon": -63.056
+ },
+ {
+  "id": "adolfo-gonzales-chaves",
+  "name": "Adolfo Gonzales Chaves",
+  "seccion": 6,
+  "codigo_electoral": "056",
+  "conurbano": false,
+  "lat": -37.9644,
+  "lon": -60.2502
+ },
+ {
+  "id": "alberti",
+  "name": "Alberti",
+  "seccion": 4,
+  "codigo_electoral": "002",
+  "conurbano": false,
+  "lat": -35.0372,
+  "lon": -60.2828
+ },
+ {
+  "id": "almirante-brown",
+  "name": "Almirante Brown",
+  "seccion": 3,
+  "codigo_electoral": "003",
+  "conurbano": true,
+  "lat": -34.8356,
+  "lon": -58.3674
+ },
+ {
+  "id": "arrecifes",
+  "name": "Arrecifes",
+  "seccion": 2,
+  "codigo_electoral": "010",
+  "conurbano": false,
+  "lat": -34.0122,
+  "lon": -60.0627
+ },
+ {
+  "id": "avellaneda",
+  "name": "Avellaneda",
+  "seccion": 3,
+  "codigo_electoral": "004",
+  "conurbano": true,
+  "lat": -34.6783,
+  "lon": -58.3413
+ },
+ {
+  "id": "ayacucho",
+  "name": "Ayacucho",
+  "seccion": 5,
+  "codigo_electoral": "005",
+  "conurbano": false,
+  "lat": -37.0349,
+  "lon": -58.4427
+ },
+ {
+  "id": "azul",
+  "name": "Azul",
+  "seccion": 7,
+  "codigo_electoral": "006",
+  "conurbano": false,
+  "lat": -36.7895,
+  "lon": -59.6979
+ },
+ {
+  "id": "bahia-blanca",
+  "name": "Bahía Blanca",
+  "seccion": 6,
+  "codigo_electoral": "007",
+  "conurbano": false,
+  "lat": -38.5834,
+  "lon": -62.1698
+ },
+ {
+  "id": "balcarce",
+  "name": "Balcarce",
+  "seccion": 5,
+  "codigo_electoral": "008",
+  "conurbano": false,
+  "lat": -37.7148,
+  "lon": -58.2718
+ },
+ {
+  "id": "baradero",
+  "name": "Baradero",
+  "seccion": 2,
+  "codigo_electoral": "009",
+  "conurbano": false,
+  "lat": -33.932,
+  "lon": -59.4932
+ },
+ {
+  "id": "benito-juarez",
+  "name": "Benito Juárez",
+  "seccion": 6,
+  "codigo_electoral": "059",
+  "conurbano": false,
+  "lat": -37.5866,
+  "lon": -59.8886
+ },
+ {
+  "id": "berazategui",
+  "name": "Berazategui",
+  "seccion": 3,
+  "codigo_electoral": "011",
+  "conurbano": true,
+  "lat": -34.8178,
+  "lon": -58.1553
+ },
+ {
+  "id": "berisso",
+  "name": "Berisso",
+  "seccion": 3,
+  "codigo_electoral": "012",
+  "conurbano": false,
+  "lat": -34.9093,
+  "lon": -57.8282
+ },
+ {
+  "id": "bolivar",
+  "name": "Bolívar",
+  "seccion": 7,
+  "codigo_electoral": "013",
+  "conurbano": false,
+  "lat": -36.2985,
+  "lon": -61.1504
+ },
+ {
+  "id": "bragado",
+  "name": "Bragado",
+  "seccion": 4,
+  "codigo_electoral": "014",
+  "conurbano": false,
+  "lat": -35.0611,
+  "lon": -60.6036
+ },
+ {
+  "id": "brandsen",
+  "name": "Brandsen",
+  "seccion": 3,
+  "codigo_electoral": "015",
+  "conurbano": false,
+  "lat": -35.2209,
+  "lon": -58.1762
+ },
+ {
+  "id": "campana",
+  "name": "Campana",
+  "seccion": 1,
+  "codigo_electoral": "016",
+  "conurbano": false,
+  "lat": -34.1386,
+  "lon": -58.8828
+ },
+ {
+  "id": "capitan-sarmiento",
+  "name": "Capitán Sarmiento",
+  "seccion": 2,
+  "codigo_electoral": "018",
+  "conurbano": false,
+  "lat": -34.1497,
+  "lon": -59.8553
+ },
+ {
+  "id": "carlos-casares",
+  "name": "Carlos Casares",
+  "seccion": 4,
+  "codigo_electoral": "019",
+  "conurbano": false,
+  "lat": -35.7494,
+  "lon": -61.3738
+ },
+ {
+  "id": "carlos-tejedor",
+  "name": "Carlos Tejedor",
+  "seccion": 4,
+  "codigo_electoral": "020",
+  "conurbano": false,
+  "lat": -35.3808,
+  "lon": -62.4292
+ },
+ {
+  "id": "carmen-de-areco",
+  "name": "Carmen de Areco",
+  "seccion": 2,
+  "codigo_electoral": "021",
+  "conurbano": false,
+  "lat": -34.4065,
+  "lon": -59.8844
+ },
+ {
+  "id": "castelli",
+  "name": "Castelli",
+  "seccion": 5,
+  "codigo_electoral": "023",
+  "conurbano": false,
+  "lat": -36.0428,
+  "lon": -57.6524
+ },
+ {
+  "id": "canuelas",
+  "name": "Cañuelas",
+  "seccion": 3,
+  "codigo_electoral": "017",
+  "conurbano": false,
+  "lat": -35.1459,
+  "lon": -58.6924
+ },
+ {
+  "id": "chacabuco",
+  "name": "Chacabuco",
+  "seccion": 4,
+  "codigo_electoral": "029",
+  "conurbano": false,
+  "lat": -34.6181,
+  "lon": -60.3544
+ },
+ {
+  "id": "chascomus",
+  "name": "Chascomús",
+  "seccion": 5,
+  "codigo_electoral": "030",
+  "conurbano": false,
+  "lat": -35.617,
+  "lon": -57.9036
+ },
+ {
+  "id": "chivilcoy",
+  "name": "Chivilcoy",
+  "seccion": 4,
+  "codigo_electoral": "031",
+  "conurbano": false,
+  "lat": -34.9154,
+  "lon": -59.9588
+ },
+ {
+  "id": "colon",
+  "name": "Colón",
+  "seccion": 2,
+  "codigo_electoral": "024",
+  "conurbano": false,
+  "lat": -33.886,
+  "lon": -61.0624
+ },
+ {
+  "id": "coronel-dorrego",
+  "name": "Coronel Dorrego",
+  "seccion": 6,
+  "codigo_electoral": "025",
+  "conurbano": false,
+  "lat": -38.669,
+  "lon": -61.0951
+ },
+ {
+  "id": "coronel-pringles",
+  "name": "Coronel Pringles",
+  "seccion": 6,
+  "codigo_electoral": "026",
+  "conurbano": false,
+  "lat": -38.1469,
+  "lon": -61.2633
+ },
+ {
+  "id": "coronel-rosales",
+  "name": "Coronel Rosales",
+  "seccion": 6,
+  "codigo_electoral": "027",
+  "conurbano": false,
+  "lat": -38.8485,
+  "lon": -61.8349
+ },
+ {
+  "id": "coronel-suarez",
+  "name": "Coronel Suárez",
+  "seccion": 6,
+  "codigo_electoral": "028",
+  "conurbano": false,
+  "lat": -37.5316,
+  "lon": -61.889
+ },
+ {
+  "id": "daireaux",
+  "name": "Daireaux",
+  "seccion": 6,
+  "codigo_electoral": "032",
+  "conurbano": false,
+  "lat": -36.6412,
+  "lon": -61.8902
+ },
+ {
+  "id": "dolores",
+  "name": "Dolores",
+  "seccion": 5,
+  "codigo_electoral": "033",
+  "conurbano": false,
+  "lat": -36.3992,
+  "lon": -57.6358
+ },
+ {
+  "id": "ensenada",
+  "name": "Ensenada",
+  "seccion": 3,
+  "codigo_electoral": "034",
+  "conurbano": false,
+  "lat": -34.8421,
+  "lon": -57.9789
+ },
+ {
+  "id": "escobar",
+  "name": "Escobar",
+  "seccion": 1,
+  "codigo_electoral": "035",
+  "conurbano": false,
+  "lat": -34.3287,
+  "lon": -58.7709
+ },
+ {
+  "id": "esteban-echeverria",
+  "name": "Esteban Echeverría",
+  "seccion": 3,
+  "codigo_electoral": "036",
+  "conurbano": true,
+  "lat": -34.8311,
+  "lon": -58.4769
+ },
+ {
+  "id": "exaltacion-de-la-cruz",
+  "name": "Exaltación de la Cruz",
+  "seccion": 2,
+  "codigo_electoral": "037",
+  "conurbano": false,
+  "lat": -34.2951,
+  "lon": -59.1557
+ },
+ {
+  "id": "ezeiza",
+  "name": "Ezeiza",
+  "seccion": 3,
+  "codigo_electoral": "132",
+  "conurbano": true,
+  "lat": -34.8757,
+  "lon": -58.5648
+ },
+ {
+  "id": "florencio-varela",
+  "name": "Florencio Varela",
+  "seccion": 3,
+  "codigo_electoral": "038",
+  "conurbano": true,
+  "lat": -34.8779,
+  "lon": -58.2586
+ },
+ {
+  "id": "florentino-ameghino",
+  "name": "Florentino Ameghino",
+  "seccion": 4,
+  "codigo_electoral": "127",
+  "conurbano": false,
+  "lat": -34.8778,
+  "lon": -62.3855
+ },
+ {
+  "id": "general-alvarado",
+  "name": "General Alvarado",
+  "seccion": 5,
+  "codigo_electoral": "039",
+  "conurbano": false,
+  "lat": -38.2023,
+  "lon": -58.0722
+ },
+ {
+  "id": "general-alvear",
+  "name": "General Alvear",
+  "seccion": 7,
+  "codigo_electoral": "040",
+  "conurbano": false,
+  "lat": -36.0355,
+  "lon": -60.1325
+ },
+ {
+  "id": "general-arenales",
+  "name": "General Arenales",
+  "seccion": 4,
+  "codigo_electoral": "041",
+  "conurbano": false,
+  "lat": -34.2382,
+  "lon": -61.2837
+ },
+ {
+  "id": "general-belgrano",
+  "name": "General Belgrano",
+  "seccion": 5,
+  "codigo_electoral": "042",
+  "conurbano": false,
+  "lat": -35.8334,
+  "lon": -58.702
+ },
+ {
+  "id": "general-guido",
+  "name": "General Guido",
+  "seccion": 5,
+  "codigo_electoral": "043",
+  "conurbano": false,
+  "lat": -36.6671,
+  "lon": -57.9961
+ },
+ {
+  "id": "general-juan-madariaga",
+  "name": "General Juan Madariaga",
+  "seccion": 5,
+  "codigo_electoral": "047",
+  "conurbano": false,
+  "lat": -37.1566,
+  "lon": -57.2313
+ },
+ {
+  "id": "general-la-madrid",
+  "name": "General La Madrid",
+  "seccion": 6,
+  "codigo_electoral": "044",
+  "conurbano": false,
+  "lat": -37.3558,
+  "lon": -61.3438
+ },
+ {
+  "id": "general-las-heras",
+  "name": "General Las Heras",
+  "seccion": 1,
+  "codigo_electoral": "045",
+  "conurbano": false,
+  "lat": -34.9096,
+  "lon": -58.9968
+ },
+ {
+  "id": "general-lavalle",
+  "name": "General Lavalle",
+  "seccion": 5,
+  "codigo_electoral": "046",
+  "conurbano": false,
+  "lat": -36.6495,
+  "lon": -56.9427
+ },
+ {
+  "id": "general-paz",
+  "name": "General Paz",
+  "seccion": 5,
+  "codigo_electoral": "048",
+  "conurbano": false,
+  "lat": -35.4677,
+  "lon": -58.3902
+ },
+ {
+  "id": "general-pinto",
+  "name": "General Pinto",
+  "seccion": 4,
+  "codigo_electoral": "049",
+  "conurbano": false,
+  "lat": -34.6584,
+  "lon": -62.0368
+ },
+ {
+  "id": "general-pueyrredon",
+  "name": "General Pueyrredón",
+  "seccion": 5,
+  "codigo_electoral": "050",
+  "conurbano": false,
+  "lat": -37.9659,
+  "lon": -57.7421
+ },
+ {
+  "id": "general-rodriguez",
+  "name": "General Rodríguez",
+  "seccion": 1,
+  "codigo_electoral": "051",
+  "conurbano": false,
+  "lat": -34.6505,
+  "lon": -58.9877
+ },
+ {
+  "id": "general-san-martin",
+  "name": "General San Martín",
+  "seccion": 1,
+  "codigo_electoral": "052",
+  "conurbano": true,
+  "lat": -34.5528,
+  "lon": -58.5642
+ },
+ {
+  "id": "general-viamonte",
+  "name": "General Viamonte",
+  "seccion": 4,
+  "codigo_electoral": "054",
+  "conurbano": false,
+  "lat": -34.9979,
+  "lon": -61.0488
+ },
+ {
+  "id": "general-villegas",
+  "name": "General Villegas",
+  "seccion": 4,
+  "codigo_electoral": "055",
+  "conurbano": false,
+  "lat": -34.7699,
+  "lon": -62.9545
+ },
+ {
+  "id": "guamini",
+  "name": "Guaminí",
+  "seccion": 6,
+  "codigo_electoral": "057",
+  "conurbano": false,
+  "lat": -36.8904,
+  "lon": -62.4167
+ },
+ {
+  "id": "hipolito-yrigoyen",
+  "name": "Hipólito Yrigoyen",
+  "seccion": 4,
+  "codigo_electoral": "058",
+  "conurbano": false,
+  "lat": -36.2594,
+  "lon": -61.6607
+ },
+ {
+  "id": "hurlingham",
+  "name": "Hurlingham",
+  "seccion": 1,
+  "codigo_electoral": "134",
+  "conurbano": true,
+  "lat": -34.5994,
+  "lon": -58.6493
+ },
+ {
+  "id": "ituzaingo",
+  "name": "Ituzaingó",
+  "seccion": 1,
+  "codigo_electoral": "133",
+  "conurbano": true,
+  "lat": -34.6361,
+  "lon": -58.6887
+ },
+ {
+  "id": "jose-c-paz",
+  "name": "José C. Paz",
+  "seccion": 1,
+  "codigo_electoral": "129",
+  "conurbano": true,
+  "lat": -34.5119,
+  "lon": -58.7777
+ },
+ {
+  "id": "junin",
+  "name": "Junín",
+  "seccion": 4,
+  "codigo_electoral": "060",
+  "conurbano": false,
+  "lat": -34.5467,
+  "lon": -61.006
+ },
+ {
+  "id": "la-costa",
+  "name": "La Costa",
+  "seccion": 5,
+  "codigo_electoral": "119",
+  "conurbano": false,
+  "lat": -36.6635,
+  "lon": -56.6912
+ },
+ {
+  "id": "la-matanza",
+  "name": "La Matanza",
+  "seccion": 3,
+  "codigo_electoral": "061",
+  "conurbano": true,
+  "lat": -34.7702,
+  "lon": -58.6253
+ },
+ {
+  "id": "la-plata",
+  "name": "La Plata",
+  "seccion": 8,
+  "codigo_electoral": "063",
+  "conurbano": false,
+  "lat": -35.0032,
+  "lon": -58.018
+ },
+ {
+  "id": "lanus",
+  "name": "Lanús",
+  "seccion": 3,
+  "codigo_electoral": "062",
+  "conurbano": true,
+  "lat": -34.7054,
+  "lon": -58.3949
+ },
+ {
+  "id": "laprida",
+  "name": "Laprida",
+  "seccion": 6,
+  "codigo_electoral": "064",
+  "conurbano": false,
+  "lat": -37.5153,
+  "lon": -60.7677
+ },
+ {
+  "id": "las-flores",
+  "name": "Las Flores",
+  "seccion": 5,
+  "codigo_electoral": "065",
+  "conurbano": false,
+  "lat": -36.0179,
+  "lon": -59.1752
+ },
+ {
+  "id": "leandro-n-alem",
+  "name": "Leandro N. Alem",
+  "seccion": 4,
+  "codigo_electoral": "066",
+  "conurbano": false,
+  "lat": -34.4984,
+  "lon": -61.6132
+ },
+ {
+  "id": "lezama",
+  "name": "Lezama",
+  "seccion": 5,
+  "codigo_electoral": "135",
+  "conurbano": false,
+  "lat": -35.8492,
+  "lon": -57.8971
+ },
+ {
+  "id": "lincoln",
+  "name": "Lincoln",
+  "seccion": 4,
+  "codigo_electoral": "067",
+  "conurbano": false,
+  "lat": -35.071,
+  "lon": -61.6834
+ },
+ {
+  "id": "loberia",
+  "name": "Lobería",
+  "seccion": 5,
+  "codigo_electoral": "068",
+  "conurbano": false,
+  "lat": -38.0901,
+  "lon": -58.694
+ },
+ {
+  "id": "lobos",
+  "name": "Lobos",
+  "seccion": 3,
+  "codigo_electoral": "069",
+  "conurbano": false,
+  "lat": -35.22,
+  "lon": -59.1486
+ },
+ {
+  "id": "lomas-de-zamora",
+  "name": "Lomas de Zamora",
+  "seccion": 3,
+  "codigo_electoral": "070",
+  "conurbano": true,
+  "lat": -34.7548,
+  "lon": -58.4241
+ },
+ {
+  "id": "lujan",
+  "name": "Luján",
+  "seccion": 1,
+  "codigo_electoral": "071",
+  "conurbano": false,
+  "lat": -34.5682,
+  "lon": -59.1582
+ },
+ {
+  "id": "magdalena",
+  "name": "Magdalena",
+  "seccion": 3,
+  "codigo_electoral": "072",
+  "conurbano": false,
+  "lat": -35.1854,
+  "lon": -57.6849
+ },
+ {
+  "id": "maipu",
+  "name": "Maipú",
+  "seccion": 5,
+  "codigo_electoral": "073",
+  "conurbano": false,
+  "lat": -36.8882,
+  "lon": -57.5876
+ },
+ {
+  "id": "malvinas-argentinas",
+  "name": "Malvinas Argentinas",
+  "seccion": 1,
+  "codigo_electoral": "130",
+  "conurbano": true,
+  "lat": -34.4873,
+  "lon": -58.7121
+ },
+ {
+  "id": "mar-chiquita",
+  "name": "Mar Chiquita",
+  "seccion": 5,
+  "codigo_electoral": "074",
+  "conurbano": false,
+  "lat": -37.4992,
+  "lon": -57.6442
+ },
+ {
+  "id": "marcos-paz",
+  "name": "Marcos Paz",
+  "seccion": 1,
+  "codigo_electoral": "075",
+  "conurbano": false,
+  "lat": -34.8138,
+  "lon": -58.8477
+ },
+ {
+  "id": "mercedes",
+  "name": "Mercedes",
+  "seccion": 1,
+  "codigo_electoral": "076",
+  "conurbano": false,
+  "lat": -34.697,
+  "lon": -59.421
+ },
+ {
+  "id": "merlo",
+  "name": "Merlo",
+  "seccion": 1,
+  "codigo_electoral": "077",
+  "conurbano": true,
+  "lat": -34.711,
+  "lon": -58.7417
+ },
+ {
+  "id": "monte",
+  "name": "Monte",
+  "seccion": 5,
+  "codigo_electoral": "078",
+  "conurbano": false,
+  "lat": -35.5126,
+  "lon": -58.7678
+ },
+ {
+  "id": "monte-hermoso",
+  "name": "Monte Hermoso",
+  "seccion": 6,
+  "codigo_electoral": "120",
+  "conurbano": false,
+  "lat": -38.9607,
+  "lon": -61.2827
+ },
+ {
+  "id": "moreno",
+  "name": "Moreno",
+  "seccion": 1,
+  "codigo_electoral": "079",
+  "conurbano": true,
+  "lat": -34.6108,
+  "lon": -58.811
+ },
+ {
+  "id": "moron",
+  "name": "Morón",
+  "seccion": 1,
+  "codigo_electoral": "080",
+  "conurbano": true,
+  "lat": -34.6492,
+  "lon": -58.6198
+ },
+ {
+  "id": "navarro",
+  "name": "Navarro",
+  "seccion": 1,
+  "codigo_electoral": "081",
+  "conurbano": false,
+  "lat": -35.0286,
+  "lon": -59.4302
+ },
+ {
+  "id": "necochea",
+  "name": "Necochea",
+  "seccion": 5,
+  "codigo_electoral": "082",
+  "conurbano": false,
+  "lat": -38.2564,
+  "lon": -59.167
+ },
+ {
+  "id": "olavarria",
+  "name": "Olavarría",
+  "seccion": 7,
+  "codigo_electoral": "084",
+  "conurbano": false,
+  "lat": -36.8572,
+  "lon": -60.67
+ },
+ {
+  "id": "patagones",
+  "name": "Patagones",
+  "seccion": 6,
+  "codigo_electoral": "022",
+  "conurbano": false,
+  "lat": -40.1968,
+  "lon": -62.8499
+ },
+ {
+  "id": "pehuajo",
+  "name": "Pehuajó",
+  "seccion": 4,
+  "codigo_electoral": "085",
+  "conurbano": false,
+  "lat": -35.8838,
+  "lon": -61.9272
+ },
+ {
+  "id": "pellegrini",
+  "name": "Pellegrini",
+  "seccion": 6,
+  "codigo_electoral": "086",
+  "conurbano": false,
+  "lat": -36.271,
+  "lon": -63.2263
+ },
+ {
+  "id": "pergamino",
+  "name": "Pergamino",
+  "seccion": 2,
+  "codigo_electoral": "087",
+  "conurbano": false,
+  "lat": -33.8355,
+  "lon": -60.5448
+ },
+ {
+  "id": "pila",
+  "name": "Pila",
+  "seccion": 5,
+  "codigo_electoral": "088",
+  "conurbano": false,
+  "lat": -36.2027,
+  "lon": -58.3369
+ },
+ {
+  "id": "pilar",
+  "name": "Pilar",
+  "seccion": 1,
+  "codigo_electoral": "089",
+  "conurbano": false,
+  "lat": -34.4482,
+  "lon": -58.9033
+ },
+ {
+  "id": "pinamar",
+  "name": "Pinamar",
+  "seccion": 5,
+  "codigo_electoral": "090",
+  "conurbano": false,
+  "lat": -37.1155,
+  "lon": -56.8734
+ },
+ {
+  "id": "presidente-peron",
+  "name": "Presidente Perón",
+  "seccion": 3,
+  "codigo_electoral": "128",
+  "conurbano": false,
+  "lat": -34.9299,
+  "lon": -58.398
+ },
+ {
+  "id": "puan",
+  "name": "Puan",
+  "seccion": 6,
+  "codigo_electoral": "091",
+  "conurbano": false,
+  "lat": -38.0746,
+  "lon": -63.0576
+ },
+ {
+  "id": "punta-indio",
+  "name": "Punta Indio",
+  "seccion": 3,
+  "codigo_electoral": "131",
+  "conurbano": false,
+  "lat": -35.4268,
+  "lon": -57.3993
+ },
+ {
+  "id": "quilmes",
+  "name": "Quilmes",
+  "seccion": 3,
+  "codigo_electoral": "092",
+  "conurbano": true,
+  "lat": -34.7349,
+  "lon": -58.2767
+ },
+ {
+  "id": "ramallo",
+  "name": "Ramallo",
+  "seccion": 2,
+  "codigo_electoral": "093",
+  "conurbano": false,
+  "lat": -33.5857,
+  "lon": -60.0583
+ },
+ {
+  "id": "rauch",
+  "name": "Rauch",
+  "seccion": 5,
+  "codigo_electoral": "094",
+  "conurbano": false,
+  "lat": -36.5709,
+  "lon": -58.9447
+ },
+ {
+  "id": "rivadavia",
+  "name": "Rivadavia",
+  "seccion": 4,
+  "codigo_electoral": "095",
+  "conurbano": false,
+  "lat": -35.5813,
+  "lon": -63.0948
+ },
+ {
+  "id": "rojas",
+  "name": "Rojas",
+  "seccion": 2,
+  "codigo_electoral": "096",
+  "conurbano": false,
+  "lat": -34.193,
+  "lon": -60.7875
+ },
+ {
+  "id": "roque-perez",
+  "name": "Roque Pérez",
+  "seccion": 7,
+  "codigo_electoral": "097",
+  "conurbano": false,
+  "lat": -35.4814,
+  "lon": -59.3542
+ },
+ {
+  "id": "saavedra",
+  "name": "Saavedra",
+  "seccion": 6,
+  "codigo_electoral": "098",
+  "conurbano": false,
+  "lat": -37.7707,
+  "lon": -62.4346
+ },
+ {
+  "id": "saladillo",
+  "name": "Saladillo",
+  "seccion": 7,
+  "codigo_electoral": "099",
+  "conurbano": false,
+  "lat": -35.6762,
+  "lon": -59.7029
+ },
+ {
+  "id": "salliquelo",
+  "name": "Salliqueló",
+  "seccion": 6,
+  "codigo_electoral": "100",
+  "conurbano": false,
+  "lat": -36.6722,
+  "lon": -63.0481
+ },
+ {
+  "id": "salto",
+  "name": "Salto",
+  "seccion": 2,
+  "codigo_electoral": "101",
+  "conurbano": false,
+  "lat": -34.2707,
+  "lon": -60.3051
+ },
+ {
+  "id": "san-andres-de-giles",
+  "name": "San Andrés de Giles",
+  "seccion": 2,
+  "codigo_electoral": "102",
+  "conurbano": false,
+  "lat": -34.4375,
+  "lon": -59.4725
+ },
+ {
+  "id": "san-antonio-de-areco",
+  "name": "San Antonio de Areco",
+  "seccion": 2,
+  "codigo_electoral": "103",
+  "conurbano": false,
+  "lat": -34.2199,
+  "lon": -59.5185
+ },
+ {
+  "id": "san-cayetano",
+  "name": "San Cayetano",
+  "seccion": 5,
+  "codigo_electoral": "104",
+  "conurbano": false,
+  "lat": -38.3886,
+  "lon": -59.5869
+ },
+ {
+  "id": "san-fernando",
+  "name": "San Fernando",
+  "seccion": 1,
+  "codigo_electoral": "105",
+  "conurbano": true,
+  "lat": -34.1504,
+  "lon": -58.5458
+ },
+ {
+  "id": "san-isidro",
+  "name": "San Isidro",
+  "seccion": 1,
+  "codigo_electoral": "106",
+  "conurbano": true,
+  "lat": -34.4869,
+  "lon": -58.5372
+ },
+ {
+  "id": "san-miguel",
+  "name": "San Miguel",
+  "seccion": 1,
+  "codigo_electoral": "053",
+  "conurbano": true,
+  "lat": -34.5494,
+  "lon": -58.686
+ },
+ {
+  "id": "san-nicolas",
+  "name": "San Nicolás",
+  "seccion": 2,
+  "codigo_electoral": "107",
+  "conurbano": false,
+  "lat": -33.4822,
+  "lon": -60.2927
+ },
+ {
+  "id": "san-pedro",
+  "name": "San Pedro",
+  "seccion": 2,
+  "codigo_electoral": "108",
+  "conurbano": false,
+  "lat": -33.7812,
+  "lon": -59.7818
+ },
+ {
+  "id": "san-vicente",
+  "name": "San Vicente",
+  "seccion": 3,
+  "codigo_electoral": "109",
+  "conurbano": false,
+  "lat": -35.0705,
+  "lon": -58.4321
+ },
+ {
+  "id": "suipacha",
+  "name": "Suipacha",
+  "seccion": 1,
+  "codigo_electoral": "110",
+  "conurbano": false,
+  "lat": -34.7487,
+  "lon": -59.7031
+ },
+ {
+  "id": "tandil",
+  "name": "Tandil",
+  "seccion": 5,
+  "codigo_electoral": "111",
+  "conurbano": false,
+  "lat": -37.3363,
+  "lon": -59.1823
+ },
+ {
+  "id": "tapalque",
+  "name": "Tapalqué",
+  "seccion": 7,
+  "codigo_electoral": "112",
+  "conurbano": false,
+  "lat": -36.3477,
+  "lon": -60.1263
+ },
+ {
+  "id": "tigre",
+  "name": "Tigre",
+  "seccion": 1,
+  "codigo_electoral": "113",
+  "conurbano": true,
+  "lat": -34.3796,
+  "lon": -58.599
+ },
+ {
+  "id": "tordillo",
+  "name": "Tordillo",
+  "seccion": 5,
+  "codigo_electoral": "116",
+  "conurbano": false,
+  "lat": -36.394,
+  "lon": -57.2782
+ },
+ {
+  "id": "tornquist",
+  "name": "Tornquist",
+  "seccion": 6,
+  "codigo_electoral": "114",
+  "conurbano": false,
+  "lat": -38.2551,
+  "lon": -62.2864
+ },
+ {
+  "id": "trenque-lauquen",
+  "name": "Trenque Lauquen",
+  "seccion": 4,
+  "codigo_electoral": "115",
+  "conurbano": false,
+  "lat": -36.0574,
+  "lon": -62.6347
+ },
+ {
+  "id": "tres-arroyos",
+  "name": "Tres Arroyos",
+  "seccion": 6,
+  "codigo_electoral": "117",
+  "conurbano": false,
+  "lat": -38.5115,
+  "lon": -60.2374
+ },
+ {
+  "id": "tres-lomas",
+  "name": "Tres Lomas",
+  "seccion": 6,
+  "codigo_electoral": "126",
+  "conurbano": false,
+  "lat": -36.4976,
+  "lon": -62.8649
+ },
+ {
+  "id": "tres-de-febrero",
+  "name": "Tres de Febrero",
+  "seccion": 1,
+  "codigo_electoral": "118",
+  "conurbano": true,
+  "lat": -34.596,
+  "lon": -58.5792
+ },
+ {
+  "id": "vicente-lopez",
+  "name": "Vicente López",
+  "seccion": 1,
+  "codigo_electoral": "122",
+  "conurbano": true,
+  "lat": -34.5266,
+  "lon": -58.5045
+ },
+ {
+  "id": "villa-gesell",
+  "name": "Villa Gesell",
+  "seccion": 5,
+  "codigo_electoral": "123",
+  "conurbano": false,
+  "lat": -37.3635,
+  "lon": -57.0586
+ },
+ {
+  "id": "villarino",
+  "name": "Villarino",
+  "seccion": 6,
+  "codigo_electoral": "124",
+  "conurbano": false,
+  "lat": -39.1295,
+  "lon": -62.7121
+ },
+ {
+  "id": "zarate",
+  "name": "Zárate",
+  "seccion": 2,
+  "codigo_electoral": "125",
+  "conurbano": false,
+  "lat": -33.9965,
+  "lon": -59.1275
+ }
+]
