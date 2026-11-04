@@ -51,4 +51,6 @@ jobs:
       - name: Resumen de alertas
         run: python -m app.cli resumen
       - name: Prueba de fuentes gratuitas
-        run: python scripts/probe_sources.py || true
+        run: |
+          python scripts/probe_sources.py || true
+          python scripts/probe_sources.py --detalle || true

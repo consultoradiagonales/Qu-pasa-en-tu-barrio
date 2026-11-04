@@ -25,11 +25,58 @@ def get(client, url, **kw):
     return r
 
 
+def second_round(c):
+    """Detalles de formato: claves de ensambles, cobertura de radar, estaciones del SMN, tamaños de GOES."""
+    try:
+        r = get(c, "https://ensemble-api.open-meteo.com/v1/ensemble", params={
+            "latitude": LAT, "longitude": LON, "hourly": "precipitation", "models": "ecmwf_ifs025", "forecast_days": 1})
+        keys = list(r.json().get("hourly", {}).keys())
+        show("Ensemble claves", r.status_code == 200, f"{len(keys)} claves: {keys[:4]} ... {keys[-2:]}")
+    except Exception as e:
+        show("Ensemble claves", False, repr(e))
+    try:
+        wm = get(c, "https://api.rainviewer.com/public/weather-maps.json").json()
+        frame = wm["radar"]["past"][-1]["path"]
+        from PIL import Image  # noqa: F401  (solo si está instalado)
+    except ImportError:
+        frame = None
+    except Exception as e:
+        show("RainViewer", False, repr(e))
+        frame = None
+    try:
+        # Cobertura del radar: tile de cobertura (z=4) sobre Buenos Aires (x=5, y=9)
+        r = get(c, "https://tilecache.rainviewer.com/v2/coverage/0/256/4/5/9/0/0_0.png")
+        show("RainViewer cobertura PBA (z4 5/9)", r.status_code == 200, f"HTTP {r.status_code} {r.headers.get('content-type')} {len(r.content)} bytes")
+        open("/tmp/rv_cov.png", "wb").write(r.content)
+        if frame:
+            r2 = get(c, f"https://tilecache.rainviewer.com{frame}/256/4/5/9/2/1_1.png")
+            show("RainViewer radar PBA (z4 5/9)", r2.status_code == 200, f"HTTP {r2.status_code} {len(r2.content)} bytes")
+    except Exception as e:
+        show("RainViewer cobertura", False, repr(e))
+    for dato in ("estaciones", "tiepre"):
+        try:
+            r = get(c, "https://ssl.smn.gob.ar/dpd/zipopendata.php", params={"dato": dato})
+            z = zipfile.ZipFile(io.BytesIO(r.content))
+            lines = z.read(z.namelist()[0]).decode("latin-1").splitlines()
+            pba = [ln for ln in lines if "BUENOS AIRES" in ln.upper() or "Plata" in ln or "Mar del" in ln][:6]
+            show(f"SMN {dato} muestra", True, " || ".join(lines[:3] + ["..."] + pba))
+        except Exception as e:
+            show(f"SMN {dato} muestra", False, repr(e))
+    for size in ("600x600", "1200x1200", "900x540", "1800x1080", "2400x2400"):
+        try:
+            r = c.head(f"https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ssa/GEOCOLOR/{size}.jpg", timeout=30)
+            show(f"GOES ssa {size}", r.status_code == 200, f"HTTP {r.status_code} {r.headers.get('content-length')}")
+        except Exception as e:
+            show(f"GOES ssa {size}", False, repr(e))
+
+
 def main():
     c = httpx.Client(headers=UA, follow_redirects=True)
+    if "--detalle" in sys.argv:
+        return second_round(c)
     # 1) Modelos adicionales en Open-Meteo
     try:
-        r = get(c, "https://api.open-meteo.com/v1/forecast", params={
+        r = c.get("https://api.open-meteo.com/v1/forecast", timeout=90, params={
             "latitude": LAT, "longitude": LON, "hourly": "precipitation,weather_code,wind_gusts_10m",
             "forecast_hours": 6, "models": ",".join(EXTRA_MODELS)})
         h = r.json().get("hourly", {}) if r.status_code == 200 else {}
