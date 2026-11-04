@@ -58,6 +58,12 @@ El logo del cliente (Cámara de Diputados de la Provincia de Buenos Aires, provi
 
 **Alertas:** alertas del SMN y alertas ARGWX de los 135 municipios (24/48/72 h).
 **El Niño:** fase actual, ONI desde 1950 y efecto histórico en la lluvia bonaerense (ERA5 desde 1981).
+**Crecidas:** nivel de crecida de los ríos, arroyos y canales de la provincia para los próximos 3 días, partidos y
+localidades sobre cada curso, buscador y botón "Ver en el mapa" (el cauce se pinta del color de la alerta). Incluye
+la tarjeta **🌱 Suelo y siembra** (humedad del suelo y lluvia de 30 días por partido). Ver "Crecidas" más abajo.
+
+**En el celular:** la barra superior se contrae al desplazar la página o mover el mapa; las capas se despliegan con
+el botón "Capas" y el detalle de cada punto se abre en un panel inferior.
 
 **Mapa base:** OpenStreetMap, sin clave (con límites provinciales propios encima). Para uso intensivo o comercial
 conviene contratar un proveedor de mapas (sus servidores públicos son para uso liviano).
@@ -168,7 +174,9 @@ Todas gratuitas y sin clave, probadas desde GitHub con `scripts/probe_sources.py
 | SMN · datos abiertos (tiempo presente + estaciones) | Observación real en ~120 estaciones | Capa de estaciones; tormenta o granizo observado **eleva la alerta** (la observación prevalece) |
 | RainViewer | Radar de los últimos minutos (donde hay cobertura) | Capa de radar |
 | NOAA STAR · GOES-19 | Imagen satelital cada 10 min | Tarjeta satelital |
-| GloFAS (Copernicus) vía Open-Meteo Flood | Caudal de ríos pronosticado e histórico desde 1984 | Riesgo de crecida: Paraná, Luján, Salado, Quequén, Negro |
+| GloFAS (Copernicus) vía Open-Meteo Flood | Caudal de ríos pronosticado e histórico desde 1984 | Estaciones de referencia (Paraná, Luján, Salado, Quequén, Negro) y caudal en hasta 400 puntos de cauces |
+| OpenStreetMap · Overpass API | Ríos, arroyos y canales con nombre, y localidades (ODbL) | Red hídrica de la provincia para las crecidas |
+| Open-Meteo (modelo de mejor ajuste / ICON / ECMWF / GFS) | Lluvia de los últimos 30 días y humedad del suelo | Suelo y siembra; suelo cargado eleva la crecida |
 | Open-Meteo Marine | Altura de olas | Costa atlántica bonaerense |
 | CAMS (Copernicus) vía Open-Meteo Air Quality | Índice UV y PM2.5 | Ambiente por municipio |
 | NOAA CPC | ONI, Niño 1+2/3/3.4/4, SOI | El Niño |
@@ -189,6 +197,30 @@ Para un servicio comercial hay que contratar su plan y cargar `ARGWX_OPEN_METEO_
 - `live`: solo datos reales.
 - `demo`: escenario simulado (un sistema de tormentas que cruza la provincia), para mostrar el motor sin internet.
 - `auto` (por defecto): intenta datos reales y, si los modelos no responden, usa el simulado y lo avisa.
+
+### Crecidas de ríos y arroyos (`app/providers/hydro.py`)
+
+1. **Red hídrica:** ríos, arroyos y canales con nombre de OpenStreetMap dentro de la provincia (se descarta el Río
+   de la Plata, que es un estuario). Los tramos con el mismo nombre que se tocan forman un curso; se listan los de más
+   de 5 km (ríos) u 8 km (arroyos y canales). Para cada curso: partidos que cruza y localidades a menos de 4 km del
+   cauce. Se recalcula una vez por mes.
+2. **Lluvia en la cuenca:** lluvia prevista a 72 h (suma de las medianas diarias de los 9 modelos) promediada en los
+   partidos que cruza el curso. Amarilla ≥ 40 mm, Naranja ≥ 70, Roja ≥ 110; sube un nivel si en los últimos 30 días
+   llovieron 150 mm o más (suelo cargado).
+3. **Caudal (GloFAS):** en hasta 400 puntos sobre los cauces de más de 15 km se compara el máximo esperado de los
+   próximos 7 días (mediana del ensamble) con el caudal típico de las últimas 3 semanas: Amarilla ≥ 2×, Naranja ≥ 4×,
+   Roja ≥ 8×, con una subida mínima de 5 m³/s. Si el caudal típico es menor a 1 m³/s, GloFAS no representa ese cauce
+   y solo cuenta la lluvia.
+4. **Estaciones de referencia:** en Paraná, Luján, Salado, Quequén Grande y Negro se suma la comparación con la
+   historia 1984-hoy (p90, p98 y máximo).
+5. El nivel del curso es el mayor de los tres. Si tiene alerta, se listan todos los partidos que cruza (primero
+   donde está la señal) y sus localidades ribereñas.
+
+**Límites, dicho claro:** los umbrales son iniciales y propios, hay que calibrarlos con registros de crecidas
+(Autoridad del Agua, INA). GloFAS funciona mejor en ríos grandes; en arroyos chicos y en la llanura del Salado, donde
+el agua se mueve lento y se desborda en bajos, pesa más el criterio de lluvia. "Localidad a menos de 4 km" es una
+referencia de cercanía, no un mapa de zonas inundables. La humedad del suelo es un valor de modelo (orientativo), no
+una medición en el lote.
 
 ---
 

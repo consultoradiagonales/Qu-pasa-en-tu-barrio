@@ -5,6 +5,7 @@ Vistas:
   2. El Niño en la Provincia de Buenos Aires: estado ENSO, historia del ONI y cómo cambió la lluvia
      bonaerense en cada fase (ERA5 1981-hoy vía Open-Meteo).
   3. Alertas ARGWX en los 135 partidos.
+  4. Crecidas de ríos, arroyos y canales, y agua en el suelo (ver app/providers/hydro.py).
 
 Uso: python -m app.cli export-site CARPETA_SALIDA [CARPETA_CACHE]
 Cada parte se genera por separado: si una fuente falla, el resto se publica igual y meta.json lo informa.
@@ -22,7 +23,7 @@ from statistics import mean, median
 from app.config import get_settings
 from app.engine.geo import point_in_polygon
 from app.engine.levels import COLOR, LABEL
-from app.providers import enso, extras, openmeteo, smn
+from app.providers import enso, extras, hydro, openmeteo, smn
 from app.services.municipalities import SECCION_NOMBRE, by_id, load_municipalities
 from app.services.sync import http_client
 from app.util import iso, utcnow
@@ -39,14 +40,19 @@ ARCHIVE_CUSTOMER_URL = "https://customer-archive-api.open-meteo.com/v1/archive"
 START_YEAR = 1981
 
 
-def _fresh(cache: Path | None, name: str, max_hours: float) -> bool:
-    """True si la copia publicada anteriormente tiene menos de max_hours (evita consultas innecesarias)."""
-    if not cache or os.environ.get("ARGWX_FORCE", "").lower() == "true" or not (cache / name).exists():
+def _fresh(cache: Path | None, name: str, max_hours: float, force_ok: bool = True, version=None) -> bool:
+    """True si la copia publicada anteriormente tiene menos de max_hours (evita consultas innecesarias).
+
+    force_ok=False: la copia se reutiliza aunque se pida recalcular todo (consultas pesadas, como Overpass)."""
+    forced = force_ok and os.environ.get("ARGWX_FORCE", "").lower() == "true"
+    if not cache or forced or not (cache / name).exists():
         return False
     try:
         prev = json.loads((cache / name).read_text(encoding="utf-8"))
         from datetime import datetime
 
+        if version is not None and prev.get("version") != version:
+            return False
         age = utcnow() - datetime.fromisoformat(prev["generated_at"].replace("Z", ""))
         return age.total_seconds() < max_hours * 3600
     except Exception:
@@ -330,6 +336,7 @@ def export_pba_alerts(out: Path, smn_obs: list[dict] | None = None) -> dict:
     windows = {str(w): {"label": v["label"], "valid_from": v["valid_from"], "valid_to": v["valid_to"],
                         "summary": summary(v["municipalities"].values()),
                         "municipios": [{**{k: e[k] for k in keep if k != "drivers"},
+                                        "lluvia_mm": (e["values"].get("rain_mm") or {}).get("median"),
                                         "drivers": e["drivers"][:1] if e["alert_level"] != "GREEN" else []}
                                        for e in v["municipalities"].values()]}
                for w, v in st["windows"].items()}
@@ -391,6 +398,17 @@ def openmeteo_url() -> str:
 
 
 # ------------------------------------------------------------------ armado
+def _load(path: Path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    except Exception:
+        return None
+
+
+def _muni_geojson() -> dict:
+    return json.loads((APP / "data" / "municipios_pba.geojson").read_text(encoding="utf-8"))
+
+
 def build(out_dir: str, cache_dir: str | None = None) -> dict:
     settings = get_settings()
     out = Path(out_dir)
@@ -402,8 +420,8 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
     data, cache = out / "data", Path(cache_dir) if cache_dir else None
     parts, oni, smn_obs = {}, [], []
 
-    def run(name, fn, file=None, max_hours=0):
-        if file and _fresh(cache, file, max_hours):
+    def run(name, fn, file=None, max_hours=0, reuse=True, force_ok=True, version=None):
+        if file and reuse and _fresh(cache, file, max_hours, force_ok, version):
             shutil.copy(cache / file, data / file)
             parts[name] = {"ok": True, "reutilizado": True}
             return
@@ -436,7 +454,7 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
         def write(name, payload):
             _write(data, name, {"generated_at": iso(utcnow()), **payload})
             return {k: (len(v) if isinstance(v, (list, dict)) else v) for k, v in payload.items()
-                    if k in ("rios", "puntos", "municipios", "estaciones", "sin_ubicacion")}
+                    if k in ("rios", "puntos", "municipios", "estaciones", "sin_ubicacion", "cursos")}
 
         def cached(name):
             try:
@@ -461,7 +479,28 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
             parts["enso_pba"] = {"ok": False, "error": "Sin ONI"}
             if cache and (cache / "enso_pba.json").exists():
                 shutil.copy(cache / "enso_pba.json", data / "enso_pba.json")
+        # Crecidas: red hídrica (mensual; no se rehace en cada push), suelo y caudales en el cauce.
+        run("red_hidrica", lambda: write("red_hidrica.json", hydro.build_network(
+            hydro.fetch_network_elements(client), _muni_geojson(), load_municipalities())),
+            "red_hidrica.json", 24 * 30, force_ok=False, version=hydro.VERSION)
+        run("suelo", lambda: write("suelo.json", hydro.fetch_soil(client, load_municipalities())), "suelo.json", 12)
+        net = _load(data / "red_hidrica.json")
+        if net:
+            fresh_net = not parts["red_hidrica"].get("reutilizado")  # puntos nuevos: pedir caudales otra vez
+            run("caudales_red", lambda: write("caudales_red.json", hydro.export_discharge(client, net)),
+                "caudales_red.json", 12, reuse=not fresh_net)
     run("alertas_pba", lambda: export_pba_alerts(data, smn_obs), "alertas_pba.json", 6)
+
+    def floods_part():
+        net = _load(data / "red_hidrica.json")
+        if not net:
+            raise RuntimeError("Sin red hídrica: Overpass no respondió y no hay copia anterior")
+        res = hydro.compute_floods(net, _load(data / "caudales_red.json"), _load(data / "suelo.json"),
+                                   hydro.rain72_by_partido(_load(data / "alertas_pba.json")), _load(data / "rios.json"),
+                                   {m["id"]: m["name"] for m in load_municipalities()})
+        return {**write("crecidas.json", res), "en_alerta": res["resumen"]["en_alerta"]}
+
+    run("crecidas", floods_part, "crecidas.json", reuse=False)
     meta = {"generated_at": iso(utcnow()), "parts": parts,
             "repo": "https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio"}
     _write(data, "meta.json", meta)

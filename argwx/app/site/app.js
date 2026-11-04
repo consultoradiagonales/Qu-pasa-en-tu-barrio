@@ -15,7 +15,8 @@
                 SON: "SON", OND: "OND", NDJ: "NDE"};
   const DARK = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
   const S = {region: "pba", hour: 0, layers: {storms: true, wind: true, wx: true, smn: true, sat: false, radar: true, obs: false, rios: true, costa: false}, grids: {},
-             cur: null, st: {}, munis: [], provs: [], smnFilter: "storm", pwin: "24", oniRange: "30", play: null, me: null};
+             cur: null, st: {}, munis: [], provs: [], smnFilter: "storm", pwin: "24", oniRange: "30", play: null, me: null,
+             crecF: "alerta", crecN: 40, r72: {}};
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
   const lvlBadge = l => `<span class="lvl ${l}" style="background:${COLOR[l]}">${LABEL[l]}</span>`;
@@ -24,6 +25,10 @@
   const fmtDT = iso => iso ? new Date(iso).toLocaleString("es-AR", {day: "2-digit", month: "2-digit", ...TF}) : "–";
   const windColor = s => s >= 70 ? "#8e44ad" : s >= 50 ? "#e74c3c" : s >= 30 ? "#f39c12" : s >= 15 ? "#2b8cbe" : "#7f8c9a";
   const toDir = from => (from + 180) % 360;
+  const norm = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const fmtDay = d => d ? `${new Date(d + "T12:00:00").toLocaleDateString("es-AR", {weekday: "short"}).replace(".", "")} ${+d.slice(8, 10)}/${+d.slice(5, 7)}` : "–";
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const SOIL_COLOR = {saturado: "#1f4e9c", "húmedo": "#3a8fd6", adecuado: "#4caf50", seco: "#c9a227"};
   const kindOf = tr => (tr.points.some(p => p.thunder) ? "Tormenta " : "Área de lluvia ") + INTENS[tr.level];
   const mobile = () => matchMedia("(max-width: 959px)").matches;
   function eta(unix) {
@@ -57,7 +62,7 @@
   const satTime = () => new Date(Math.floor((Date.now() - 60 * 60e3) / 600e3) * 600e3).toISOString().slice(0, 19) + "Z";
   const sat = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/{time}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
     {pane: "satPane", time: satTime(), maxNativeZoom: 7, maxZoom: 11, opacity: 0.6, attribution: "Satélite: NASA GIBS · GOES-Este"});
-  const G = {obs: L.layerGroup().addTo(map), rios: L.layerGroup().addTo(map), costa: L.layerGroup().addTo(map),
+  const G = {cauces: L.layerGroup().addTo(map), hl: L.layerGroup().addTo(map), obs: L.layerGroup().addTo(map), rios: L.layerGroup().addTo(map), costa: L.layerGroup().addTo(map),
              prov: L.layerGroup().addTo(map), smn: L.layerGroup().addTo(map), muni: L.layerGroup().addTo(map), storms: L.layerGroup().addTo(map),
              arrows: L.layerGroup().addTo(map), wx: L.layerGroup().addTo(map), me: L.layerGroup().addTo(map)};
 
@@ -314,7 +319,7 @@
   function sparkline(series, ref) {
     const q = (series.q || []).map(v => v == null ? null : v), vals = q.filter(v => v != null);
     if (vals.length < 2) return "";
-    const W = 240, H = 60, max = Math.max(...vals, ref.p98 || 0) * 1.05, x = i => (i / (q.length - 1)) * W, y = v => H - (v / max) * H;
+    const W = 240, H = 60, max = Math.max(...vals, ref.p98 || 0) * 1.05, x = i => (i / (q.length - 1)) * W, y = v => H - 3 - (v / max) * (H - 6);
     const pts = q.map((v, i) => v == null ? null : `${x(i).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean).join(" ");
     return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block;margin-top:6px">
       <line x1="0" x2="${W}" y1="${y(ref.p90)}" y2="${y(ref.p90)}" stroke="#f2c200" stroke-dasharray="3 3"/>
@@ -323,8 +328,31 @@
       <div class="muted">Caudal esperado (mediana) próximos 30 días. Línea amarilla: alto (p90). Naranja: muy alto (p98).</div>`;
   }
 
+  const MN = id => (S.munis.find(m => m.id === id) || {}).name || id;
+
+  function courseHTML(c) {
+    const green = c.nivel === "GREEN", pa = green ? c.partidos : c.partidos_afectados;
+    const locs = (green ? c.localidades : c.localidades_afectadas).slice(0, 12);
+    return `<div class="pop"><h3>💧 ${esc(c.nombre)}</h3><div class="muted">${esc(c.tipo)} · ${Math.round(c.km)} km · próximos 3 días</div>
+      <div class="row"><span>Crecida</span>${lvlBadge(c.nivel)}</div>
+      ${c.pico ? `<div class="row"><span>Pico estimado (GloFAS)</span><b>${fmtDay(c.pico)}</b></div>` : ""}
+      <ul class="mot">${c.motivos.map(m => `<li>${esc(m)}</li>`).join("")}
+      ${!green && c.partidos_senal.length ? `<li>Señal más fuerte en <b>${c.partidos_senal.slice(0, 4).map(p => esc(MN(p))).join(", ")}</b></li>` : ""}</ul>
+      <div class="muted" style="margin-top:6px">${green ? "Partidos que cruza" : "Partidos sobre el curso que podrían verse afectados"}:</div>
+      <div class="pl">${pa.slice(0, 16).map(p => `<span>${esc(MN(p))}</span>`).join("")}${pa.length > 16 ? `<span>+${pa.length - 16}</span>` : ""}</div>
+      ${locs.length ? `<div class="muted" style="margin-top:6px">Localidades a menos de 4 km del cauce:</div><div class="pl">${locs.map(l => `<span>${esc(l[0])}</span>`).join("")}</div>` : ""}</div>`;
+  }
+
+  function drawCourse(c, group, hl) {
+    const col = c.nivel === "GREEN" ? "#1e88e5" : COLOR[c.nivel];
+    L.polyline(c.trazo, {color: "#fff", weight: hl ? 10 : 7, opacity: 0.8, interactive: false}).addTo(group);
+    L.polyline(c.trazo, {color: col, weight: hl ? 6 : 4, opacity: 0.95, bubblingMouseEvents: false})
+      .bindPopup(() => courseHTML(c), {maxWidth: 300}).addTo(group);
+  }
+
   function drawExtras() {
-    G.obs.clearLayers(); G.rios.clearLayers(); G.costa.clearLayers();
+    G.obs.clearLayers(); G.rios.clearLayers(); G.costa.clearLayers(); G.cauces.clearLayers();
+    if (S.layers.rios && S.st.crec) S.st.crec.cursos.filter(c => c.nivel !== "GREEN").forEach(c => drawCourse(c, G.cauces, false));
     if (S.layers.obs && S.st.obs) S.st.obs.estaciones.forEach(o => {
       const storm = /tormenta|granizo/i.test(o.estado);
       L.marker([o.lat, o.lon], {icon: L.divIcon({className: "obs", iconSize: [40, 20], iconAnchor: [20, 10],
@@ -368,9 +396,10 @@
         ${hot.length ? `<p class="muted">Más cálido en PBA: ${esc(hot[0].estacion)} ${hot[0].temp_c} °C · más fresco: ${esc(hot[hot.length - 1].estacion)} ${hot[hot.length - 1].temp_c} °C.</p>` : ""}
         <p class="muted">Las observaciones de tormenta o granizo elevan la alerta del municipio: la observación prevalece sobre el modelo. Prendé "🌡️ Estaciones" para verlas en el mapa.</p>`;
     }
-    if (rios) $("rios-card").innerHTML = `<h2>💧 Ríos (crecidas)</h2><ul class="plain">${rios.rios.map(r => `<li><div>${lvlBadge(r.nivel_7d)} <b>${esc(r.rio)}</b> · ${esc(r.lugar)}</div>
+    if (rios) $("rios-card").innerHTML = `<h2>💧 Ríos principales (estaciones de referencia)</h2><ul class="plain">${rios.rios.map(r => `<li><div>${lvlBadge(r.nivel_7d)} <b>${esc(r.rio)}</b> · ${esc(r.lugar)}</div>
         <div class="muted">${esc(r.estado_7d)} próximos 7 días${r.tendencia ? ", " + esc(r.tendencia) : ""} · 30 días: ${esc(r.estado_30d)}</div></li>`).join("")}</ul>
-        <p class="muted">${esc(rios.metodo)} Fuente: ${esc(rios.fuente)}.</p>`;
+        <p class="muted">${esc(rios.metodo)} Fuente: ${esc(rios.fuente)}.</p>
+        <button class="lnk" data-tab="crec">Ver crecidas de todos los ríos, arroyos y canales →</button>`;
     if (costa) $("costa-card").innerHTML = `<h2>🌊 Costa atlántica (olas)</h2><ul class="plain">${costa.puntos.map(p => `<li class="row"><span>${esc(p.lugar)}</span>
         <span>${lvlBadge(p.nivel)} <b>${p.ola_max_24h == null ? "–" : p.ola_max_24h.toFixed(1) + " m"}</b></span></li>`).join("")}</ul>
         <p class="muted">Altura máxima de olas en las próximas 24 h. Umbrales iniciales: 2,5 m amarilla, 3,5 m naranja, 5 m roja. Prendé "🌊 Costa" para verlas en el mapa.</p>`;
@@ -534,12 +563,107 @@
       <div class="row"><span>Ráfagas</span><b>${g == null ? "–" : Math.round(g) + " km/h"}</b></div>
       <div class="row"><span>🌧️ Lluvia</span><b>${p == null ? "–" : p + " mm/h"}</b></div>
       ${argwx ? `<div class="row"><span>ARGWX 24 h</span>${lvlBadge(argwx.alert_level)}</div>` : ""}
+      ${f ? soilRows(f.properties.id) : ""}
       ${amb ? `<div class="row"><span>☀️ UV máx. hoy</span><b>${amb.uv_max ?? "–"} ${amb.uv_categoria ? "(" + amb.uv_categoria + ")" : ""}</b></div>
               <div class="row"><span>🌫️ PM2.5 máx.</span><b>${amb.pm25_max ?? "–"} µg/m³</b></div>` : ""}
       ${st ? `<div class="row"><span>🌡️ SMN ${esc(st.estacion)} (${esc(st.hora)})</span><b>${esc(st.estado)}, ${st.temp_c ?? "–"} °C</b></div>` : ""}
       ${smn.map(a => `<div class="row"><span>SMN</span><span>${lvlBadge(a.level)} ${esc(a.title)}</span></div>`).join("")}
       ${coming.map(x => `<div class="row"><span>⛈️ ${kindOf(x.tr)}</span><b>${eta(x.hit.t)}</b></div>`).join("")}</div>`).openOn(map);
   });
+
+  function soilRows(id) {
+    const r72 = S.r72[id], su = S.st.suelo && S.st.suelo.municipios[id];
+    const crs = S.st.crec ? S.st.crec.cursos.filter(c => c.nivel !== "GREEN" && c.partidos_afectados.includes(id)).slice(0, 3) : [];
+    return `${r72 != null ? `<div class="row"><span>🌧️ Lluvia prevista 72 h</span><b>${r72} mm</b></div>` : ""}
+      ${su && su.suelo ? `<div class="row"><span>🌱 Suelo</span><b>${esc(su.suelo)}${su.lluvia_30d != null ? ` · ${Math.round(su.lluvia_30d)} mm en 30 días` : ""}</b></div>` : ""}
+      ${crs.map(c => `<div class="row"><span>💧 ${esc(c.nombre)}</span>${lvlBadge(c.nivel)}</div>`).join("")}`;
+  }
+
+  // ------------------------------------------------------------------ crecidas y suelo
+  function crecTab() {
+    const cr = S.st.crec;
+    if (!cr) {
+      $("crec-sum").innerHTML = `<h2>💧 Crecidas</h2><p class="muted">Todavía no hay datos de crecidas publicados.</p>`;
+      sueloCard();
+      return;
+    }
+    const R = cr.resumen, alert = cr.cursos.filter(c => c.nivel !== "GREEN");
+    const refs = S.st.rios ? S.st.rios.rios.filter(r => r.nivel_7d !== "GREEN") : [];
+    let lead;
+    if (alert.length) {
+      const per = ["RED", "ORANGE", "YELLOW"].filter(l => R.por_nivel[l]).map(l => `${R.por_nivel[l]} en ${LABEL[l].toLowerCase()}`);
+      lead = `⚠️ <b>${alert.length} ${alert.length === 1 ? "curso de agua con alerta" : "cursos de agua con alerta"}</b> en los próximos 3 días (${per.join(", ")}). El más comprometido: <b>${esc(alert[0].nombre)}</b> ${lvlBadge(alert[0].nivel)}.`;
+    } else {
+      const top = cr.cursos.filter(c => c.lluvia_72h != null).sort((a, b) => b.lluvia_72h - a.lluvia_72h)[0];
+      lead = `✅ <b>Sin crecidas previstas:</b> ningún río, arroyo o canal supera los umbrales en los próximos 3 días.${top ? ` La cuenca con más lluvia prevista es la del ${esc(top.nombre)}: ${top.lluvia_72h} mm en 72 h.` : ""}`;
+    }
+    $("crec-sum").innerHTML = `<h2>💧 Crecidas: próximos 3 días</h2><p class="big">${lead}</p>
+      ${refs.length ? `<p>Estaciones de referencia con caudal alto frente a la historia 1984-hoy: ${refs.map(r => `<b>${esc(r.rio)}</b> en ${esc(r.lugar)} ${lvlBadge(r.nivel_7d)}`).join(", ")}.</p>` : ""}
+      <p class="muted">Se analizan ${R.cursos} cursos con nombre de OpenStreetMap (${plural(R.por_tipo["río"], "río", "ríos")}, ${plural(R.por_tipo.canal, "canal", "canales")} y ${plural(R.por_tipo.arroyo, "arroyo", "arroyos")}); ${R.con_caudal} con caudal GloFAS. Actualizado: ${fmtDT(cr.generated_at)}.</p>`;
+    $("crec-method").innerHTML = `${esc(cr.metodo)}<br><br>${esc(cr.nota)}<br><br>${esc(cr.fuentes)}`;
+    crecList();
+    sueloCard();
+  }
+
+  function crecList() {
+    const cr = S.st.crec;
+    if (!cr) { $("crec-list").innerHTML = ""; return; }
+    const q = norm($("crec-q").value.trim());
+    let list = cr.cursos;
+    if (q) list = list.filter(c => norm(c.nombre).includes(q) || c.partidos.some(p => norm(MN(p)).includes(q)) || c.localidades.some(l => norm(l[0]).includes(q)));
+    else if (S.crecF === "alerta") list = list.filter(c => c.nivel !== "GREEN");
+    const shown = list.slice(0, S.crecN);
+    $("crec-list").innerHTML = shown.length ? shown.map(c => {
+      const green = c.nivel === "GREEN", pa = green ? c.partidos : c.partidos_afectados;
+      const locs = (green ? c.localidades : c.localidades_afectadas).slice(0, 8);
+      return `<li><div>${lvlBadge(c.nivel)} <b>${esc(c.nombre)}</b> <span class="muted">· ${esc(c.tipo)} · ${Math.round(c.km)} km${c.pico ? ` · pico ${fmtDay(c.pico)}` : ""}</span></div>
+        ${c.motivos.length ? `<div class="muted" style="margin:4px 0">${c.motivos.map(esc).join(" · ")}</div>` : ""}
+        ${!green && c.partidos_senal.length ? `<div style="margin:4px 0;font-size:13.5px">Señal más fuerte en <b>${c.partidos_senal.slice(0, 4).map(p => esc(MN(p))).join(", ")}</b>; podría afectar a los partidos sobre el curso:</div>` : ""}
+        <div class="pl">${pa.slice(0, 10).map(p => `<span>${esc(MN(p))}</span>`).join("")}${pa.length > 10 ? `<span>+${pa.length - 10}</span>` : ""}</div>
+        ${locs.length ? `<div class="muted" style="margin-top:4px">📍 ${locs.map(l => esc(l[0])).join(", ")}</div>` : ""}
+        <button class="lnk" data-go="${esc(c.id)}">Ver en el mapa →</button></li>`;
+    }).join("") + (list.length > shown.length ? `<li><button class="lnk" id="crec-more">Ver más (${list.length - shown.length} restantes)</button></li>` : "")
+      : `<li class="muted">${q ? "Sin resultados para esa búsqueda." : "Ningún río, arroyo o canal con alerta en los próximos 3 días. Elegí «Todos» para ver la lista completa o buscá por nombre, partido o localidad."}</li>`;
+  }
+
+  function sueloCard() {
+    const su = S.st.suelo;
+    if (!su) { $("suelo-card").innerHTML = ""; return; }
+    const rows = Object.entries(su.municipios).map(([id, v]) => ({id, ...v}));
+    const cats = ["saturado", "húmedo", "adecuado", "seco"];
+    const cnt = Object.fromEntries(cats.map(c => [c, rows.filter(r => r.suelo === c).length]));
+    const wet = rows.filter(r => r.lluvia_30d != null).sort((a, b) => b.lluvia_30d - a.lluvia_30d).slice(0, 8);
+    const dry = rows.filter(r => r.humedad_suelo != null).sort((a, b) => a.humedad_suelo - b.humedad_suelo).slice(0, 6);
+    const risk = rows.filter(r => (r.suelo === "saturado" || r.suelo === "húmedo") && (S.r72[r.id] || 0) >= 20)
+      .sort((a, b) => S.r72[b.id] - S.r72[a.id]);
+    const known = cats.some(c => cnt[c]);
+    $("suelo-card").innerHTML = `<h2>🌱 Suelo y siembra</h2>
+      ${known ? `<div class="soilbar">${cats.map(c => `<span style="flex:${cnt[c]};background:${SOIL_COLOR[c]}"></span>`).join("")}</div>
+      <p class="muted">${cats.map(c => `<span class="sw" style="background:${SOIL_COLOR[c]}"></span>${c}: ${cnt[c]}`).join(" · ")} partidos</p>` : `<p class="muted">Sin datos de humedad del suelo en esta actualización.</p>`}
+      ${risk.length ? `<p>⚠️ <b>Suelo con mucha agua y más lluvia prevista</b> (20 mm o más en 72 h): ${risk.slice(0, 12).map(r => `${esc(MN(r.id))} (${S.r72[r.id]} mm)`).join(", ")}${risk.length > 12 ? ` y ${risk.length - 12} más` : ""}. Puede haber anegamiento de lotes bajos y demoras en la siembra y la cosecha.</p>` : ""}
+      ${wet.length ? `<p><b>Más lluvia en los últimos 30 días:</b> ${wet.map(r => `${esc(MN(r.id))} ${Math.round(r.lluvia_30d)} mm`).join(", ")}.</p>` : ""}
+      ${dry.length ? `<p><b>Suelos más secos:</b> ${dry.map(r => `${esc(MN(r.id))} (${esc(r.suelo)})`).join(", ")}.</p>` : ""}
+      <p class="muted">${esc(su.fuente)}. ${esc(su.nota)}</p>`;
+  }
+
+  function showCourse(id) {
+    const c = S.st.crec && S.st.crec.cursos.find(x => x.id === id);
+    if (!c) return;
+    document.querySelector('#tabs button[data-t="live"]').click();
+    if (S.region !== "pba") document.querySelector('#region button[data-r="pba"]').click();
+    if (!S.layers.rios) document.querySelector('#layers button[data-l="rios"]').click();
+    G.hl.clearLayers();
+    drawCourse(c, G.hl, true);
+    window.scrollTo({top: 0});
+    const bounds = L.latLngBounds([c.bbox[0], c.bbox[1]], [c.bbox[2], c.bbox[3]]);
+    if (mobile()) openSheet(courseHTML(c), null);
+    setTimeout(() => {  // después de que la barra se acomoda y el mapa toma su tamaño
+      map.invalidateSize({pan: false});
+      const below = mobile() ? $("sheet").offsetHeight : 70;
+      map.fitBounds(bounds, {paddingTopLeft: [24, 64], paddingBottomRight: [24, below + 16], maxZoom: 10});
+      if (!mobile()) L.popup({maxWidth: 300}).setLatLng(bounds.getCenter()).setContent(courseHTML(c)).openOn(map);
+    }, 420);
+  }
 
   function setRegion(r) {
     S.region = r;
@@ -564,14 +688,21 @@
     const files = {meta: "data/meta.json", smn: "data/smn_argentina.json", enso: "data/enso.json", ensoPba: "data/enso_pba.json",
                    pba: "data/alertas_pba.json", muniGeo: "geo/municipios_pba.geojson", munis: "geo/municipios_pba.json",
                    prov: "geo/provincias_ar.geojson", obs: "data/observaciones_smn.json", rios: "data/rios.json",
-                   costa: "data/costa.json", ambiente: "data/ambiente.json", probs: "data/probabilidades.json"};
+                   costa: "data/costa.json", ambiente: "data/ambiente.json", probs: "data/probabilidades.json",
+                   crec: "data/crecidas.json", suelo: "data/suelo.json"};
     const vals = await Promise.all(Object.values(files).map(u => getJSON(u).catch(() => null)));
     Object.keys(files).forEach((k, i) => { S.st[k] = vals[i]; });
     S.munis = S.st.munis || [];
     S.provs = S.st.prov ? S.st.prov.features : [];
     const failed = S.st.meta ? Object.entries(S.st.meta.parts).filter(([, v]) => !v.ok).map(([k]) => k) : [];
     $("warns").innerHTML = failed.length ? `<div class="warn">Algunas fuentes no respondieron en la última actualización del servidor (${esc(failed.join(", "))}).</div>` : "";
-    drawProvs(); drawSMN(); drawMunis(); drawExtras(); extrasCards(); alertsTab(); ensoTab();
+    S.r72 = {};
+    if (S.st.pba) {
+      const per = {};
+      ["24", "48", "72"].forEach(w => (S.st.pba.windows[w] || {municipios: []}).municipios.forEach(m => { (per[m.id] = per[m.id] || []).push(m.lluvia_mm); }));
+      Object.entries(per).forEach(([id, v]) => { if (v.length === 3 && v.every(x => x != null)) S.r72[id] = Math.round(v.reduce((a, b) => a + b, 0) * 10) / 10; });
+    }
+    drawProvs(); drawSMN(); drawMunis(); drawExtras(); extrasCards(); alertsTab(); ensoTab(); crecTab();
   }
 
   function seg(id, fn) {
@@ -583,13 +714,24 @@
     });
   }
   seg("tabs", d => {
-    ["live", "alerts", "enso"].forEach(t => { $("t-" + t).hidden = t !== d.t; });
+    ["live", "alerts", "enso", "crec"].forEach(t => { $("t-" + t).hidden = t !== d.t; });
     if (d.t === "live") setTimeout(() => map.invalidateSize(), 50);
   });
   seg("region", d => setRegion(d.r));
   seg("smn-filter", d => { S.smnFilter = d.f; alertsTab(); });
   seg("pwin", d => { S.pwin = d.w; alertsTab(); });
   seg("oni-range", d => { S.oniRange = d.r; drawOni(); });
+  seg("crec-f", d => { S.crecF = d.f; S.crecN = 40; crecList(); });
+  $("crec-q").addEventListener("input", () => { S.crecN = 40; crecList(); });
+  $("crec-list").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.id === "crec-more") { S.crecN += 50; crecList(); } else if (b.dataset.go) showCourse(b.dataset.go);
+  });
+  document.addEventListener("click", e => {
+    const a = e.target.closest("[data-tab]");
+    if (a) { e.preventDefault(); document.querySelector(`#tabs button[data-t="${a.dataset.tab}"]`).click(); window.scrollTo({top: 0}); }
+  });
   $("layers").addEventListener("click", e => {
     const b = e.target.closest("button");
     if (!b) return;
