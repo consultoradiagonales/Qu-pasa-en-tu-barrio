@@ -51,7 +51,7 @@
 <div class="statusbar"><span class="pulse" id="pulse"></span><span id="live-txt">Cargando…</span>
   <span class="muted sb-title">· Tiempo en vivo</span><button class="sbbtn" id="refresh" aria-label="Actualizar datos">⟳ Actualizar</button></div>
 <nav class="tabs" id="tabs">
-  <button data-t="live" class="on">🗺️ En vivo</button><button data-t="alerts">⚠️ Alertas</button><button data-t="enso">🌊 El Niño</button>
+  <button data-t="live" class="on">🗺️ En vivo</button><button data-t="alerts">⚠️ Alertas</button><button data-t="enso">🌊 El Niño</button><button data-t="crec">💧 Crecidas</button>
 </nav>
 </div>
 <div id="warns"></div>
@@ -100,6 +100,8 @@
         <div><svg width="34" height="34"><use href="#i-storm"/></svg><span><b>Nube con rayo:</b> tormenta eléctrica.</span></div>
         <div><svg width="34" height="34"><use href="#i-heavy"/></svg><span><b>Gotas grandes:</b> lluvia fuerte (4 mm por hora o más).</span></div>
         <div><svg width="34" height="34"><use href="#i-light"/></svg><span><b>Gotitas:</b> lluvia débil o llovizna.</span></div>
+        <div><svg width="34" height="34"><path d="M3 24c6-10 10 4 16-6s9-6 12-12" fill="none" stroke="#fff" stroke-width="7"/><path d="M3 24c6-10 10 4 16-6s9-6 12-12" fill="none" stroke="#f07c00" stroke-width="4"/></svg>
+          <span><b>Cauce coloreado:</b> río, arroyo o canal con alerta de crecida en los próximos 3 días (detalle en la pestaña Crecidas).</span></div>
         <p class="muted">Pronóstico de 5 modelos numéricos (GFS, ICON, ECMWF, GEM y UKMO), no radar. Las zonas sombreadas son las alertas oficiales del SMN. La alerta expresa riesgo, no certeza.</p>
       </div>
     </div>
@@ -132,8 +134,23 @@
       </div>
     </div>
   </section>
+  <section id="t-crec" hidden>
+    <div class="grid2">
+      <div>
+        <div class="card" id="crec-sum"><h2>💧 Crecidas</h2><p class="muted">Cargando…</p></div>
+        <div class="card" id="suelo-card"></div>
+      </div>
+      <div>
+        <div class="card"><h2>Ríos, arroyos y canales</h2>
+          <input id="crec-q" type="search" placeholder="Buscar río, arroyo, partido o localidad" aria-label="Buscar río, arroyo, partido o localidad" autocomplete="off">
+          <div class="seg" id="crec-f" style="margin:8px 0"><button data-f="alerta" class="on">Con alerta</button><button data-f="all">Todos</button></div>
+          <ul class="plain" id="crec-list"></ul></div>
+        <div class="card"><h2>Cómo se calcula</h2><p class="muted" id="crec-method"></p></div>
+      </div>
+    </div>
+  </section>
 </main>
-<footer><b>ConDi · inteligencia territorial</b> — motor meteorológico ARGWX. Herramienta de análisis: no es un canal oficial de alertas; las alertas oficiales son las del SMN.<br>Datos: modelos GFS, ICON, ECMWF (IFS e IA), GEM, UKMO, JMA, ARPEGE y CMA vía <a href="https://open-meteo.com">Open-Meteo</a>; alertas y estaciones del SMN; radar RainViewer; satélite GOES-19 (NOAA); ríos GloFAS, calidad del aire CAMS y lluvia histórica ERA5 (Copernicus); ensamble ECMWF; olas Open-Meteo Marine; ENSO NOAA CPC; mapa © OpenStreetMap. Los cálculos no usan IA generativa. <a href="https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio/tree/claude/weather-engine-mvp-jafv4d/argwx">Código</a>.</footer>
+<footer><b>ConDi · inteligencia territorial</b> — motor meteorológico ARGWX. Herramienta de análisis: no es un canal oficial de alertas; las alertas oficiales son las del SMN.<br>Datos: modelos GFS, ICON, ECMWF (IFS e IA), GEM, UKMO, JMA, ARPEGE y CMA vía <a href="https://open-meteo.com">Open-Meteo</a>; alertas y estaciones del SMN; radar RainViewer; satélite GOES-19 (NOAA); ríos GloFAS, red hídrica y localidades © colaboradores de OpenStreetMap (ODbL), calidad del aire CAMS y lluvia histórica ERA5 (Copernicus); ensamble ECMWF; olas Open-Meteo Marine; ENSO NOAA CPC; mapa © OpenStreetMap. Los cálculos no usan IA generativa. <a href="https://github.com/consultoradiagonales/Qu-pasa-en-tu-barrio/tree/claude/weather-engine-mvp-jafv4d/argwx">Código</a>.</footer>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="tracking.js"></script>
 <script src="app.js"></script>

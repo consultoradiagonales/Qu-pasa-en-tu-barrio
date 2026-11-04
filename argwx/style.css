@@ -130,3 +130,12 @@ body.compact nav.tabs button{min-height:32px;font-size:13px;border-radius:10px}
 .sheet .pop .muted{font-size:13px}
 .sheet svg{max-width:100%}
 .pick{width:18px;height:18px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 0 0 3px rgba(11,92,173,.35),0 1px 4px rgba(0,0,0,.5)}
+/* Crecidas y suelo */
+.lnk{border:0;background:none;color:var(--accent);padding:6px 0 0;font-weight:600;font-size:13.5px;min-height:32px}
+#crec-q{width:100%;min-height:42px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;font:inherit;font-size:15px;background:var(--bg);color:var(--ink)}
+#crec-list li{padding:11px 0}
+.soilbar{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:4px 0 8px}.soilbar span{min-width:0}
+@media (max-width:420px){nav.tabs{gap:4px;padding:8px}nav.tabs button{font-size:13px;padding:0 6px}body.compact nav.tabs button{font-size:12px}}
+ul.mot{list-style:none;margin:6px 0;padding:0}ul.mot li{position:relative;padding:4px 0 4px 14px;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.4;text-align:left}
+ul.mot li:before{content:"";position:absolute;left:2px;top:12px;width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.leaflet-popup-content ul.mot li{border-color:#eee}
