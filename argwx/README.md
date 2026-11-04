@@ -53,7 +53,8 @@ El logo del cliente (Cámara de Diputados de la Provincia de Buenos Aires, provi
 - **Viento:** flechas animadas que muestran hacia dónde sopla (color por velocidad) y partículas en movimiento.
 - **Lluvia:** íconos de nube con rayo (tormenta eléctrica), gotas grandes (lluvia fuerte) y gotitas (lluvia débil).
 - **Línea de tiempo:** botón ▶ para animar las próximas 12 horas.
-- **Alertas oficiales del SMN** sombreadas, **satélite GOES-Este** (NASA GIBS) opcional y botón **📍 Mi ubicación**.
+- **Alertas oficiales del SMN** sombreadas y botón **📍 Mi ubicación**. (La capa satelital GOES-Este de NASA GIBS
+  quedó desactivada: en las pruebas no respondió de forma estable.)
 
 **Alertas:** alertas del SMN y alertas ARGWX de los 135 municipios (24/48/72 h).
 **El Niño:** fase actual, ONI desde 1950 y efecto histórico en la lluvia bonaerense (ERA5 desde 1981).
