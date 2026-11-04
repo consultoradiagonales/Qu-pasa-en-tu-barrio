@@ -1,0 +1,90 @@
+{
+ "generated_at": "2026-11-04T18:38:05Z",
+ "tablas": [
+  {
+   "tabla": "lluvia_era5_diaria.csv",
+   "archivos": [
+    "lluvia_era5_diaria.csv"
+   ],
+   "descripcion": "Lluvia diaria observada por el reanálisis ERA5 en un punto por sección electoral, desde 1981.",
+   "fuente": "ERA5 · Copernicus Climate Change Service / ECMWF, vía Open-Meteo (CC BY 4.0)",
+   "registros": 16768,
+   "desde": "1980-12-01",
+   "hasta": "2026-10-28",
+   "bytes": 748265
+  },
+  {
+   "tabla": "verificacion_modelos.csv",
+   "archivos": [
+    "verificacion_modelos.csv"
+   ],
+   "descripcion": "Lluvia diaria pronosticada por cada modelo con 1, 2 y 3 días de anticipación, y la observada (ERA5).",
+   "fuente": "Corridas anteriores de los modelos vía Open-Meteo (CC BY 4.0); observación ERA5",
+   "registros": 9600,
+   "desde": "2025-09-30",
+   "hasta": "2026-11-03",
+   "bytes": 622332
+  },
+  {
+   "tabla": "alertas_smn.csv",
+   "archivos": [
+    "alertas_smn.csv"
+   ],
+   "descripcion": "Alertas oficiales del SMN leídas en cada actualización (fenómeno, nivel, vigencia, zonas).",
+   "fuente": "Servicio Meteorológico Nacional, API CAP oficial",
+   "registros": 38,
+   "desde": "2026-11-04",
+   "hasta": "2026-11-06",
+   "bytes": 4215
+  },
+  {
+   "tabla": "smn_horarios_*.csv",
+   "archivos": [
+    "smn_horarios_2026-11.csv"
+   ],
+   "descripcion": "Datos horarios de las estaciones del SMN en la provincia y CABA: temperatura, humedad, presión y viento (el SMN no publica la lluvia en este archivo).",
+   "fuente": "Servicio Meteorológico Nacional, datos abiertos",
+   "registros": 415,
+   "desde": "2026-11-03",
+   "hasta": "2026-11-03",
+   "bytes": 23757
+  },
+  {
+   "tabla": "pronosticos_condi_*.csv",
+   "archivos": [
+    "pronosticos_condi_2026-11.csv"
+   ],
+   "descripcion": "Lo que pronosticó ConDi para cada partido, una vez por día, para verificarlo después.",
+   "fuente": "ConDi · ARGWX (consenso de 9 modelos)",
+   "registros": 405,
+   "desde": "2026-11-04",
+   "hasta": "2026-11-04",
+   "bytes": 28691
+  },
+  {
+   "tabla": "climatologia_lluvia.json",
+   "archivos": [
+    "climatologia_lluvia.json"
+   ],
+   "descripcion": "Frecuencia histórica de lluvias de 10 a 110 mm por mes y percentiles (sale de la tabla ERA5).",
+   "fuente": "Cálculo propio sobre ERA5",
+   "registros": null,
+   "desde": null,
+   "hasta": null,
+   "bytes": 24128
+  },
+  {
+   "tabla": "calibracion.json",
+   "archivos": [
+    "calibracion.json"
+   ],
+   "descripcion": "Aciertos y falsas alarmas de cada modelo y probabilidad calibrada según cuántos modelos coinciden.",
+   "fuente": "Cálculo propio sobre la tabla de verificación",
+   "registros": null,
+   "desde": null,
+   "hasta": null,
+   "bytes": 21439
+  }
+ ],
+ "nota": "Datos de uso público. ERA5 es un reanálisis (no un pluviómetro): sirve de referencia común para comparar modelos. Las tablas que se acumulan (alertas, horarios, pronósticos) crecen con cada actualización desde el 4/11/2026."
+}
