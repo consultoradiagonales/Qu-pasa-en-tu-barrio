@@ -37,6 +37,30 @@ def main(argv: list[str]) -> int:
         with new_session() as s:
             print(json.dumps(freshness(s), ensure_ascii=False, indent=2, default=str))
         return 0
+    if cmd == "smn-debug":
+        import re
+
+        from app.config import get_settings
+        from app.providers import smn
+        from app.services.municipalities import load_municipalities
+        from app.services.sync import http_client
+
+        settings, munis = get_settings(), load_municipalities()
+        with http_client(settings) as c:
+            index = c.get(settings.list_of("smn_cap_urls")[0]).text
+            print("INDEX:", re.sub(r"\s+", " ", index[:600]))
+            links = re.findall(r"https?://[^\s\"<>]+\.xml", index)
+            sample = next((u for u in links if "Tormenta_Llanura" in u), links[-1] if links else None)
+            if sample:
+                print("CAP:", sample, re.sub(r"\s+", " ", c.get(sample).text[:3000]))
+            alerts = smn.parse_feed(index, fetch=lambda u: c.get(u).text)
+        for a in alerts:
+            ar = a["areas"]
+            p0 = next((pl[0] for x in ar for pl in x["polygons"]), None)
+            print(f"{a['level']:6} {a['hazard']:9} {a['title'][:45]:45} | areas {len(ar)} | polys "
+                  f"{sum(len(x['polygons']) for x in ar)} | p0 {p0} | {ar[0]['desc'][:70] if ar else ''} "
+                  f"| PBA {len(smn.affected(a, munis))}")
+        return 0
     if cmd == "resumen":
         from app.services.state import compute_state, summary
 
