@@ -1,4 +1,4 @@
-/* ARGWX · Tiempo en vivo. Mapa con viento animado, lluvia, tormentas en movimiento y alertas. */
+/* ConDi · Tiempo en vivo (motor ARGWX). Mapa con viento animado, lluvia, tormentas en movimiento y alertas. */
 (function () {
   "use strict";
   const T = window.ARGWX_TRACKING;
@@ -50,7 +50,7 @@
   L.tileLayer(`https://{s}.basemaps.cartocdn.com/${DARK ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png`, {
     subdomains: "abcd", maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
-  const sat = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
+  const sat = L.tileLayer("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/default/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
     {maxNativeZoom: 7, maxZoom: 11, opacity: 0.5, attribution: "Satélite: NASA GIBS · GOES-Este"});
   [["smnPane", 380], ["muniPane", 390], ["stormPane", 420]].forEach(([n, z]) => { map.createPane(n).style.zIndex = z; });
   const G = {smn: L.layerGroup().addTo(map), muni: L.layerGroup().addTo(map), storms: L.layerGroup().addTo(map),
@@ -130,7 +130,7 @@
     const base = `${OM}?latitude=${lat}&longitude=${lon}&forecast_hours=12&timezone=UTC&timeformat=unixtime&wind_speed_unit=kmh`;
     return kind === "best"
       ? `${base}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
-      : `${base}&hourly=precipitation,weather_code,wind_gusts_10m&models=${MODELS.join(",")}`;
+      : `${base}&hourly=precipitation,weather_code&models=${MODELS.join(",")}`;
   }
 
   async function loadLive(region, force) {
@@ -174,6 +174,7 @@
     let tracks = [], nModels = 0;
     if (live.models) {
       const M = T.parseModels(live.models, MODELS);
+      Object.values(M.models).forEach(m => { m.G = B.g; });  // ráfagas del modelo de mejor ajuste (menos consultas)
       nModels = Object.keys(M.models).length;
       if (nModels) tracks = T.track(grid, M, {nModels: MODELS.length});
     }
