@@ -36,10 +36,12 @@
   </defs>
 </svg>
 
+<div class="topbar" id="topbar">
 <header class="top">
-  <a class="brand" href="./" aria-label="ConDi · inteligencia territorial">
+  <a class="brand" id="brand" href="./" aria-label="ConDi · inteligencia territorial">
     <img src="img/condi-emblema.png" alt="" class="emblem"><img src="img/condi-marca.png" alt="ConDi · inteligencia territorial" class="mark">
   </a>
+  <button class="mini" id="mini" aria-label="Actualizar datos"><span class="pulse" id="pulse2"></span><span id="mini-txt">…</span> ⟳</button>
   <div class="client">
     <img id="client-logo" src="img/cliente.png" alt="Cámara de Diputados de la Provincia de Buenos Aires"
          onerror="this.hidden=true;document.getElementById('client-txt').hidden=false">
@@ -51,13 +53,15 @@
 <nav class="tabs" id="tabs">
   <button data-t="live" class="on">🗺️ En vivo</button><button data-t="alerts">⚠️ Alertas</button><button data-t="enso">🌊 El Niño</button>
 </nav>
+</div>
 <div id="warns"></div>
 <main>
   <section id="t-live">
     <div class="mapwrap">
       <div id="map" role="application" aria-label="Mapa del tiempo en vivo"></div>
-      <div class="map-top">
-        <div class="seg" id="region"><button data-r="pba" class="on">Buenos Aires</button><button data-r="ar">Argentina</button><button data-r="sa">Sudamérica</button></div>
+      <div class="map-top" id="maptop">
+        <div class="seg" id="region"><button data-r="pba" class="on"><span class="l">Buenos Aires</span><span class="s">Prov. BA</span></button><button data-r="ar"><span class="l">Argentina</span><span class="s">País</span></button><button data-r="sa"><span class="l">Sudamérica</span><span class="s">Sudam.</span></button></div>
+        <button class="pill" id="layers-btn" aria-expanded="false" aria-controls="layers">🗂️ Capas <span id="layers-n"></span></button>
         <div class="chips" id="layers">
           <button data-l="storms" class="on">⛈️ Tormentas</button><button data-l="wind" class="on">💨 Viento</button>
           <button data-l="wx" class="on">🌧️ Lluvia</button><button data-l="radar" class="on">📡 Radar</button>
@@ -70,6 +74,10 @@
         <button id="play" aria-label="Animar las próximas horas">▶</button>
         <input id="hour" type="range" min="0" max="11" value="0" step="1" aria-label="Hora del pronóstico">
         <span id="hour-lbl">Ahora</span>
+      </div>
+      <div class="sheet" id="sheet" hidden role="dialog" aria-label="Detalle del punto">
+        <div class="sheet-h"><span class="grip"></span><button id="sheet-x" aria-label="Cerrar">✕</button></div>
+        <div id="sheet-c"></div>
       </div>
     </div>
     <div class="cards">

@@ -24,6 +24,8 @@
   const fmtDT = iso => iso ? new Date(iso).toLocaleString("es-AR", {day: "2-digit", month: "2-digit", ...TF}) : "–";
   const windColor = s => s >= 70 ? "#8e44ad" : s >= 50 ? "#e74c3c" : s >= 30 ? "#f39c12" : s >= 15 ? "#2b8cbe" : "#7f8c9a";
   const toDir = from => (from + 180) % 360;
+  const kindOf = tr => (tr.points.some(p => p.thunder) ? "Tormenta " : "Área de lluvia ") + INTENS[tr.level];
+  const mobile = () => matchMedia("(max-width: 959px)").matches;
   function eta(unix) {
     const h = (unix * 1000 - Date.now()) / 3.6e6;
     return h <= 0.5 ? "ahora" : h < 1.5 ? "en ~1 h" : `en ~${Math.round(h)} h`;
@@ -397,8 +399,7 @@
     const cur = tr.points.find(p => p.h === S.hour) || tr.points[0];
     const places = S.region === "pba" ? tr.affected : tr.provincias;
     const list = places.slice(0, popup ? 14 : 24).map(x => `<span><b>${esc(x.name)}</b> ${eta(x.t)}</span>`).join("");
-    const kind = tr.points.some(p => p.thunder) ? "Tormenta" : "Lluvia fuerte";
-    const html = `<div class="trk-h">${lvlBadge(tr.level)} <b>${kind} ${INTENS[tr.level]}</b>
+    const html = `<div class="trk-h">${lvlBadge(tr.level)} <b>${kindOf(tr)}</b>
         <span class="muted">${Math.round(tr.probMax * 5)} de 5 modelos (${Math.round(tr.probMax * 100)} %)</span></div>
       <div class="trk-m">🧭 ${esc(tr.dirText)}${tr.speed ? ` a ${tr.speed} km/h` : ""} · ${tr.trend === "se intensifica" ? "📈" : tr.trend === "se debilita" ? "📉" : "➖"} ${esc(tr.trend)}
         <span class="muted">· entre ${hhmm(tr.start)} y ${hhmm(tr.end)} · ahora: ${Math.round(cur.radius)} km de radio</span></div>
@@ -407,17 +408,23 @@
     return popup ? `<div class="pop">${html}</div>` : html;
   }
 
+  function setMini(text, cls) {
+    $("mini-txt").textContent = text;
+    $("pulse2").className = cls;
+  }
+
   function panels() {
     const D = S.cur;
     const txt = $("live-txt"), pulse = $("pulse");
     if (!D) {
-      pulse.className = "pulse off"; txt.textContent = "Sin datos";
+      pulse.className = "pulse off"; txt.textContent = "Sin datos"; setMini("Sin datos", "pulse off");
       $("now-card").innerHTML = `<h2>Ahora</h2><p>No se pudieron obtener datos. Probá de nuevo en unos minutos.</p>`;
       $("tracks").innerHTML = "";
       return;
     }
     pulse.className = "pulse" + (D.source === "live" ? "" : " snap");
     txt.textContent = `${D.source === "live" ? "En vivo" : "Copia del servidor"} · ${new Date(D.at).toLocaleTimeString("es-AR", TF)}`;
+    setMini(`${D.source === "live" ? "En vivo" : "Copia"} ${new Date(D.at).toLocaleTimeString("es-AR", TF)}`, pulse.className);
     const n = D.tracks.length, top = D.tracks[0];
     const smnStorm = S.st.smn ? S.st.smn.alerts.filter(a => a.storm) : [];
     const pbaSMN = smnStorm.filter(a => a.partidos_pba.length);
@@ -503,6 +510,7 @@
 
   // ------------------------------------------------------------------ interacción
   map.on("click", e => {
+    if (mobile()) closeSheet();  // un toque en otro lugar reemplaza o cierra el detalle
     const D = S.cur;
     if (!D) return;
     const h = Math.min(S.hour, D.H - 1), lat = e.latlng.lat, lon = e.latlng.lng;
@@ -530,7 +538,7 @@
               <div class="row"><span>🌫️ PM2.5 máx.</span><b>${amb.pm25_max ?? "–"} µg/m³</b></div>` : ""}
       ${st ? `<div class="row"><span>🌡️ SMN ${esc(st.estacion)} (${esc(st.hora)})</span><b>${esc(st.estado)}, ${st.temp_c ?? "–"} °C</b></div>` : ""}
       ${smn.map(a => `<div class="row"><span>SMN</span><span>${lvlBadge(a.level)} ${esc(a.title)}</span></div>`).join("")}
-      ${coming.map(x => `<div class="row"><span>⛈️ Tormenta ${INTENS[x.tr.level]}</span><b>${eta(x.hit.t)}</b></div>`).join("")}</div>`).openOn(map);
+      ${coming.map(x => `<div class="row"><span>⛈️ ${kindOf(x.tr)}</span><b>${eta(x.hit.t)}</b></div>`).join("")}</div>`).openOn(map);
   });
 
   function setRegion(r) {
@@ -624,7 +632,81 @@
     }, () => alert("No se pudo obtener tu ubicación."), {enableHighAccuracy: false, timeout: 10000});
   });
 
+  // ------------------------------------------------------------------ celular: barra compacta y panel de detalle
+  // La barra superior se contrae al desplazar la página o tocar el mapa; el mapa gana ese alto.
+  function fitMap() {
+    if (mobile()) document.documentElement.style.setProperty("--topH", $("topbar").offsetHeight + "px");
+    else document.documentElement.style.removeProperty("--topH");
+    map.invalidateSize({pan: false});
+  }
+  function setCompact(on) {
+    if (document.body.classList.contains("compact") === on) return;
+    document.body.classList.toggle("compact", on);
+    setTimeout(fitMap, 240);
+  }
+  addEventListener("scroll", () => {
+    const room = document.documentElement.scrollHeight - innerHeight;
+    if (scrollY > 30 && (room > 200 || mobile())) setCompact(true);
+    else if (scrollY <= 0) setCompact(false);
+  }, {passive: true});
+  // Se contrae al terminar un gesto (arrastre o pellizco), nunca al primer contacto: si el mapa se moviera
+  // bajo el dedo, el toque caería en otro lugar.
+  let moved = false;
+  $("map").addEventListener("touchmove", () => { moved = true; }, {passive: true});
+  $("map").addEventListener("touchend", () => { if (moved && mobile()) setCompact(true); moved = false; }, {passive: true});
+  map.on("dragend", () => { if (mobile()) setCompact(true); });
+  $("brand").addEventListener("click", e => {
+    if (!document.body.classList.contains("compact")) return;
+    e.preventDefault();
+    window.scrollTo({top: 0});
+    setCompact(false);
+  });
+  $("mini").addEventListener("click", () => { refresh(true); loadStatic(); });
+  let resizeT;
+  addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(fitMap, 150); });
+
+  // Capas: en el celular se despliegan con un botón para no tapar el mapa.
+  const countLayers = () => { $("layers-n").textContent = `(${[...$("layers").children].filter(b => b.classList.contains("on")).length})`; };
+  $("layers-btn").addEventListener("click", () => {
+    const open = !$("maptop").classList.contains("open");
+    $("maptop").classList.toggle("open", open);
+    $("layers-btn").setAttribute("aria-expanded", String(open));
+  });
+  $("layers").addEventListener("click", countLayers);
+  map.on("click dragstart", () => { $("maptop").classList.remove("open"); $("layers-btn").setAttribute("aria-expanded", "false"); });
+  countLayers();
+
+  // Detalle: en el celular, panel inferior legible en lugar del globo de Leaflet (que quedaba tapado).
+  const pick = L.layerGroup().addTo(map);
+  function closeSheet() { $("sheet").hidden = true; pick.clearLayers(); }
+  function openSheet(html, ll) {
+    $("sheet-c").innerHTML = html;
+    $("sheet").hidden = false;
+    $("sheet").scrollTop = 0;
+    setTimeout(() => setCompact(true), 0);
+    pick.clearLayers();
+    if (!ll) return;
+    L.marker(ll, {icon: L.divIcon({className: "pick", iconSize: [18, 18]}), interactive: false, keyboard: false, pane: "stormPane"}).addTo(pick);
+    requestAnimationFrame(() => {
+      const free = map.getSize().y - $("sheet").offsetHeight, y = map.latLngToContainerPoint(ll).y;
+      if (y > free - 30 || y < 50) map.panBy([0, y - Math.max(free / 2, 60)], {animate: true});
+    });
+  }
+  $("sheet-x").addEventListener("click", closeSheet);
+  addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+  if (mobile()) L.Popup.mergeOptions({autoPan: false});
+  else L.Popup.mergeOptions({autoPanPaddingTopLeft: L.point(16, 120), autoPanPaddingBottomRight: L.point(16, 90)});
+  map.on("popupopen", e => {
+    if (!mobile()) return;
+    const pop = e.popup, c = pop.getContent();
+    const html = typeof c === "function" ? c(pop._source) : c;
+    const ll = pop.getLatLng();
+    map.closePopup(pop);
+    openSheet(typeof html === "string" ? html : html.outerHTML, ll);
+  });
+
   (async () => {
+    fitMap();
     S.regions = await getJSON("regions.json");
     Object.keys(S.regions).forEach(r => { S.grids[r] = T.makeGrid(S.regions[r]); });
     map.fitBounds(S.regions.pba.bounds, {padding: [10, 10]});
