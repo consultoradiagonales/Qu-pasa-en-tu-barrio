@@ -1,8 +1,8 @@
 """Crecidas de ríos, arroyos y canales de la Provincia de Buenos Aires, y agua en el suelo.
 
 Cómo se calcula (fuentes gratuitas, sin IA):
-1. Red hídrica: ríos, canales y arroyos con nombre de OpenStreetMap (Overpass API), con su trazado, los
-   partidos que cruzan y las localidades a menos de 4 km del cauce. Se recalcula una vez por mes.
+1. Inventario DPH/IGN/GCBA y complemento OSM (hydrography.py). Incluye cauces cortos y sin nombre.
+   Los tramos cartográficos y las cuencas son independientes de la cobertura de monitoreo.
 2. Lluvia en la cuenca: lluvia prevista a 72 h (suma de las medianas diarias de 9 modelos) promediada en los
    partidos que cruza cada curso, más la lluvia de los últimos 30 días (suelo ya cargado de agua).
 3. Caudal: GloFAS (Copernicus) vía Open-Meteo Flood API, que ya incorpora el pronóstico de lluvia de ECMWF.
@@ -26,7 +26,7 @@ from app.engine.levels import LEVELS, idx, max_level
 from app.util import utcnow
 
 log = logging.getLogger("argwx.hydro")
-VERSION = 2
+VERSION = 3
 OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter",
             "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
 FLOOD = "https://flood-api.open-meteo.com/v1/flood"
@@ -37,7 +37,7 @@ way["waterway"~"^(river|canal|stream)$"]["name"](area.a);
 out tags geom;
 node["place"~"^(city|town|village)$"]["name"](area.a);
 out body;"""
-EXCLUDE = {"rio de la plata"}  # estuario: no es un curso que crece por lluvia en la cuenca
+EXCLUDE = set()  # el estuario se incluye, con evaluación costera independiente
 PLACE_RANK = {"city": 0, "town": 1, "village": 2}
 
 # Umbrales iniciales (a calibrar)
@@ -47,7 +47,6 @@ RECENT_7D = 50                                      # mm en 7 días: lluvia reci
 RATIO = {"YELLOW": 2, "ORANGE": 4, "RED": 8}        # caudal máximo 7 días / caudal típico 3 semanas
 MIN_RISE = 5.0                                      # m³/s: subidas menores no cuentan
 MIN_Q = 1.0                                         # m³/s: por debajo, GloFAS no representa el cauce ahí
-MIN_KM = {"río": 5, "canal": 8, "arroyo": 8}        # largo mínimo para listar un curso
 GLOFAS_KM = 15                                      # largo mínimo para consultar caudal
 MAX_SAMPLES = 400                                   # tope de puntos de caudal por corrida
 NEAR_KM = 4                                         # localidades ribereñas
@@ -227,9 +226,7 @@ def build_network(elements: list[dict], geojson: dict, munis: list[dict]) -> dic
         for comp in _clusters(g["ways"]):
             tipo = kind_of(g["name"], {w["ww"] for w in comp})
             km = sum(w["km"] for w in comp)
-            if km < MIN_KM[tipo]:
-                continue
-            lines = [simplify(w["pts"]) for w in comp]
+            lines = [simplify(w["pts"], 0.0002) for w in comp]
             verts = [(p[0], p[1], partido_at(p[0], p[1], index, munis)) for ln in lines for p in ln]
             partidos = list(dict.fromkeys(v[2] for v in verts if v[2]))
             if not partidos:
@@ -252,7 +249,7 @@ def build_network(elements: list[dict], geojson: dict, munis: list[dict]) -> dic
             courses.append({"id": rid, "nombre": g["name"], "tipo": tipo, "km": round(km, 1), "partidos": partidos,
                             "localidades": [[pl["nombre"], pl["partido"]] for _, _, pl in near[:15]],
                             "bbox": [round(x, 3) for x in bb],
-                            "trazo": [[[round(a, 3), round(b, 3)] for a, b in ln] for ln in lines],
+                            "trazo": [[[round(a, 5), round(b, 5)] for a, b in ln] for ln in lines],
                             "_verts": [v for v in verts if v[2]]})
 
     # Puntos de caudal (GloFAS) sobre el cauce: más en los cursos más largos, sin repetir celda de 0,05°.
@@ -460,12 +457,17 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
         basin30 = round(mean(wet), 1) if wet else None
         recent = [soil_m[p]["lluvia_7d"] for p in c["partidos"] if (soil_m.get(p) or {}).get("lluvia_7d") is not None]
         basin7 = round(mean(recent), 1) if recent else None
+        # El estuario exige alturas/mareas/viento; un conducto urbano exige un
+        # modelo pluvial local. No transformar lluvia municipal en crecida allí.
+        special = c.get("monitoreo") in ("costero", "urbano")
+        if special:
+            rains, basin, basin30, basin7 = [], None, None, None
         lv_rain = rain_level(basin, basin30)
         # Ríos con punto de referencia: se usa ese punto (cauce principal, historia 1984-hoy) y no los puntos de la
         # red, que en ríos anchos o en el delta pueden caer en celdas de GloFAS fuera del cauce principal.
-        ref = ref_by.get(ref_key(c["nombre"])) if c["tipo"] == "río" else None
+        ref = ref_by.get(ref_key(c["nombre"])) if c["tipo"] == "río" and not special else None
         lv_ref = max_level(*(r["nivel_7d"] for r in ref)) if ref else "GREEN"
-        pts = [] if ref else [{**s, **status[_key(s)]} for s in c["muestras"] if _key(s) in status]
+        pts = [] if ref or special else [{**s, **status[_key(s)]} for s in c["muestras"] if _key(s) in status]
         rep = [p for p in pts if p.get("representado")]
         lv_model = max_level(*(p["nivel"] for p in rep)) if rep else "GREEN"
         # Como en el consenso del motor, una sola fuente no alcanza para Naranja o Roja: la subida de caudal de
@@ -476,10 +478,20 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
         # Escalas oficiales (Prefectura / Red Hidrológica Nacional) sobre el curso: la observación prevalece.
         obs = [st for st in (observed or {}).get("estaciones", [])
                if same_river(st.get("rio"), c["nombre"]) and _near_course(st["lat"], st["lon"], c)]
-        lv_obs = max_level(*(st["nivel"] for st in obs)) if obs else "GREEN"
+        classified_obs = [st for st in obs if st.get("alerta") is not None or st.get("evacuacion") is not None]
+        lv_obs = max_level(*(st["nivel"] for st in classified_obs)) if classified_obs else "GREEN"
         level = max_level(lv_rain, lv_flow, lv_ref, lv_obs)
+        evaluated = bool(rains or rep or ref or classified_obs)
+        if not evaluated:
+            level = None
 
         motivos = []
+        if not evaluated:
+            motivos.append("Sin evaluación hidrológica: no hay datos aplicables a este tramo. No equivale a ausencia de riesgo.")
+        if c.get("monitoreo") == "costero":
+            motivos.append("Estuario: estado de las alturas observadas disponibles, no pronóstico de sudestada. Mareas y viento requieren un modelo costero específico.")
+        elif c.get("monitoreo") == "urbano":
+            motivos.append("Cauce urbano: el inventario no estima capacidad de conductos ni anegamiento de calles.")
         if basin is not None:
             where = f"promedio de {len(rains)} partidos" if len(rains) > 1 else f"en {names.get(rains[0][0], rains[0][0])}"
             motivos.append(f"Lluvia prevista en la cuenca: {basin:g} mm en 72 h ({where})")
@@ -508,29 +520,33 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
         # Señal: dónde se detecta (caudal, lluvia fuerte o estación de referencia). Si el curso tiene alerta, el agua
         # recorre todo el cauce: se listan todos los partidos que cruza, primero los de la señal.
         senal, afectados = [], []
-        if level != "GREEN":
+        if level is not None and level != "GREEN":
             senal += [p["partido"] for p in hot]
             senal += [p for p, v in sorted(rains, key=lambda x: -x[1]) if v >= RAIN72["YELLOW"]]
             senal += [p for r in ref or [] if r["nivel_7d"] != "GREEN" for p in r["partidos"] if p in c["partidos"]]
             senal = list(dict.fromkeys(senal))
             afectados = list(dict.fromkeys(senal + c["partidos"]))
         locs = sorted((loc for loc in c["localidades"] if loc[1] in afectados), key=lambda loc: loc[1] not in senal)
-        out.append({"id": c["id"], "nombre": c["nombre"], "tipo": c["tipo"], "km": c["km"], "nivel": level,
+        out.append({**{k: c[k] for k in ("alias", "cuencas", "cuenca_ids", "fuentes", "jurisdicciones", "sin_nombre", "monitoreo", "nota", "area", "registros") if k in c},
+                    "id": c["id"], "nombre": c["nombre"], "tipo": c["tipo"], "km": c["km"], "nivel": level,
+                    "evaluado": evaluated,
                     "nivel_lluvia": lv_rain, "nivel_caudal": lv_flow, "caudal_confirmado": bool(rep) and confirmed,
                     "nivel_referencia": lv_ref if ref else None, "lluvia_72h": basin, "lluvia_7d": basin7,
                     "lluvia_30d": basin30, "motivos": motivos, "partidos": c["partidos"],
                     "partidos_senal": senal, "partidos_afectados": afectados, "localidades_afectadas": locs,
                     "localidades": c["localidades"], "pico": min((p["pico"] for p in hot), default=None),
                     "con_caudal": bool(rep or ref), "puntos": pts, "bbox": c["bbox"], "trazo": c["trazo"],
-                    "nivel_observado": lv_obs if obs else None,
+                    "nivel_observado": lv_obs if classified_obs else None,
                     "observado": [{k: st.get(k) for k in ("estacion", "altura_m", "alerta", "evacuacion", "estado", "nivel",
                                                           "fecha", "cambio_24h")} for st in obs]})
     out.sort(key=lambda x: (-idx(x["nivel"]), -(x["lluvia_72h"] or 0), -(x["km"] or 0)))
     por_nivel = {lv: sum(1 for x in out if x["nivel"] == lv) for lv in LEVELS[:4]}
     return {
-        "resumen": {"cursos": len(out), "por_nivel": por_nivel, "en_alerta": len(out) - por_nivel["GREEN"],
+        "resumen": {"cursos": len(out), "por_nivel": por_nivel, "en_alerta": sum(idx(x["nivel"]) > 0 for x in out),
                     "con_caudal": sum(1 for x in out if x["con_caudal"]),
-                    "por_tipo": {t: sum(1 for x in out if x["tipo"] == t) for t in ("río", "canal", "arroyo")},
+                    "evaluados": sum(1 for x in out if x["evaluado"]),
+                    "sin_evaluacion": sum(1 for x in out if not x["evaluado"]),
+                    "por_tipo": {t: sum(1 for x in out if x["tipo"] == t) for t in ("río", "canal", "arroyo", "estuario")},
                     "fecha_caudal": (caudales or {}).get("hoy")},
         "metodo": "Nivel = el mayor entre (a) la lluvia prevista a 72 h en los partidos que cruza el curso "
                   f"(Amarilla ≥ {RAIN72['YELLOW']} mm, Naranja ≥ {RAIN72['ORANGE']}, Roja ≥ {RAIN72['RED']}; sube un "
@@ -545,6 +561,7 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
                 "está la señal) y las localidades a menos de 4 km del cauce: es una referencia de cercanía, no un "
                 "mapa de zonas inundables. Suelo cargado y crecidas pueden demorar la siembra y "
                 "la cosecha y afectar cultivos en lotes bajos.",
-        "fuentes": "Red hídrica y localidades: © colaboradores de OpenStreetMap (ODbL). Caudales: GloFAS "
+        "cobertura": network.get("cobertura"), "cartografia": network.get("fuentes", []),
+        "fuentes": "Red hídrica: DPH Buenos Aires, IGN, GCBA y © colaboradores de OpenStreetMap (ODbL). Caudales: GloFAS "
                    "(Copernicus). Lluvia: 9 modelos vía Open-Meteo.",
         "cursos": out}

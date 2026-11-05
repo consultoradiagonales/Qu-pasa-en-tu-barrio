@@ -320,3 +320,8 @@ En producción: `ARGWX_ENV=production`, `ARGWX_ADMIN_TOKEN` obligatorio para esc
 - Calibrar umbrales por zona con la verificación (MAE/RMSE/BIAS) y ranking de modelos por municipio.
 - Extender a todo el país (el motor ya trabaja con cualquier lista de puntos).
 - Integración con ConDi vía esta API (CORS configurable).
+
+## Red hídrica y cuencas
+
+La cobertura cartográfica DPH/IGN/GCBA, su procedencia, actualización y límites de
+evaluación están documentados en [HIDROGRAFIA.md](HIDROGRAFIA.md).
