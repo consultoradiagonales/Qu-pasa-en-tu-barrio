@@ -13,7 +13,7 @@
   const PHASE_COLOR = {EL_NINO: "#d62828", LA_NINA: "#1f6fd1", NEUTRAL: "#8a96a3"};
   const SEAS = {DJF: "DEF", JFM: "EFM", FMA: "FMA", MAM: "MAM", AMJ: "AMJ", MJJ: "MJJ", JJA: "JJA", JAS: "JAS", ASO: "ASO",
                 SON: "SON", OND: "OND", NDJ: "NDE"};
-  const DARK = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
+  const DARK = false; // Tema claro uniforme para todos los accesos, incluido el mapa.
   const S = {region: "pba", hour: 0, layers: {storms: true, wind: true, wx: true, smn: true, sat: false, radar: true, obs: false, rios: true, costa: false, red: false, cuencas: false}, grids: {},
              cur: null, st: {}, munis: [], provs: [], smnFilter: "storm", pwin: "24", oniRange: "30", play: null, me: null,
              crecF: "alerta", crecN: 40, r72: {}};
