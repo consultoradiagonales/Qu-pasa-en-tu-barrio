@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-04T23:54:17Z",
+ "generated_at": "2026-11-05T00:09:53Z",
  "tablas": [
   {
    "tabla": "lluvia_era5_diaria.csv",
@@ -56,10 +56,10 @@
    ],
    "descripcion": "Lo que pronosticó ConDi para cada partido, una vez por día, para verificarlo después.",
    "fuente": "ConDi · ARGWX (consenso de 9 modelos)",
-   "registros": 405,
+   "registros": 810,
    "desde": "2026-11-04",
-   "hasta": "2026-11-04",
-   "bytes": 28691
+   "hasta": "2026-11-05",
+   "bytes": 57263
   },
   {
    "tabla": "rios_observados_*.csv",
