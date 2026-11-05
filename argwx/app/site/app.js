@@ -341,7 +341,7 @@
   function courseHTML(c) {
     const green = !hydroHot(c), pa = green ? c.partidos : c.partidos_afectados;
     const locs = (green ? c.localidades : c.localidades_afectadas).slice(0, 12);
-    return `<div class="pop"><h3>💧 ${esc(c.nombre)}</h3><div class="muted">${esc(c.tipo)}${kmTxt(c)} · próximos 3 días</div>
+    return `<div class="pop"><h3>💧 ${esc(c.nombre)}</h3><div class="muted">${esc(c.tipo)}${kmTxt(c)} · ${c.monitoreo === "costero" ? "alturas observadas" : "próximos 3 días"}</div>
       <div class="row"><span>Evaluación orientativa</span>${lvlBadge(c.nivel)}</div>${hydroContext(c)}
       ${c.pico ? `<div class="row"><span>Pico estimado (GloFAS)</span><b>${fmtDay(c.pico)}</b></div>` : ""}
       <ul class="mot">${c.motivos.map(m => `<li>${esc(m)}</li>`).join("")}

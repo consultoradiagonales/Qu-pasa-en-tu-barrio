@@ -58,8 +58,8 @@ La lluvia sobre partidos del trazado es una aproximación territorial, no una
 integración hidrológica de la cuenca ni un mapa de inundación. Las cuencas DPH
 se muestran como contexto cartográfico y no cambian esos umbrales.
 
-El estuario se evalúa únicamente con escalas costeras aplicables y umbrales
-conocidos; no con lluvia municipal ni GloFAS fluvial. Los registros urbanos GCBA
+El estuario muestra el estado observado de escalas costeras aplicables con umbrales
+conocidos; no pronostica sudestadas, mareas ni viento, ni usa lluvia municipal o GloFAS fluvial. Los registros urbanos GCBA
 no estiman capacidad de conductos. Sin lluvia aplicable, caudal representado,
 referencia o escala con umbral, el estado es `nivel: null`, `evaluado: false`.
 

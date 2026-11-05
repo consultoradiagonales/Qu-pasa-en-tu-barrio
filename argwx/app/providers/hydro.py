@@ -489,7 +489,7 @@ def compute_floods(network: dict, caudales: dict | None, soil: dict | None, rain
         if not evaluated:
             motivos.append("Sin evaluación hidrológica: no hay datos aplicables a este tramo. No equivale a ausencia de riesgo.")
         if c.get("monitoreo") == "costero":
-            motivos.append("Estuario: seguimiento por alturas costeras, mareas y viento; no por el modelo fluvial de lluvia.")
+            motivos.append("Estuario: estado de las alturas observadas disponibles, no pronóstico de sudestada. Mareas y viento requieren un modelo costero específico.")
         elif c.get("monitoreo") == "urbano":
             motivos.append("Cauce urbano: el inventario no estima capacidad de conductos ni anegamiento de calles.")
         if basin is not None:
