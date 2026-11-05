@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConDi · Alertas por municipio</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#14212b;--muted:#5b6b78;--line:#dde3e8;--accent:#0b5cad;--map:#e9eef2}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1720;--card:#16212c;--ink:#e6edf3;--muted:#93a4b3;--line:#283646;--accent:#5aa9ff;--map:#1b2835}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+h1{font-size:20px;margin:0}h1 small{display:block;font-size:13px;font-weight:400;color:var(--muted)}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.03em}
+.live{background:#d9f2e1;color:#14652f}.demo{background:#fde7c7;color:#8a4b00}.none{background:#eee;color:#555}
+#banner{display:none;margin:12px 20px 0;padding:10px 14px;border-radius:8px;background:#fde7c7;color:#6b3a00;font-weight:600}
+main{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);gap:16px;padding:16px 20px}
+@media (max-width:900px){main{grid-template-columns:1fr;padding:12px 16px}header{padding:12px 16px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 10px}.muted{color:var(--muted);font-size:13px}
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;justify-content:space-between;margin-bottom:10px}
+.seg{display:flex;flex-wrap:wrap;gap:4px}.seg button{border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:6px 10px;border-radius:8px;cursor:pointer;font:inherit;font-size:13px}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+svg{width:100%;height:auto;max-height:72vh;background:var(--map);border-radius:10px;display:block;touch-action:none}
+path.m{stroke:#fff;stroke-width:.6;vector-effect:non-scaling-stroke;cursor:pointer}path.m:hover{stroke:#000;stroke-width:1.6}path.sel{stroke:#000;stroke-width:2.4}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:13px}.dot{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.lvl{display:inline-block;padding:2px 9px;border-radius:6px;font-weight:700;font-size:13px;color:#fff}.lvl.YELLOW{color:#2b2400}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}.kpi b{display:block;font-size:20px}
+ul.plain{list-style:none;padding:0;margin:0}ul.plain li{padding:6px 0;border-bottom:1px solid var(--line)}ul.plain li:last-child{border:0}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}a{color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}th,td{text-align:right;padding:5px 4px;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}
+.drivers li{margin-bottom:4px}.how ol{margin:6px 0 0 18px;padding:0}footer{padding:4px 20px 24px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1><img src="/static/condi-emblema.png" alt="" style="height:34px;vertical-align:middle;margin-right:6px">ConDi · Motor meteorológico<small>Alertas por consenso multimodelo en los 135 municipios de la Provincia de Buenos Aires</small></h1>
+  <div><span id="mode" class="badge none">CARGANDO</span> <span id="updated" class="muted"></span></div>
+</header>
+<div id="banner">Modo demostración: los datos son SIMULADOS para mostrar cómo trabaja el motor. No usar para tomar decisiones.</div>
+<main>
+  <section>
+    <div class="card">
+      <div class="toolbar">
+        <div class="seg" id="wins"><button data-w="24" class="on">Próximas 24 h</button><button data-w="48">24 a 48 h</button><button data-w="72">48 a 72 h</button></div>
+        <div class="seg" id="zoom"><button data-z="prov" class="on">Provincia</button><button data-z="amba">AMBA</button></div>
+      </div>
+      <svg id="map" role="img" aria-label="Mapa de alertas por municipio"></svg>
+      <div class="legend" id="legend"></div>
+      <p class="muted" id="validity"></p>
+    </div>
+    <div class="card how">
+      <h2>Cómo decide ARGWX</h2>
+      <ol>
+        <li>Toma el pronóstico de 5 modelos (GFS, ICON, ECMWF, GEM y UKMO) para cada municipio.</li>
+        <li>Cada modelo “vota” un nivel según umbrales de lluvia, ráfagas, calor y tormentas.</li>
+        <li><b>Consenso</b> = modelos que coinciden / modelos analizados. Ninguna alerta depende de un solo modelo.</li>
+        <li>Suma la alerta oficial del SMN y las observaciones reales: <b>la observación prevalece sobre el modelo</b>.</li>
+        <li>Resultado: Verde, Amarilla, Naranja, Roja o Púrpura, con su confianza (Baja, Media, Alta, Muy alta).</li>
+      </ol>
+      <p class="muted">La alerta expresa riesgo, no certeza. Los cálculos no usan IA generativa.</p>
+    </div>
+  </section>
+  <aside>
+    <div class="card" id="detail"><h2>Detalle por municipio</h2><p class="muted">Tocá un municipio en el mapa o en la lista.</p></div>
+    <div class="card"><h2>Provincia</h2><div class="kpis" id="kpis"></div></div>
+    <div class="card"><h2>Zonas (secciones electorales)</h2><ul class="plain" id="zones"></ul></div>
+    <div class="card"><h2>Municipios en alerta</h2><ul class="plain" id="ranking"></ul></div>
+  </aside>
+</main>
+<footer>API: <a href="/docs">documentación interactiva</a> · <a href="/api/v1/alerts/current">/api/v1/alerts/current</a> · <a href="/api/v1/sources">fuentes</a> · <a href="/api/v1/alerts/thresholds">umbrales</a> · <a href="/health/data-freshness">frescura de datos</a></footer>
+<script>
+const API = "/api/v1";
+const LV = ["GREEN","YELLOW","ORANGE","RED","PURPLE"];
+const LABEL = {GREEN:"Verde",YELLOW:"Amarilla",ORANGE:"Naranja",RED:"Roja",PURPLE:"Púrpura"};
+const COLOR = {GREEN:"#2e9d4f",YELLOW:"#f2c200",ORANGE:"#f07c00",RED:"#d62828",PURPLE:"#7b2cbf"};
+const PHASE = {EL_NINO:"El Niño",LA_NINA:"La Niña",NEUTRAL:"Neutral"};
+let geo = null, state = {}, win = 24, selected = null, boxes = {};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const lvl = l => `<span class="lvl ${l}" style="background:${COLOR[l]}">${LABEL[l]}</span>`;
+const num = (v, u) => v == null ? "–" : `${v}${u}`;
+async function j(u){ const r = await fetch(u); if(!r.ok) throw new Error(`${u}: ${r.status}`); return r.json(); }
+
+function project(lon, lat){ return [(lon + 64) * 82 * 0.81, (-33 - lat) * 82]; }
+function ring(r){ return "M" + r.map(c => project(c[0], c[1]).map(v => v.toFixed(1)).join(" ")).join("L") + "Z"; }
+function pathOf(g){ const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates; return polys.map(p => p.map(ring).join("")).join(""); }
+function box(lon1, lat1, lon2, lat2){ const [x1,y1] = project(lon1, lat1), [x2,y2] = project(lon2, lat2); return `${x1} ${y1} ${x2-x1} ${y2-y1}`; }
+boxes = {prov: box(-63.6, -33.1, -56.5, -41.2), amba: box(-59.2, -34.15, -57.75, -35.25)};
+
+function drawMap(){
+  const svg = $("map");
+  svg.setAttribute("viewBox", boxes.prov);
+  svg.innerHTML = geo.features.map(f => `<path class="m" id="p-${f.properties.id}" data-id="${f.properties.id}" d="${pathOf(f.geometry)}"><title>${esc(f.properties.name)}</title></path>`).join("");
+  svg.addEventListener("click", e => { const id = e.target?.dataset?.id; if(id) select(id); });
+}
+
+function paint(){
+  const ms = state.cur.municipalities.reduce((a, m) => (a[m.id] = m, a), {});
+  state.byId = ms;
+  for(const f of geo.features){
+    const m = ms[f.properties.id], p = $("p-" + f.properties.id);
+    if(!p || !m) continue;
+    p.style.fill = m.color;
+    p.querySelector("title").textContent = `${m.name}: ${m.alert_label} (${m.meaning})`;
+  }
+  const s = state.cur.summary;
+  $("legend").innerHTML = LV.map(l => `<span><span class="dot" style="background:${COLOR[l]}"></span>${LABEL[l]}: ${s[l]}</span>`).join("");
+  $("validity").textContent = state.cur.valid_from ? `Ventana: ${state.cur.window} (UTC ${state.cur.valid_from.slice(0,16).replace("T"," ")} a ${state.cur.valid_to.slice(0,16).replace("T"," ")}). Modelos: ${state.cur.models.join(", ") || "sin datos"}.` : "Sin datos de pronóstico todavía.";
+}
+
+function panels(){
+  const p = state.prov, e = state.enso;
+  $("kpis").innerHTML = `
+    <div class="kpi"><span class="muted">Nivel máximo</span><b>${lvl(p.alert_level)}</b></div>
+    <div class="kpi"><span class="muted">Lluvia máx. GFS</span><b>${num(p.rain_mm," mm")}</b><span class="muted">${esc(p.rain_mm_municipio || "")}</span></div>
+    <div class="kpi"><span class="muted">ENSO</span><b>${esc(PHASE[e.phase] || "sin datos")}</b><span class="muted">${e.oni != null ? `ONI ${e.oni} (${esc(e.season)})` : ""}</span></div>`
+    + (e.impact_buenos_aires ? `<p class="muted" style="grid-column:1/-1;margin:0">${esc(e.impact_buenos_aires.tendencia)} ${esc(e.impact_buenos_aires.nota)}</p>` : "");
+  $("zones").innerHTML = state.zon.zonas.map(z => `<li><div class="row"><span><span class="dot" style="background:${z.color}"></span>${esc(z.nombre)} <span class="muted">(${z.municipios})</span></span>${lvl(z.alert_level)}</div>${z.en_alerta.length ? `<div class="muted">${z.en_alerta.length} en alerta: ${z.en_alerta.slice(0,6).map(m => esc(m.name)).join(", ")}${z.en_alerta.length > 6 ? "…" : ""}</div>` : ""}</li>`).join("");
+  const alerted = state.cur.municipalities.filter(m => m.alert_level !== "GREEN");
+  $("ranking").innerHTML = alerted.length ? alerted.slice(0, 40).map(m => `<li class="row"><a href="#" data-id="${m.id}">${esc(m.name)}</a><span>${lvl(m.alert_level)} <span class="muted">${esc(m.hazard || "")}</span></span></li>`).join("") : `<li class="muted">Sin municipios en alerta en esta ventana.</li>`;
+}
+
+async function select(id){
+  selected = id;
+  document.querySelectorAll("path.sel").forEach(p => p.classList.remove("sel"));
+  $("p-" + id)?.classList.add("sel");
+  const d = await j(`${API}/municipios/${id}`), e = d.ventanas[String(win)];
+  const models = Object.entries(e.models);
+  $("detail").innerHTML = `<h2>${esc(e.name)} <span class="muted">· ${esc(e.seccion_nombre)}</span></h2>
+    <div class="row"><span>${lvl(e.alert_level)} ${esc(e.meaning)}</span></div>
+    <p class="muted">${esc(e.window)} · Confianza: <b>${esc(e.confidence_label)}</b>${e.confidence != null ? ` (${Math.round(e.confidence*100)}%)` : ""} · Modelos que coinciden: ${esc(e.consensus)}${e.basis.length ? ` · Base: ${esc(e.basis.join(" + "))}` : ""}</p>
+    <ul class="drivers">${e.drivers.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    ${models.length ? `<table><tr><th>Modelo</th><th>Lluvia</th><th>Ráfaga</th><th>Máx.</th><th>Nivel</th></tr>${models.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${num(v.rain_mm," mm")}</td><td>${num(v.gust_kmh," km/h")}</td><td>${num(v.tmax_c," °C")}</td><td>${lvl(v.level)}</td></tr>`).join("")}</table>` : ""}`;
+}
+
+async function load(){
+  try{
+    geo = geo || await j(`${API}/municipios/geojson`);
+    if(!$("map").firstChild) drawMap();
+    const [cur, zon, prov, enso] = await Promise.all([j(`${API}/alerts/current?ventana=${win}`), j(`${API}/zonas?ventana=${win}`), j(`${API}/province/summary?ventana=${win}`), j(`${API}/enso/current`)]);
+    state = {cur, zon, prov, enso};
+    const mode = cur.data_mode;
+    $("mode").className = "badge " + (mode === "live" ? "live" : mode === "demo" ? "demo" : "none");
+    $("mode").textContent = mode === "live" ? "DATOS EN VIVO" : mode === "demo" ? "DEMO · SIMULADO" : "SIN DATOS";
+    $("banner").style.display = mode === "demo" ? "block" : "none";
+    $("updated").textContent = "Actualizado " + new Date(cur.generated_at).toLocaleString("es-AR");
+    paint(); panels();
+    if(selected) select(selected);
+  }catch(err){ $("detail").innerHTML = `<h2>Error</h2><p class="muted">${esc(err.message)}</p>`; }
+}
+
+$("wins").addEventListener("click", e => { const w = e.target.dataset.w; if(!w) return; win = +w; document.querySelectorAll("#wins button").forEach(b => b.classList.toggle("on", b === e.target)); load(); });
+$("zoom").addEventListener("click", e => { const z = e.target.dataset.z; if(!z) return; $("map").setAttribute("viewBox", boxes[z]); document.querySelectorAll("#zoom button").forEach(b => b.classList.toggle("on", b === e.target)); });
+$("ranking").addEventListener("click", e => { const id = e.target.dataset.id; if(id){ e.preventDefault(); select(id); $("detail").scrollIntoView({behavior:"smooth"}); } });
+load(); setInterval(load, 10 * 60 * 1000);
+</script>
+</body>
+</html>
