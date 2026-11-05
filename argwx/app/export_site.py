@@ -24,7 +24,7 @@ from app.config import get_settings
 from app.engine.geo import point_in_polygon
 from app.engine.levels import COLOR, LABEL
 from app.engine import calibration
-from app.providers import enso, extras, historico, hydro, ina, openmeteo, smn
+from app.providers import enso, extras, historico, hydro, hydrography, ina, openmeteo, smn
 from app.services.municipalities import SECCION_NOMBRE, by_id, load_municipalities
 from app.services.sync import http_client
 from app.util import iso, utcnow
@@ -515,12 +515,14 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
             if cache and (cache / "enso_pba.json").exists():
                 shutil.copy(cache / "enso_pba.json", data / "enso_pba.json")
         # Crecidas: red hídrica (mensual; no se rehace en cada push), suelo y caudales en el cauce.
-        run("red_hidrica", lambda: write("red_hidrica.json", hydro.build_network(
-            hydro.fetch_network_elements(client), _muni_geojson(), load_municipalities())),
+        run("red_hidrica", lambda: write("red_hidrica.json", hydrography.export_network(
+            client, _muni_geojson(), load_municipalities())),
             "red_hidrica.json", 24 * 30, force_ok=False, version=hydro.VERSION)
         run("suelo", lambda: write("suelo.json", hydro.fetch_soil(client, load_municipalities())), "suelo.json", 12)
         net = _load(data / "red_hidrica.json")
         if net:
+            write("cuencas_hidricas.json", net.get("cuencas_geojson") or json.loads(
+                (APP / "data" / "cuencas_hidricas.geojson").read_text(encoding="utf-8")))
             fresh_net = not parts["red_hidrica"].get("reutilizado")  # puntos nuevos: pedir caudales otra vez
             run("caudales_red", lambda: write("caudales_red.json", hydro.export_discharge(client, net)),
                 "caudales_red.json", 12, reuse=not fresh_net)
