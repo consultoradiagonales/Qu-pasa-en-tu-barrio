@@ -1076,6 +1076,7 @@ fecha,estacion,rio,altura_m,alerta_m,evacuacion_m,red
 2026-11-04T21:45,Puerto Belgrano,,1.25,,,Mareógrafos SHN
 2026-11-04T21:45,San Fernando,LUJAN,0.45,3,3.5,escalas Prefectura Nacional
 2026-11-04T22:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.07,,,red INA Delta y AMBA
+2026-11-04T22:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.79,2,2.2,RHN - SAT
 2026-11-04T22:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.08,,,red INA Delta y AMBA
 2026-11-04T22:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.07,,,red INA Delta y AMBA
 2026-11-04T22:45,Arroyo Carapachay,Arroyo Carapachay,1.61,,,red INA Delta y AMBA
@@ -1084,4 +1085,5 @@ fecha,estacion,rio,altura_m,alerta_m,evacuacion_m,red
 2026-11-04T22:45,Canal Seoane,Canal Seoane,2.01,,,red INA Delta y AMBA
 2026-11-04T22:45,INTA Delta,Paraná de las Palmas,1.39,,,red INA Delta y AMBA
 2026-11-04T22:45,Palmas,Paraná de las Palmas,1.02,,,na-sa
+2026-11-04T22:45,Puerto Belgrano,,0.66,,,Mareógrafos SHN
 2026-11-04T22:45,San Fernando,LUJAN,0.37,3,3.5,escalas Prefectura Nacional
