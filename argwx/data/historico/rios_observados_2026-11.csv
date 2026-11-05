@@ -1136,7 +1136,20 @@ fecha,estacion,rio,altura_m,alerta_m,evacuacion_m,red
 2026-11-05T02:45,Puerto Belgrano,,3.23,,,Mareógrafos SHN
 2026-11-05T02:45,San Fernando,LUJAN,0.19,3,3.5,escalas Prefectura Nacional
 2026-11-05T03:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-05T03:00,Baradero,BARADERO,1.75,2.7,3.1,escalas Prefectura Nacional
+2026-11-05T03:00,Campana,PARANADELASPALMAS,0.2,2.2,2.45,escalas Prefectura Nacional
+2026-11-05T03:00,Chaná Miní,CHANA,1.4,3.2,3.8,escalas Prefectura Nacional
+2026-11-05T03:00,Dique Luján,LUJAN,0.3,2.3,2.8,escalas Prefectura Nacional
+2026-11-05T03:00,Escobar,PARANADELASPALMAS,0.3,3,3.5,escalas Prefectura Nacional
+2026-11-05T03:00,Guazucito,PARANAGUAZU,1.25,2.2,2.4,escalas Prefectura Nacional
+2026-11-05T03:00,Martín García,RIODELAPLATA,0.82,2.5,5,escalas Prefectura Nacional
 2026-11-05T03:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.63,2,2.2,RHN - SAT
+2026-11-05T03:00,Ramallo,PARANAINF,2.49,3.5,4,escalas Prefectura Nacional
+2026-11-05T03:00,San Isidro,RIODELAPLATA,0.25,3,3.5,escalas Prefectura Nacional
+2026-11-05T03:00,San Nicolás,PARANAINF,2.9,4.2,5,escalas Prefectura Nacional
+2026-11-05T03:00,San Pedro,PARANAINF,1.97,3.4,3.6,escalas Prefectura Nacional
+2026-11-05T03:00,Tigre,LUJAN,0.2,3.3,3.8,escalas Prefectura Nacional
+2026-11-05T03:00,Zárate,PARANADELASPALMAS,0.63,2,2.2,escalas Prefectura Nacional
 2026-11-05T03:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
 2026-11-05T03:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
 2026-11-05T03:45,Arroyo Carapachay,Arroyo Carapachay,1.34,,,red INA Delta y AMBA
@@ -1171,5 +1184,116 @@ fecha,estacion,rio,altura_m,alerta_m,evacuacion_m,red
 2026-11-05T05:45,Palmas,Paraná de las Palmas,1.28,,,na-sa
 2026-11-05T05:45,Puerto Belgrano,,4.01,,,Mareógrafos SHN
 2026-11-05T05:45,San Fernando,LUJAN,1.17,3,3.5,escalas Prefectura Nacional
+2026-11-05T06:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-05T06:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.63,2,2.2,RHN - SAT
+2026-11-05T06:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-05T06:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-05T06:45,Arroyo Carapachay,Arroyo Carapachay,1.83,,,red INA Delta y AMBA
+2026-11-05T06:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
 2026-11-05T06:45,Buenos Aires,RIODELAPLATA,1.33,3.3,3.9,escalas Prefectura Nacional
+2026-11-05T06:45,Canal Seoane,Canal Seoane,1.98,,,red INA Delta y AMBA
+2026-11-05T06:45,INTA Delta,Paraná de las Palmas,1.41,,,red INA Delta y AMBA
+2026-11-05T06:45,Palmas,Paraná de las Palmas,1.5,,,na-sa
+2026-11-05T06:45,Puerto Belgrano,,3.8,,,Mareógrafos SHN
 2026-11-05T06:45,San Fernando,LUJAN,1.28,3,3.5,escalas Prefectura Nacional
+2026-11-05T07:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-05T07:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.77,2,2.2,RHN - SAT
+2026-11-05T07:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-05T07:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-05T07:45,Arroyo Carapachay,Arroyo Carapachay,2.08,,,red INA Delta y AMBA
+2026-11-05T07:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-05T07:45,Buenos Aires,RIODELAPLATA,1.43,3.3,3.9,escalas Prefectura Nacional
+2026-11-05T07:45,Canal Seoane,Canal Seoane,2.19,,,red INA Delta y AMBA
+2026-11-05T07:45,INTA Delta,Paraná de las Palmas,1.64,,,red INA Delta y AMBA
+2026-11-05T07:45,Palmas,Paraná de las Palmas,1.68,,,na-sa
+2026-11-05T07:45,Puerto Belgrano,,3.19,,,Mareógrafos SHN
+2026-11-05T07:45,San Fernando,LUJAN,1.44,3,3.5,escalas Prefectura Nacional
+2026-11-05T08:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-05T08:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.97,2,2.2,RHN - SAT
+2026-11-05T08:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-05T08:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-05T08:45,Arroyo Carapachay,Arroyo Carapachay,2.28,,,red INA Delta y AMBA
+2026-11-05T08:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-05T08:45,Buenos Aires,RIODELAPLATA,1.38,3.3,3.9,escalas Prefectura Nacional
+2026-11-05T08:45,Canal Seoane,Canal Seoane,2.36,,,red INA Delta y AMBA
+2026-11-05T08:45,INTA Delta,Paraná de las Palmas,1.78,,,red INA Delta y AMBA
+2026-11-05T08:45,Palmas,Paraná de las Palmas,1.71,,,na-sa
+2026-11-05T08:45,Puerto Belgrano,,2.67,,,Mareógrafos SHN
+2026-11-05T08:45,San Fernando,LUJAN,1.43,3,3.5,escalas Prefectura Nacional
+2026-11-05T09:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-05T09:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.1,2,2.2,RHN - SAT
+2026-11-05T09:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-05T09:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.14,,,red INA Delta y AMBA
+2026-11-05T09:45,Arroyo Carapachay,Arroyo Carapachay,2.37,,,red INA Delta y AMBA
+2026-11-05T09:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.15,,,red INA Delta y AMBA
+2026-11-05T09:45,Buenos Aires,RIODELAPLATA,1.32,3.3,3.9,escalas Prefectura Nacional
+2026-11-05T09:45,Canal Seoane,Canal Seoane,2.41,,,red INA Delta y AMBA
+2026-11-05T09:45,INTA Delta,Paraná de las Palmas,1.84,,,red INA Delta y AMBA
+2026-11-05T09:45,Palmas,Paraná de las Palmas,1.66,,,na-sa
+2026-11-05T09:45,Puerto Belgrano,,1.79,,,Mareógrafos SHN
+2026-11-05T09:45,San Fernando,LUJAN,1.34,3,3.5,escalas Prefectura Nacional
+2026-11-05T10:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.15,,,red INA Delta y AMBA
+2026-11-05T10:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.15,2,2.2,RHN - SAT
+2026-11-05T10:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.15,,,red INA Delta y AMBA
+2026-11-05T10:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.15,,,red INA Delta y AMBA
+2026-11-05T10:45,Arroyo Carapachay,Arroyo Carapachay,2.32,,,red INA Delta y AMBA
+2026-11-05T10:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.15,,,red INA Delta y AMBA
+2026-11-05T10:45,Buenos Aires,RIODELAPLATA,1.16,3.3,3.9,escalas Prefectura Nacional
+2026-11-05T10:45,Canal Seoane,Canal Seoane,2.39,,,red INA Delta y AMBA
+2026-11-05T10:45,INTA Delta,Paraná de las Palmas,1.83,,,red INA Delta y AMBA
+2026-11-05T10:45,Palmas,Paraná de las Palmas,1.6,,,na-sa
+2026-11-05T10:45,Puerto Belgrano,,1.13,,,Mareógrafos SHN
+2026-11-05T10:45,San Fernando,LUJAN,1.24,3,3.5,escalas Prefectura Nacional
+2026-11-05T11:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.16,,,red INA Delta y AMBA
+2026-11-05T11:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.14,2,2.2,RHN - SAT
+2026-11-05T11:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.17,,,red INA Delta y AMBA
+2026-11-05T11:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.18,,,red INA Delta y AMBA
+2026-11-05T11:45,Arroyo Carapachay,Arroyo Carapachay,2.26,,,red INA Delta y AMBA
+2026-11-05T11:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T11:45,Buenos Aires,RIODELAPLATA,0.99,3.3,3.9,escalas Prefectura Nacional
+2026-11-05T11:45,Canal Seoane,Canal Seoane,2.36,,,red INA Delta y AMBA
+2026-11-05T11:45,INTA Delta,Paraná de las Palmas,1.77,,,red INA Delta y AMBA
+2026-11-05T11:45,Palmas,Paraná de las Palmas,1.54,,,na-sa
+2026-11-05T11:45,Puerto Belgrano,,0.91,,,Mareógrafos SHN
+2026-11-05T11:45,San Fernando,LUJAN,1.11,3,3.5,escalas Prefectura Nacional
+2026-11-05T12:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T12:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.11,2,2.2,RHN - SAT
+2026-11-05T12:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T12:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T12:45,Arroyo Carapachay,Arroyo Carapachay,2.17,,,red INA Delta y AMBA
+2026-11-05T12:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T12:45,Buenos Aires,RIODELAPLATA,0.87,3.3,3.9,escalas Prefectura Nacional
+2026-11-05T12:45,Canal Seoane,Canal Seoane,2.31,,,red INA Delta y AMBA
+2026-11-05T12:45,INTA Delta,Paraná de las Palmas,1.71,,,red INA Delta y AMBA
+2026-11-05T12:45,Palmas,Paraná de las Palmas,1.45,,,na-sa
+2026-11-05T12:45,Puerto Belgrano,,1.42,,,Mareógrafos SHN
+2026-11-05T12:45,San Fernando,LUJAN,0.98,3,3.5,escalas Prefectura Nacional
+2026-11-05T13:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T13:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.05,2,2.2,RHN - SAT
+2026-11-05T13:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T13:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.18,,,red INA Delta y AMBA
+2026-11-05T13:45,Arroyo Carapachay,Arroyo Carapachay,2.08,,,red INA Delta y AMBA
+2026-11-05T13:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T13:45,Buenos Aires,RIODELAPLATA,0.8,3.3,3.9,escalas Prefectura Nacional
+2026-11-05T13:45,Canal Seoane,Canal Seoane,2.26,,,red INA Delta y AMBA
+2026-11-05T13:45,INTA Delta,Paraná de las Palmas,1.61,,,red INA Delta y AMBA
+2026-11-05T13:45,Puerto Belgrano,,2.17,,,Mareógrafos SHN
+2026-11-05T13:45,San Fernando,LUJAN,0.86,3,3.5,escalas Prefectura Nacional
+2026-11-05T14:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T14:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.99,2,2.2,RHN - SAT
+2026-11-05T14:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T14:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T14:45,Arroyo Carapachay,Arroyo Carapachay,1.98,,,red INA Delta y AMBA
+2026-11-05T14:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T14:45,Buenos Aires,RIODELAPLATA,0.8,3.3,3.9,escalas Prefectura Nacional
+2026-11-05T14:45,Canal Seoane,Canal Seoane,2.19,,,red INA Delta y AMBA
+2026-11-05T14:45,INTA Delta,Paraná de las Palmas,1.58,,,red INA Delta y AMBA
+2026-11-05T14:45,Puerto Belgrano,,3.01,,,Mareógrafos SHN
+2026-11-05T14:45,San Fernando,LUJAN,0.78,3,3.5,escalas Prefectura Nacional
+2026-11-05T15:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T15:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-05T15:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.18,,,red INA Delta y AMBA
+2026-11-05T15:45,Arroyo Carapachay,Arroyo Carapachay,1.89,,,red INA Delta y AMBA
+2026-11-05T15:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.18,,,red INA Delta y AMBA
+2026-11-05T15:45,Canal Seoane,Canal Seoane,2.14,,,red INA Delta y AMBA
+2026-11-05T15:45,INTA Delta,Paraná de las Palmas,1.5,,,red INA Delta y AMBA
