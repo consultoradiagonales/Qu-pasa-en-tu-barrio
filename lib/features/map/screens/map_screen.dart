@@ -34,6 +34,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   ReportStatus? _activeFilter;
   Set<Marker> _markers = {};
   StreamSubscription? _reportsSub;
+  late final ProviderSubscription<String?> _municipalitySub;
   bool _locationPermissionGranted = false;
   bool _pickingReportLocation = false;
   LatLng? _pickedReportLocation;
@@ -41,12 +42,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _subscribeToReports();
+    _municipalitySub = ref.listenManual<String?>(
+      currentUserMunicipalityProvider,
+      (_, municipalityId) => _subscribeToReports(municipalityId),
+      fireImmediately: true,
+    );
   }
 
   @override
   void dispose() {
     _reportsSub?.cancel();
+    _municipalitySub.close();
     _mapController?.dispose();
     super.dispose();
   }
@@ -132,10 +138,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return result ?? false;
   }
 
-  void _subscribeToReports() {
+  void _subscribeToReports([String? municipalityId]) {
     final repo = ref.read(reportsRepositoryProvider);
     _reportsSub?.cancel();
-    _reportsSub = repo.watchReports(status: _activeFilter).listen((reports) {
+    final scope = municipalityId ?? ref.read(currentUserMunicipalityProvider);
+    if (scope == null || scope.isEmpty) {
+      if (mounted) setState(() => _markers = {});
+      return;
+    }
+    _reportsSub = repo.watchReports(
+      municipalityId: scope,
+      status: _activeFilter,
+    ).listen((reports) {
       if (mounted) _buildMarkers(reports);
     });
   }

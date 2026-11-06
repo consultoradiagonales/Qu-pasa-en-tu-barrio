@@ -6,6 +6,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/condi_logo.dart';
+import '../../../core/widgets/municipality_identity.dart';
 import '../../../data/models/municipality_stats.dart';
 import '../../../data/models/report_model.dart';
 import '../../../data/models/team_model.dart';
@@ -19,7 +20,6 @@ import '../widgets/dashboard_ai_card.dart';
 import '../widgets/html_report_view.dart';
 import '../widgets/municipality_map_view.dart';
 import '../widgets/send_message_view.dart';
-import '../../../data/models/user_model.dart';
 
 /// Consola web propia de ConDi. Los streams vienen directamente de Firestore,
 /// por eso una alta, asignación o resolución aparece sin recargar la página.
@@ -66,7 +66,8 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen> {
     final uid = ref.watch(authStateProvider).valueOrNull?.uid;
     final profile =
         uid == null ? null : ref.watch(currentUserProfileProvider(uid));
-    final municipalityId = profile?.valueOrNull?.municipalityId ?? '';
+    final profileModel = profile?.valueOrNull;
+    final municipalityId = profileModel?.municipalityId ?? '';
     final reports = municipalityId.isEmpty
         ? null
         : ref.watch(adminMunicipalityReportsProvider(municipalityId));
@@ -90,6 +91,8 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen> {
                 children: [
                   _Header(
                     wide: wide,
+                    municipalityId: municipalityId,
+                    municipalityName: profileModel?.municipalityName,
                     onMenu: () => _scaffoldKey.currentState?.openDrawer(),
                     onProfile: () => context.go('/profile'),
                   ),
@@ -110,8 +113,7 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen> {
                               search: _search,
                               filter: _filter,
                               municipalityId: municipalityId,
-                              isAdmin:
-                                  profile?.valueOrNull?.role == UserRole.admin,
+                              isAdmin: profileModel?.isCentralAdmin == true,
                               onSearch: (v) => setState(() => _search = v),
                               onFilter: (v) => setState(() => _filter = v),
                               onAssign: (r) => _assign(r, municipalityId),
@@ -140,8 +142,14 @@ class _AdminConsoleScreenState extends ConsumerState<AdminConsoleScreen> {
 
 class _Header extends StatelessWidget {
   const _Header(
-      {required this.wide, required this.onMenu, required this.onProfile});
+      {required this.wide,
+      required this.municipalityId,
+      required this.municipalityName,
+      required this.onMenu,
+      required this.onProfile});
   final bool wide;
+  final String municipalityId;
+  final String? municipalityName;
   final VoidCallback onMenu;
   final VoidCallback onProfile;
 
@@ -153,20 +161,14 @@ class _Header extends StatelessWidget {
         child: Row(children: [
           if (!wide)
             IconButton(onPressed: onMenu, icon: const Icon(Icons.menu)),
-          const Expanded(
-              child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text('Centro de gestión',
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF17213A))),
-                Text('Operación municipal en tiempo real',
-                    style: TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary)),
-              ])),
+          Expanded(
+            child: MunicipalityIdentity(
+              municipalityId: municipalityId,
+              municipalityName: municipalityName,
+              crestSize: 43,
+              subtitle: 'Centro de gestión · Operación en tiempo real',
+            ),
+          ),
           const _LiveBadge(),
           const SizedBox(width: 10),
           IconButton(

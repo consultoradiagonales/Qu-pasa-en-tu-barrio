@@ -5,6 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/report_model.dart';
+import '../services/report_submission_policy.dart';
 import '../../core/constants/app_constants.dart';
 
 class ReportsRepository {
@@ -74,7 +75,57 @@ class ReportsRepository {
   // ─── Escritura ────────────────────────────────────────────────────────────
 
   Future<String> createReport(ReportModel report) async {
-    await _col.doc(report.id).set(report.toFirestore());
+    final reportRef = _col.doc(report.id);
+    final quotaRef =
+        _db.collection('reportSubmissionQuotas').doc(report.userId);
+    final proposed = report.toFirestore();
+    var quotaWasFull = false;
+    final bool created;
+    try {
+      created = await _db.runTransaction<bool>((transaction) async {
+        final existing = await transaction.get(reportRef);
+        if (existing.exists) {
+          if (!matchesReportSubmission(existing.data()!, proposed)) {
+            throw StateError(
+                'Este número ya corresponde a otro envío. Iniciá un nuevo reporte.');
+          }
+          return false;
+        }
+        final quota = await transaction.get(quotaRef);
+        final slots =
+            Map<String, dynamic>.from(quota.data()?['slots'] as Map? ?? {});
+        final slot = nextReportQuotaSlot(slots);
+        // Sólo orienta el texto ante un rechazo; la autorización usa el reloj
+        // y las reglas del servidor, aunque el dispositivo tenga otra hora.
+        quotaWasFull = slots.length == 10 &&
+            slots.values.every((value) =>
+                value is Timestamp &&
+                value.toDate().isAfter(
+                    DateTime.now().subtract(const Duration(hours: 24))));
+        transaction.set(reportRef, {
+          ...proposed,
+          'submissionProtocol': 1,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        transaction.set(
+            quotaRef,
+            {
+              'slots': {slot: FieldValue.serverTimestamp()},
+              'lastSlot': slot,
+              'lastReportId': report.id,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
+        return true;
+      });
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied' && quotaWasFull) {
+        throw StateError('Alcanzaste el límite de 10 reportes en 24 horas.');
+      }
+      rethrow;
+    }
+    if (!created) return report.id;
     // El reclamo ya quedó guardado. El contador es auxiliar y no debe hacer
     // que la pantalla informe un fallo ni deje al usuario reintentando.
     try {
@@ -224,6 +275,7 @@ final teamReportsProvider =
 final adminMunicipalityReportsProvider =
     StreamProvider.family<List<ReportModel>, String>((ref, municipalityId) {
   return ref.read(reportsRepositoryProvider).watchReports(
-        municipalityId: municipalityId, limit: 2000,
+        municipalityId: municipalityId,
+        limit: 2000,
       );
 });

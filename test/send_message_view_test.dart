@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:que_pasa_en_tu_barrio/data/repositories/admin_messages_repository.dart';
 import 'package:que_pasa_en_tu_barrio/data/repositories/push_reach_repository.dart';
 import 'package:que_pasa_en_tu_barrio/features/admin/widgets/send_message_view.dart';
 
@@ -16,11 +17,39 @@ class _FakeReach implements PushReachRepository {
   }
 }
 
-Widget _host(bool isAdmin, {_FakeReach? reach}) => ProviderScope(
+class _FakeMessages implements AdminMessagesRepository {
+  final requests = <({
+    String title,
+    String body,
+    String municipalityId,
+    MessageAudience audience
+  })>[];
+
+  @override
+  Future<MessageDispatchResult> send({
+    required String title,
+    required String body,
+    required String senderMunicipalityId,
+    required MessageAudience audience,
+  }) async {
+    requests.add((
+      title: title,
+      body: body,
+      municipalityId: senderMunicipalityId,
+      audience: audience,
+    ));
+    return const MessageDispatchResult(total: 2, pushed: 1, inApp: 1);
+  }
+}
+
+Widget _host(bool isAdmin, {_FakeReach? reach, _FakeMessages? messages}) =>
+    ProviderScope(
       overrides: [
         pushReachRepositoryProvider.overrideWithValue(reach ??
             _FakeReach((_) async => const PushReach(total: 3, withPush: 1))),
         reachMunicipalityIdProvider.overrideWithValue('muni-1'),
+        adminMessagesRepositoryProvider
+            .overrideWithValue(messages ?? _FakeMessages()),
       ],
       child: MaterialApp(
         home: Scaffold(body: SendMessageView(isAdmin: isAdmin)),
@@ -44,6 +73,24 @@ void main() {
     expect(button().onPressed, isNotNull);
   });
 
+  testWidgets(
+      'el compositor admite los limites del backend y un cuerpo extenso',
+      (tester) async {
+    await tester.pumpWidget(_host(true));
+
+    final title =
+        tester.widget<TextField>(find.byKey(const Key('message-title')));
+    final body =
+        tester.widget<TextField>(find.byKey(const Key('message-body')));
+
+    expect(title.maxLength, 120);
+    expect(body.maxLength, 4000);
+    expect(body.minLines, 6);
+    expect(body.maxLines, 12);
+    expect(body.keyboardType, TextInputType.multiline);
+    expect(find.text('0/120'), findsOneWidget);
+    expect(find.text('0/4000'), findsOneWidget);
+  });
   testWidgets('un coordinador no ve "Todos los usuarios"', (tester) async {
     await tester.pumpWidget(_host(false));
     await tester.tap(find.byKey(const Key('message-audience')));
@@ -106,5 +153,29 @@ void main() {
             .widget<FilledButton>(find.byKey(const Key('message-send')))
             .onPressed,
         isNotNull);
+  });
+
+  testWidgets(
+      'entrega el mensaje por push y bandeja según el resultado del servidor',
+      (tester) async {
+    final messages = _FakeMessages();
+    await tester.pumpWidget(_host(false, messages: messages));
+    await tester.enterText(
+        find.byKey(const Key('message-title')), 'Corte de agua');
+    await tester.enterText(find.byKey(const Key('message-body')),
+        'El servicio vuelve a las 18 horas.');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('message-send')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enviar').last);
+    await tester.pumpAndSettle();
+
+    expect(messages.requests, hasLength(1));
+    expect(messages.requests.single.title, 'Corte de agua');
+    expect(messages.requests.single.municipalityId, 'muni-1');
+    expect(messages.requests.single.audience, MessageAudience.municipality);
+    expect(find.textContaining('Notificación enviada a 1 persona'),
+        findsOneWidget);
+    expect(find.textContaining('1 la verá al abrir ConDi'), findsOneWidget);
   });
 }

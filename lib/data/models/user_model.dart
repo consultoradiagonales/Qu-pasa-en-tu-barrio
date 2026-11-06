@@ -62,6 +62,10 @@ class UserModel {
   final DateTime? lastReportAt;
   final int reportsCount;
   final bool disabled;
+  final String? organizationId;
+
+  bool get isCentralAdmin =>
+      !disabled && role == UserRole.admin && organizationId == 'diagonales';
 
   const UserModel({
     required this.uid,
@@ -86,6 +90,7 @@ class UserModel {
     this.lastReportAt,
     this.reportsCount = 0,
     this.disabled = false,
+    this.organizationId,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -113,6 +118,7 @@ class UserModel {
       lastReportAt: (data['lastReportAt'] as Timestamp?)?.toDate(),
       reportsCount: data['reportsCount'] ?? 0,
       disabled: data['disabled'] ?? false,
+      organizationId: data['organizationId'],
     );
   }
 
@@ -140,6 +146,7 @@ class UserModel {
           lastReportAt != null ? Timestamp.fromDate(lastReportAt!) : null,
       'reportsCount': reportsCount,
       'disabled': disabled,
+      if (organizationId != null) 'organizationId': organizationId,
     };
   }
 
@@ -188,6 +195,7 @@ class UserModel {
       lastReportAt: lastReportAt ?? this.lastReportAt,
       reportsCount: reportsCount ?? this.reportsCount,
       disabled: disabled ?? this.disabled,
+      organizationId: organizationId,
     );
   }
 }

@@ -1,7 +1,39 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+
+typedef LocalNotificationTapHandler = Future<void> Function(
+  Map<String, dynamic> data,
+);
+
+String? encodeNotificationPayload(Map<String, dynamic> data) {
+  final payload = <String, String>{};
+  for (final entry in data.entries) {
+    final value = entry.value;
+    if (value is String || value is num || value is bool) {
+      payload[entry.key] = value.toString();
+    }
+  }
+  return payload.isEmpty ? null : jsonEncode(payload);
+}
+
+Map<String, dynamic> decodeNotificationPayload(String? payload) {
+  if (payload == null || payload.trim().isEmpty) return const {};
+  try {
+    final decoded = jsonDecode(payload);
+    if (decoded is! Map) return const {};
+    return decoded.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  } catch (_) {
+    return const {};
+  }
+}
 
 class LocalNotificationService {
   LocalNotificationService._();
@@ -9,17 +41,16 @@ class LocalNotificationService {
   static const _morningId = 1001;
   static const _eveningId = 1002;
   static const _previewId = 1003;
-  static const _scheduleReminderPreview =
-      bool.fromEnvironment('SCHEDULE_REMINDER_PREVIEW');
-  static const _reminderBody =
-      '\u2728 Vivir mejor depende de vos.\n\u{1F4E2} Report\u00E1 y ayud\u00E1 a transformar tu ciudad.';
-  static const _channelId = 'condi_daily_reminders';
   static const _updatesChannelId = 'condi_report_updates';
   static final _plugin = FlutterLocalNotificationsPlugin();
 
-  static Future<void> initialize() async {
-    if (kIsWeb) return;
+  static Future<Map<String, dynamic>?> initialize({
+    LocalNotificationTapHandler? onNotificationTap,
+  }) async {
+    if (kIsWeb) return null;
     tz.initializeTimeZones();
+    final deviceTimezone = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(deviceTimezone.identifier));
     const settings = InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(
@@ -28,7 +59,15 @@ class LocalNotificationService {
         requestSoundPermission: false,
       ),
     );
-    await _plugin.initialize(settings: settings);
+    await _plugin.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: (response) {
+        final data = decodeNotificationPayload(response.payload);
+        if (data.isNotEmpty && onNotificationTap != null) {
+          unawaited(onNotificationTap(data));
+        }
+      },
+    );
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     await android?.createNotificationChannel(
@@ -39,76 +78,19 @@ class LocalNotificationService {
         importance: Importance.high,
       ),
     );
-    // El permiso de notificaciones NO se pide acá. Pedirlo al abrir la app,
-    // antes de mostrar nada, es el momento en que más se rechaza. Se pide en
-    // contexto, apenas la persona inicia sesión (_registerPushForUser en
-    // main.dart). Los recordatorios quedan programados igual y empiezan a
-    // verse cuando el permiso se concede.
+    // Cancela los recordatorios fijos de versiones anteriores. A partir de
+    // ahora las notificaciones se originan únicamente en acciones reales del
+    // municipio: mensajes del panel, actualizaciones de reportes y alertas.
     await _plugin.cancel(id: _morningId);
     await _plugin.cancel(id: _eveningId);
     await _plugin.cancel(id: _previewId);
-    await _schedule(_morningId, 10);
-    await _schedule(_eveningId, 18);
-    if (_scheduleReminderPreview) {
-      await _schedulePreviewForTomorrow();
-    }
-  }
 
-  static tz.TZDateTime _nextAt(int hour) {
-    final now = tz.TZDateTime.now(tz.local);
-    var next = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
-    if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
-    return next;
-  }
-
-  static Future<void> _schedule(int id, int hour) async {
-    await _plugin.zonedSchedule(
-      id: id,
-      title: 'ConDi',
-      body: _reminderBody,
-      scheduledDate: _nextAt(hour),
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          'Recordatorios de ConDi',
-          channelDescription: 'Recordatorios diarios para reportar mejoras',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp != true) return null;
+    final data = decodeNotificationPayload(
+      launchDetails?.notificationResponse?.payload,
     );
-  }
-
-  static Future<void> _schedulePreviewForTomorrow() async {
-    final now = tz.TZDateTime.now(tz.local);
-    final tomorrow = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day + 1,
-      20,
-      15,
-    );
-    await _plugin.zonedSchedule(
-      id: _previewId,
-      title: 'ConDi',
-      body: _reminderBody,
-      scheduledDate: tomorrow,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          'Recordatorios de ConDi',
-          channelDescription: 'Recordatorios diarios para reportar mejoras',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-    );
+    return data.isEmpty ? null : data;
   }
 
   /// Muestra un aviso que llegó por FCM cuando la aplicación está abierta.
@@ -116,21 +98,27 @@ class LocalNotificationService {
   static Future<void> showRemote({
     required String title,
     required String body,
+    Map<String, dynamic> data = const {},
   }) async {
     if (kIsWeb) return;
     await _plugin.show(
       id: DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
       title: title,
       body: body,
-      notificationDetails: const NotificationDetails(
+      payload: encodeNotificationPayload(data),
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _updatesChannelId,
           'Actualizaciones de reportes',
           channelDescription: 'Avisos sobre el estado de tus reportes',
           importance: Importance.high,
           priority: Priority.high,
+          styleInformation: BigTextStyleInformation(
+            body,
+            contentTitle: title,
+          ),
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       ),
     );
   }

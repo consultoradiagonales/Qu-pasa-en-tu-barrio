@@ -211,8 +211,11 @@ async function getUsageSummaryHandler(request) {
   const requestedMunicipality = validScopeValue(data.municipalityId);
   const requestedProvince = validScopeValue(data.provinceId);
   const requestedLocality = validScopeValue(data.localityId);
-  const isAdmin = profile.role === 'admin';
+  const isAdmin = require('./management-access').isCentralAdmin(profile);
   const municipalityId = isAdmin ? requestedMunicipality : validScopeValue(profile.municipalityId);
+  if (!isAdmin && (!municipalityId || (requestedMunicipality && requestedMunicipality !== municipalityId) || requestedProvince)) {
+    throw new HttpsError('permission-denied', 'Sólo podés consultar el municipio asignado.');
+  }
   const provinceId = isAdmin && !municipalityId ? requestedProvince : '';
   const localityId = isAdmin && municipalityId ? requestedLocality : '';
 

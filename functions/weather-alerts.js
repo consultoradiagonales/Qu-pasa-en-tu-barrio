@@ -1,5 +1,6 @@
 'use strict';
 
+const { createHash } = require('node:crypto');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { deliverToUsers } = require('./push-delivery');
@@ -136,6 +137,25 @@ function decodeXml(s) {
     .replace(/&apos;/g, "'").replace(/&amp;/g, '&');
 }
 
+function stableHash(value, length = 16) {
+  return createHash('sha256').update(String(value || '')).digest('hex').slice(0, length);
+}
+
+function capVersionKey(alert = {}) {
+  return stableHash(JSON.stringify({
+    identifier: alert.identifier || '',
+    sent: alert.sent || null,
+    event: alert.event || '',
+    level: alert.level || 0,
+    onset: alert.onset || null,
+    expires: alert.expires || null,
+    headline: alert.headline || '',
+    description: alert.description || '',
+    polygons: alert.polygons || [],
+    areaDesc: alert.areaDesc || [],
+  }));
+}
+
 const xmlTag = (xml, tag) => {
   const m = new RegExp(`<(?:\\w+:)?${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</(?:\\w+:)?${tag}>`, 'i').exec(xml);
   return m ? decodeXml(m[1]).trim() : '';
@@ -185,7 +205,12 @@ function parseCapAlert(xml) {
     const t = Date.parse(xmlTag(info, tag));
     return Number.isFinite(t) ? t : null;
   };
-  return {
+  const alert = {
+    identifier: xmlTag(xml, 'identifier'),
+    sent: (() => {
+      const parsed = Date.parse(xmlTag(xml, 'sent'));
+      return Number.isFinite(parsed) ? parsed : null;
+    })(),
     event,
     hazard: smnHazard(event),
     level: mapped.level,
@@ -198,6 +223,8 @@ function parseCapAlert(xml) {
     polygons,
     areaDesc,
   };
+  alert.versionKey = capVersionKey(alert);
+  return alert;
 }
 
 /** Ray casting sobre un anillo [[lat, lng], ...]. */
@@ -234,18 +261,36 @@ function matchCapAlerts(alerts, center, now = new Date()) {
   });
 }
 
-/** Elige, por peligro, el aviso de mayor nivel: [{ hazard, level, title, description }]. */
-function smnAlertsToMessages(matched) {
+/** Elige, por peligro, el aviso de mayor nivel sin perder su área oficial. */
+function smnAlertsToMessages(matched, now = new Date()) {
   const best = new Map();
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  const better = (candidate, previous) => {
+    if (!previous || candidate.level !== previous.level) return !previous || candidate.level > previous.level;
+    const candidateCurrent = candidate.onset == null || candidate.onset <= nowMs;
+    const previousCurrent = previous.onset == null || previous.onset <= nowMs;
+    if (candidateCurrent !== previousCurrent) return candidateCurrent;
+    if (!candidateCurrent && candidate.onset !== previous.onset) {
+      return (candidate.onset ?? Infinity) < (previous.onset ?? Infinity);
+    }
+    if (candidate.sent !== previous.sent) return (candidate.sent ?? 0) > (previous.sent ?? 0);
+    if (candidate.expires !== previous.expires) return (candidate.expires ?? Infinity) < (previous.expires ?? Infinity);
+    return String(candidate.identifier || '').localeCompare(String(previous.identifier || '')) > 0;
+  };
   for (const a of matched) {
     const prev = best.get(a.hazard);
-    if (!prev || a.level > prev.level) best.set(a.hazard, a);
+    if (better(a, prev)) best.set(a.hazard, a);
   }
   return [...best.values()].map((a) => ({
     hazard: a.hazard,
     level: a.level,
     title: `Alerta ${a.color} por ${normalizeText(a.event) || 'fenómeno meteorológico'}`.slice(0, 120),
-    description: [a.description, a.instruction].filter(Boolean).join(' ').slice(0, 280),
+    description: [a.description, a.instruction].filter(Boolean).join(' ').slice(0, 3200),
+    onset: a.onset,
+    expires: a.expires,
+    polygons: a.polygons,
+    areaDesc: a.areaDesc,
+    versionKey: a.versionKey || capVersionKey(a),
   }));
 }
 
@@ -271,16 +316,26 @@ async function loadSmnCapAlerts(getText = fetchText) {
     }
   };
   const index = await get(SMN_CAP_INDEX);
+  // El RSS del SMN mezcla enlaces absolutos, relativos y algunos malformados
+  // como `https:///feeds/...`; tomar la ruta canónica evita perder los avisos
+  // de corto plazo.
   const urls = [...new Set(
-    [...index.matchAll(/https:\/\/ssl\.smn\.gob\.ar\/feeds\/CAP\/[^"'<>\s]+\.xml/gi)].map((m) => m[0]),
+    [...index.matchAll(/\/feeds\/CAP\/[^"'<>\s]+\.xml/gi)]
+      .map((m) => `https://ssl.smn.gob.ar${m[0]}`),
   )].slice(0, SMN_MAX_XML);
+  let fetchedXml = 0;
   const parsed = await mapWithConcurrency(urls, 6, async (url) => {
     try {
-      return parseCapAlert(await get(url));
+      const xml = await get(url);
+      fetchedXml += 1;
+      return parseCapAlert(xml);
     } catch (_) {
       return null;
     }
   });
+  if (urls.length && fetchedXml < Math.ceil(urls.length / 2)) {
+    throw new Error(`SMN CAP incompleto: ${fetchedXml}/${urls.length} XML disponibles`);
+  }
   return parsed.filter(Boolean);
 }
 
@@ -311,7 +366,7 @@ async function fromSmnAlerts(center, { capAlerts, now = new Date() } = {}) {
   let capError;
   try {
     const alerts = capAlerts || await loadSmnCapAlerts();
-    return smnAlertsToMessages(matchCapAlerts(alerts, center, now));
+    return smnAlertsToMessages(matchCapAlerts(alerts, center, now), now);
   } catch (error) {
     capError = error;
   }
@@ -360,21 +415,91 @@ function messageFor(municipalityName, threat) {
   const kind = threat.level === 2 ? 'Alerta' : 'Aviso';
   return {
     title: `${kind}: ${rule.label.toLowerCase()} en ${municipalityName}`,
-    body: `Para las próximas 24 h se esperan ${threat.value} ${rule.unit} ` +
+    body: `Ciudad: ${municipalityName}. Zona monitoreada: ${municipalityName} y alrededores. ` +
+      `Para las próximas 24 h se esperan ${threat.value} ${rule.unit} ` +
       '(promedio de varios servicios meteorológicos). Tomá precauciones.',
   };
 }
 
-async function municipalityCenter(db, municipalityId) {
+function asText(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function canonicalMunicipalityId(value) {
+  const id = asText(value);
+  const numeric = /^(?:georef_)?(\d+)$/i.exec(id);
+  return numeric ? `georef_${numeric[1]}` : id;
+}
+
+function coordinateFrom(value) {
+  if (!value || typeof value !== 'object') return null;
+  const lat = Number(value.lat ?? value.latitude ?? value._latitude);
+  const lng = Number(value.lng ?? value.lon ?? value.longitude ?? value._longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+}
+
+function hintsFrom(data = {}) {
+  return {
+    name: asText(data.name || data.displayName || data.municipalityName),
+    province: asText(data.province || data.provinceName),
+  };
+}
+
+async function municipalityCenter(db, municipalityId, profileHints = {}) {
   const cache = db.collection('municipalityGeo').doc(municipalityId);
   const cached = await cache.get();
   if (cached.exists && typeof cached.get('lat') === 'number') return cached.data();
-  const id = municipalityId.replace(/^georef_/, '');
-  const json = await fetchJson(
-    `https://apis.datos.gob.ar/georef/api/municipios?id=${encodeURIComponent(id)}` +
-    '&campos=nombre,provincia.nombre,centroide.lat,centroide.lon&max=1',
+
+  let municipalData = {};
+  try {
+    const municipality = await db.collection('municipalities').doc(municipalityId).get();
+    if (municipality.exists) municipalData = municipality.data() || {};
+  } catch (_) {
+    // La geocodificación pública sigue disponible si la colección administrativa aún no existe.
+  }
+  const profileMetadata = hintsFrom(profileHints);
+  const municipalMetadata = hintsFrom(municipalData);
+  const metadata = {
+    name: municipalMetadata.name || profileMetadata.name,
+    province: municipalMetadata.province || profileMetadata.province,
+  };
+  const directPoint = coordinateFrom(
+    municipalData.mapCenter ?? municipalData.center ?? municipalData.location ?? municipalData,
   );
-  const found = json.municipios?.[0];
+  if (directPoint) {
+    const data = {
+      name: metadata.name || municipalityId,
+      province: metadata.province,
+      ...directPoint,
+    };
+    await cache.set(data);
+    return data;
+  }
+
+  const id = String(municipalityId).replace(/^georef_/, '');
+  let found = null;
+  if (/^\d+$/.test(id)) {
+    const json = await fetchJson(
+      `https://apis.datos.gob.ar/georef/api/municipios?id=${encodeURIComponent(id)}` +
+      '&campos=nombre,provincia.nombre,centroide.lat,centroide.lon&max=1',
+    );
+    found = json.municipios?.[0] || null;
+  }
+  if (!found && metadata.name) {
+    const params = new URLSearchParams({
+      nombre: metadata.name,
+      campos: 'nombre,provincia.nombre,centroide.lat,centroide.lon',
+      max: '20',
+    });
+    if (metadata.province) params.set('provincia', metadata.province);
+    const json = await fetchJson(`https://apis.datos.gob.ar/georef/api/municipios?${params}`);
+    const candidates = Array.isArray(json.municipios) ? json.municipios : [];
+    const wantedName = normalizeText(metadata.name);
+    const wantedProvince = normalizeText(metadata.province);
+    found = candidates.find((item) => normalizeText(item?.nombre) === wantedName &&
+      (!wantedProvince || normalizeText(item?.provincia?.nombre) === wantedProvince)) ||
+      candidates.find((item) => normalizeText(item?.nombre) === wantedName) || null;
+  }
   if (!found?.centroide) return null;
   const data = {
     name: found.nombre,
@@ -384,6 +509,74 @@ async function municipalityCenter(db, municipalityId) {
   };
   await cache.set(data);
   return data;
+}
+
+/** Catálogo provincial de municipios para traducir el polígono del SMN a nombres. */
+async function provinceMunicipalities(province, cache = new Map()) {
+  const key = normalizeText(province);
+  if (!key) return [];
+  if (!cache.has(key)) {
+    const request = (async () => {
+      const params = new URLSearchParams({
+        provincia: province,
+        campos: 'nombre,provincia.nombre,centroide.lat,centroide.lon',
+        max: '1000',
+      });
+      const json = await fetchJson(`https://apis.datos.gob.ar/georef/api/municipios?${params}`);
+      return (Array.isArray(json.municipios) ? json.municipios : [])
+        .map((item) => ({
+          name: asText(item?.nombre),
+          province: asText(item?.provincia?.nombre),
+          lat: Number(item?.centroide?.lat),
+          lng: Number(item?.centroide?.lon),
+        }))
+        .filter((item) => item.name && Number.isFinite(item.lat) && Number.isFinite(item.lng));
+    })();
+    cache.set(key, request);
+  }
+  return cache.get(key);
+}
+
+/**
+ * Nombres de municipios cuyo centroide cae dentro del polígono oficial.
+ * La ciudad del usuario siempre aparece primera y el resto se ordena por
+ * cercanía, para que el texto corto del push muestre primero lo más útil.
+ */
+function affectedMunicipalityNames(center, alert, municipalities = [], limit = 8) {
+  const polygons = Array.isArray(alert?.polygons) ? alert.polygons : [];
+  const inside = polygons.length
+    ? municipalities.filter((place) =>
+      polygons.some((ring) => pointInRing(place.lat, place.lng, ring)))
+    : [];
+  inside.sort((a, b) => {
+    const da = (a.lat - center.lat) ** 2 + (a.lng - center.lng) ** 2;
+    const db = (b.lat - center.lat) ** 2 + (b.lng - center.lng) ** 2;
+    return da - db;
+  });
+
+  const names = [];
+  const seen = new Set();
+  const add = (name) => {
+    const value = asText(name);
+    const key = normalizeText(value);
+    if (value && key && !seen.has(key)) {
+      seen.add(key);
+      names.push(value);
+    }
+  };
+  add(center.name);
+  inside.forEach((place) => add(place.name));
+  return names.slice(0, limit);
+}
+
+function affectedAreaText(center, alert) {
+  const names = Array.isArray(alert?.affectedZones) ? alert.affectedZones.filter(Boolean) : [];
+  const official = Array.isArray(alert?.areaDesc) ? alert.areaDesc.filter(Boolean).join('; ') : '';
+  if (names.length > 1) {
+    return names.join(', ');
+  }
+  if (official) return `${center.name}; ${official}`;
+  return `${center.name} y zonas aledañas dentro del área oficial del SMN`;
 }
 
 async function collectSources(center) {
@@ -400,10 +593,38 @@ const MAX_ALERT_LEVEL = 3;
 const dayFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: AR_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit',
 });
+const alertDateTimeFormatter = new Intl.DateTimeFormat('es-AR', {
+  timeZone: AR_TIMEZONE,
+  weekday: 'long',
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
 
 /** Fecha (AAAA-MM-DD) en hora de Argentina, no en UTC. */
 function argentinaDay(now = new Date()) {
   return dayFormatter.format(now);
+}
+
+function argentinaDateTime(value) {
+  if (value == null || value === '') return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  const parts = Object.fromEntries(
+    alertDateTimeFormatter.formatToParts(date).map((part) => [part.type, part.value]),
+  );
+  return `${parts.weekday} ${parts.day}/${parts.month} a las ${parts.hour}:${parts.minute}`;
+}
+
+function alertTimingText(alert) {
+  const onset = argentinaDateTime(alert?.onset);
+  const expires = argentinaDateTime(alert?.expires);
+  if (onset && expires) return `Vigencia estimada: desde el ${onset} hasta el ${expires}.`;
+  if (onset) return `Inicio estimado: ${onset}.`;
+  if (expires) return `Vigente hasta el ${expires}.`;
+  return '';
 }
 
 /** Corre fn sobre items con a lo sumo `limit` tareas simultáneas; conserva el orden. */
@@ -437,17 +658,38 @@ function buildAlerts(center, threats, smn) {
     hazard: t.hazard,
     level: t.level,
     key: `${t.hazard}_${t.level}`,
+    municipalityName: center.name,
+    province: asText(center.province),
+    affectedZones: [center.name],
+    affectedArea: `${center.name} y alrededores`,
+    versionKey: 'daily',
     ...messageFor(center.name, t),
   }));
   smn.forEach((a) => {
     const hazard = `smn_${String(a.hazard || 'aviso').replace(/\W+/g, '').slice(0, 24) || 'aviso'}`;
     const level = a.level || 1;
+    const affectedZones = Array.isArray(a.affectedZones) && a.affectedZones.length
+      ? a.affectedZones
+      : [center.name];
+    const affectedArea = affectedAreaText(center, { ...a, affectedZones });
+    const place = [center.name, asText(center.province)].filter(Boolean).join(', ');
+    const description = a.description ||
+      'El Servicio Meteorológico Nacional emitió una alerta para esta zona.';
+    const timing = alertTimingText(a);
     alerts.push({
       hazard,
       level,
       key: `${hazard}_${level}`,
-      title: `SMN: ${a.title}`,
-      body: a.description || `El Servicio Meteorológico Nacional emitió una alerta para ${center.name}.`,
+      municipalityName: center.name,
+      province: asText(center.province),
+      affectedZones,
+      affectedArea,
+      onset: Number.isFinite(a.onset) ? a.onset : null,
+      expires: Number.isFinite(a.expires) ? a.expires : null,
+      versionKey: a.versionKey || capVersionKey(a),
+      title: `SMN: ${a.title} en ${center.name}`.slice(0, 120),
+      body: (`Ciudad: ${place}. ${timing} Zonas afectadas: ${affectedArea}. ${description}`)
+        .replace(/\s+/g, ' ').trim().slice(0, 4000),
     });
   });
   return alerts;
@@ -462,47 +704,101 @@ async function supersededToday(db, municipalityId, day, alert) {
   return false;
 }
 
-async function processMunicipality(db, municipalityId, recipients, ctx) {
+async function processMunicipality(db, municipalityId, recipients, ctx, profileHints = {}) {
   const out = [];
-  const center = await municipalityCenter(db, municipalityId);
+  const center = await municipalityCenter(db, municipalityId, profileHints);
   if (!center) return out;
   const avg = averageForecasts(await collectSources(center));
   const threats = evaluate(avg);
   // Si el feed del SMN no respondió (ctx.smnAlerts null) se sigue solo con los modelos.
-  const smn = ctx.smnAlerts ? smnAlertsToMessages(matchCapAlerts(ctx.smnAlerts, center, ctx.now)) : [];
+  let smn = ctx.smnAlerts ? smnAlertsToMessages(matchCapAlerts(ctx.smnAlerts, center, ctx.now), ctx.now) : [];
+  if (smn.length) {
+    let catalog = [];
+    try {
+      if (smn.some((alert) => alert.polygons?.length)) {
+        catalog = await provinceMunicipalities(center.province, ctx.provinceMunicipalities);
+      }
+    } catch (_) {
+      // Si GeoRef no responde, la ciudad y el área oficial siguen informadas.
+    }
+    smn = smn.map((alert) => ({
+      ...alert,
+      affectedZones: affectedMunicipalityNames(center, alert, catalog),
+    }));
+  }
 
   for (const alert of buildAlerts(center, threats, smn)) {
     try {
       if (await supersededToday(db, municipalityId, ctx.day, alert)) continue;
       const alertKey = `${municipalityId}_${ctx.day}_${alert.key}`;
       const alertRef = db.collection('weatherAlerts').doc(alertKey);
+      const versionKey = alert.versionKey || 'daily';
+      let useLegacyDeliveryKey = false;
+      const record = {
+        municipalityId,
+        municipalityName: center.name,
+        province: alert.province,
+        affectedZones: alert.affectedZones,
+        affectedArea: alert.affectedArea,
+        onset: alert.onset ?? null,
+        expires: alert.expires ?? null,
+        versionKey,
+        hazard: alert.hazard,
+        level: alert.level,
+        day: ctx.day,
+        title: alert.title,
+        body: alert.body,
+        forecast: avg,
+      };
       try {
         await alertRef.create({
-          municipalityId,
-          municipalityName: center.name,
-          hazard: alert.hazard,
-          level: alert.level,
-          day: ctx.day,
-          title: alert.title,
-          body: alert.body,
-          forecast: avg,
+          ...record,
           createdAt: FieldValue.serverTimestamp(),
         });
       } catch (error) {
-        if (error?.code === 6 || error?.code === 'already-exists') continue; // ya enviada hoy
-        throw error;
+        if (error?.code === 6 || error?.code === 'already-exists') {
+          const existing = await alertRef.get();
+          const existingVersionKey = asText(existing.get('versionKey'));
+          // Las alertas creadas antes del versionado ya usaron
+          // `weather_${alertKey}`. Se conserva esa clave una vez para que los
+          // destinatarios existentes no reciban un duplicado tras el despliegue,
+          // mientras que un usuario nuevo sí puede recibir la alerta vigente.
+          useLegacyDeliveryKey = !existingVersionKey;
+          if (existingVersionKey !== versionKey) {
+            await alertRef.set({ ...record, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          }
+        } else {
+          throw error;
+        }
       }
       try {
+        const rawDeliveryKey = useLegacyDeliveryKey
+          ? `weather_${alertKey}`
+          : `weather_${alertKey}_${versionKey}`;
+        const deliveryKey = /^[A-Za-z0-9_-]{1,180}$/.test(rawDeliveryKey)
+          ? rawDeliveryKey
+          : `weather_${stableHash(alertKey, 24)}_${versionKey}`;
         const delivered = await deliverToUsers(db, recipients, {
-          key: `weather_${alertKey}`,
+          key: deliveryKey,
           type: 'weather_alert',
           title: alert.title,
           body: alert.body,
+          data: {
+            municipalityId,
+            municipalityName: alert.municipalityName,
+            province: alert.province,
+            affectedZones: alert.affectedZones,
+            affectedArea: alert.affectedArea,
+            onset: alert.onset ?? '',
+            expires: alert.expires ?? '',
+            versionKey,
+          },
         });
-        out.push({ municipalityId, alert: alert.key, ...delivered });
+        if (delivered.pushed + delivered.inApp > 0) {
+          out.push({ municipalityId, alert: alert.key, ...delivered });
+        }
       } catch (error) {
-        // Sin entrega no queda marcada como enviada: la próxima corrida reintenta.
-        await alertRef.delete().catch(() => {});
+        // La próxima corrida reintenta por usuario; los ids de notificación son idempotentes.
         throw error;
       }
     } catch (error) {
@@ -522,13 +818,29 @@ async function runWeatherAlerts(db = getFirestore(), now = new Date(), options =
     .get();
   const byMunicipality = new Map();
   users.forEach((doc) => {
-    const municipalityId = doc.get('municipalityId');
-    if (!municipalityId || !String(municipalityId).startsWith('georef_')) return;
-    if (!byMunicipality.has(municipalityId)) byMunicipality.set(municipalityId, []);
-    byMunicipality.get(municipalityId).push({ uid: doc.id, fcmToken: doc.get('fcmToken') });
+    const municipalityId = canonicalMunicipalityId(doc.get('municipalityId'));
+    if (!municipalityId) return;
+    if (!byMunicipality.has(municipalityId)) {
+      byMunicipality.set(municipalityId, {
+        recipients: [],
+        hints: {
+          name: asText(doc.get('municipalityName')),
+          province: asText(doc.get('province')),
+        },
+      });
+    }
+    const group = byMunicipality.get(municipalityId);
+    if (!group.hints.name) group.hints.name = asText(doc.get('municipalityName'));
+    if (!group.hints.province) group.hints.province = asText(doc.get('province'));
+    group.recipients.push({ uid: doc.id, fcmToken: doc.get('fcmToken') });
   });
 
-  const ctx = { day: argentinaDay(now), now, smnAlerts: null };
+  const ctx = {
+    day: argentinaDay(now),
+    now,
+    smnAlerts: null,
+    provinceMunicipalities: new Map(),
+  };
   try {
     // Una sola descarga del feed CAP del SMN para todos los municipios.
     ctx.smnAlerts = await (options.loadSmn || loadSmnCapAlerts)();
@@ -538,14 +850,14 @@ async function runWeatherAlerts(db = getFirestore(), now = new Date(), options =
 
   const started = Date.now();
   const summary = [];
-  await mapWithConcurrency([...byMunicipality], parallel, async ([municipalityId, recipients]) => {
+  await mapWithConcurrency([...byMunicipality], parallel, async ([municipalityId, group]) => {
     if (Date.now() - started > budgetMs) {
       summary.push({ municipalityId, error: 'omitido: se agotó el tiempo de la corrida' });
       return;
     }
     try {
       const results = await withTimeout(
-        processMunicipality(db, municipalityId, recipients, ctx), timeoutMs, municipalityId,
+        processMunicipality(db, municipalityId, group.recipients, ctx, group.hints), timeoutMs, municipalityId,
       );
       summary.push(...results);
     } catch (error) {
@@ -557,7 +869,7 @@ async function runWeatherAlerts(db = getFirestore(), now = new Date(), options =
 
 const weatherAlerts = onSchedule(
   {
-    schedule: 'every 3 hours',
+    schedule: 'every 30 minutes',
     region: REGION,
     timeZone: 'America/Argentina/Buenos_Aires',
     timeoutSeconds: 300,
@@ -578,6 +890,8 @@ module.exports = {
   collectSources,
   THRESHOLDS,
   argentinaDay,
+  argentinaDateTime,
+  alertTimingText,
   mapWithConcurrency,
   withTimeout,
   buildAlerts,
@@ -588,4 +902,9 @@ module.exports = {
   loadSmnCapAlerts,
   fromSmnAlerts,
   normalizeText,
+  canonicalMunicipalityId,
+  municipalityCenter,
+  provinceMunicipalities,
+  affectedMunicipalityNames,
+  affectedAreaText,
 };

@@ -1,0 +1,13 @@
+{
+  "url": "https://www.civicplus.com/demo/?product=citizen-relationship-management",
+  "observedAt": "2026-10-30T19:58:47.111Z",
+  "method": "Lectura DOM y captura de pestaña existente en Chrome; sin formulario enviado",
+  "product": "SeeClickFix 311 CRM",
+  "gate": ["firstname", "lastname", "email", "municipality_name", "state_picklist"],
+  "scripts": {"externalTags": 55, "uniqueUrls": 42, "hubspotEmbedTags": 13},
+  "selectedProductButton": {"class": "demo-tabs-v2-nav active", "ariaSelected": null, "ariaControls": null, "role": null},
+  "semantics": {"visibleH1H2H3Observed": 0, "totalHeadingElements": 1, "visibleDataFieldsWithLabels": 5},
+  "technologiesObserved": ["WordPress asset paths", "jQuery", "Algolia", "HubSpot forms", "Vidyard", "Forethought", "AudioEye", "Cookiebot"],
+  "publicSourceDownload": {"result": "HTTP 403", "bypassAttempted": false},
+  "limits": ["No se mide latencia por contar scripts", "Etiquetas repetidas no equivalen a transferencias repetidas", "Stack de landing no demuestra stack de CRM", "Sin prueba del recorrido privado", "Sin certificacion de accesibilidad"]
+}

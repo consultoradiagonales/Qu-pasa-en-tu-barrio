@@ -30,6 +30,20 @@ void main() {
     expect(logs.any((l) => l.contains('permiso')), isTrue);
   });
 
+  test('solicita el permiso antes de obtener el token', () async {
+    final events = <String>[];
+    final ok = await build(
+      ensurePermission: () async => events.add('permission'),
+      getToken: () async {
+        events.add('token');
+        return 'tok';
+      },
+      saveToken: (_, __) async => events.add('save'),
+    ).register('u1');
+    expect(ok, isTrue);
+    expect(events, ['permission', 'token', 'save']);
+  });
+
   test('reintenta cuando falla guardar (doc de usuario aun no creado)', () async {
     var calls = 0;
     final logs = <String>[];

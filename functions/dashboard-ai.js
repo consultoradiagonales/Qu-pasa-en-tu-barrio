@@ -4,6 +4,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { initializeApp, getApps } = require('firebase-admin/app');
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const { GoogleAuth } = require('google-auth-library');
+const { isCentralAdmin } = require('./management-access');
 
 if (!getApps().length) initializeApp();
 
@@ -16,7 +17,29 @@ const auth = new GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/cloud-platform'],
 });
 const ROLES = ['coordinator', 'admin', 'moderator'];
+const MAX_ANALYSIS_REPORTS = 1000;
 const CLOSED_STATUSES = new Set(['resolved', 'closed', 'rejected']);
+const KNOWN_CATEGORIES = new Set([
+  'infrastructure', 'lighting', 'garbage', 'security',
+  'health', 'transport', 'environment', 'other',
+]);
+const ISSUE_TYPE_BY_TITLE = new Map([
+  ['bache', 'pothole'],
+  ['luminaria apagada', 'light'],
+  ['basura acumulada', 'trash'],
+  ['vereda rota', 'sidewalk'],
+  ['árbol o espacio verde', 'tree'],
+  ['semáforo o señal', 'traffic'],
+  ['agua estancada', 'standing_water'],
+  ['plagas', 'pests'],
+  ['ruidos molestos', 'noise'],
+  ['venta de droga', 'drug_dealing'],
+  ['picada motos o autos', 'street_racing'],
+  ['robos reiterados', 'repeated_theft'],
+  ['calle anegada', 'flooded_street'],
+  ['disturbios', 'disturbances'],
+  ['otro', 'other'],
+]);
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -110,6 +133,17 @@ function leadingKey(object, fallback = 'other') {
   return Object.entries(object).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || fallback;
 }
 
+function knownCategory(value) {
+  return typeof value === 'string' && KNOWN_CATEGORIES.has(value)
+    ? value
+    : 'other';
+}
+
+function knownIssueType(title) {
+  if (typeof title !== 'string') return null;
+  return ISSUE_TYPE_BY_TITLE.get(title.trim().toLowerCase()) || null;
+}
+
 // Agrupa localmente por cuadrículas de aproximadamente 1 km. Solo se devuelve
 // a Gemini el volumen de cada zona, nunca coordenadas, direcciones ni textos.
 function registerZone(zones, report, status, category) {
@@ -131,6 +165,7 @@ function registerZone(zones, report, status, category) {
 function aggregate(docs, now = new Date()) {
   const statuses = {};
   const categories = {};
+  const issueTypes = {};
   const daily = {};
   const aging = { under24h: 0, from24hTo72h: 0, over72h: 0 };
   const zones = new Map();
@@ -146,12 +181,14 @@ function aggregate(docs, now = new Date()) {
   for (const doc of docs) {
     const report = doc.data();
     const status = typeof report.status === 'string' ? report.status : 'pending';
-    const category = typeof report.category === 'string' ? report.category : 'other';
+    const category = knownCategory(report.category);
+    const issueType = knownIssueType(report.title);
     const created = asDate(report.createdAt);
     const closed = CLOSED_STATUSES.has(status);
 
     increment(statuses, status);
     increment(categories, category);
+    if (issueType) increment(issueTypes, issueType);
     supportLoad += Math.max(0, Math.trunc(number(report.supportCount)));
     registerZone(zones, report, status, category);
 
@@ -199,6 +236,7 @@ function aggregate(docs, now = new Date()) {
     total: docs.length,
     statuses: ordered(statuses),
     categories: ordered(categories),
+    issueTypes: ordered(issueTypes),
     daily: ordered(daily),
     resolved,
     averageResolutionHours: resolved ? Math.round((resolutionHours / resolved) * 10) / 10 : null,
@@ -219,7 +257,7 @@ function aggregate(docs, now = new Date()) {
 }
 
 function promptFor(aggregateData, periodDays) {
-  return `Sos analista de gestión urbana para ConDi. Elaborá un informe breve para un equipo municipal en español argentino. Las recomendaciones son sugerencias para una decisión humana: no ordenes acciones automáticas ni prometas resultados. Usá exclusivamente los datos operativos agregados provistos. No inventes barrios, direcciones, causas, responsables, presupuestos, tendencias ni datos que no estén respaldados. No pidas ni infieras identidad de personas. Las zonas están anonimizadas y no incluyen coordenadas. Señalá claramente cuando la muestra sea pequeña. Priorizá seguridad operativa, tiempos de respuesta y uso eficiente de cuadrillas. Incluí entre una y cuatro estrategias con objetivo, acción y nivel de impacto de recursos. Devolvé JSON válido según el esquema. Datos agregados del período de ${periodDays} días: ${JSON.stringify(aggregateData)}`;
+  return `Sos analista de gestión urbana para ConDi. Elaborá un informe breve para un equipo municipal en español argentino. Las recomendaciones son sugerencias para una decisión humana: no ordenes acciones automáticas ni prometas resultados. Usá exclusivamente los datos operativos agregados provistos. issueTypes contiene únicamente identificadores de presets conocidos y sus conteos; no incluye títulos ni texto libre. No inventes barrios, direcciones, causas, responsables, presupuestos, tendencias ni datos que no estén respaldados. No pidas ni infieras identidad de personas. Las zonas están anonimizadas y no incluyen coordenadas. Señalá claramente cuando la muestra sea pequeña. Priorizá seguridad operativa, tiempos de respuesta y uso eficiente de cuadrillas. Incluí entre una y cuatro estrategias con objetivo, acción y nivel de impacto de recursos. Devolvé JSON válido según el esquema. Datos agregados del período de ${periodDays} días: ${JSON.stringify(aggregateData)}`;
 }
 
 function emptyReport() {
@@ -256,6 +294,20 @@ async function askGemini(data, token) {
   return normalize(JSON.parse(text));
 }
 
+async function loadDashboardCohort(database, municipalityId, since) {
+  const snap = await database.collection('reports')
+    .where('municipalityId', '==', municipalityId)
+    .where('createdAt', '>=', Timestamp.fromDate(since))
+    .limit(MAX_ANALYSIS_REPORTS + 1)
+    .get();
+  // No pagar un análisis ni presentar una muestra limitada como el total.
+  if (snap.docs.length > MAX_ANALYSIS_REPORTS) {
+    throw new HttpsError('failed-precondition',
+      'El período supera 1.000 reportes. Elegí un período menor para analizar todos los casos.');
+  }
+  return snap.docs;
+}
+
 async function generateMunicipalityReportHandler(request) {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
@@ -268,19 +320,18 @@ async function generateMunicipalityReportHandler(request) {
   }
 
   const requested = typeof data.municipalityId === 'string' ? data.municipalityId : '';
-  const municipalityId = profile.role === 'admin' && requested ? requested : profile.municipalityId;
+  if (requested && !isCentralAdmin(profile) && requested !== profile.municipalityId) {
+    throw new HttpsError('permission-denied', 'Sólo podés analizar tu municipio.');
+  }
+  const municipalityId = isCentralAdmin(profile) && requested ? requested : profile.municipalityId;
   if (!municipalityId) {
     throw new HttpsError('failed-precondition', 'El perfil no tiene municipio.');
   }
 
   const periodDays = Math.max(7, Math.min(90, Math.trunc(number(data.periodDays, 30))));
   const since = new Date(Date.now() - periodDays * 86400000);
-  const snap = await db.collection('reports')
-    .where('municipalityId', '==', municipalityId)
-    .where('createdAt', '>=', Timestamp.fromDate(since))
-    .limit(1000)
-    .get();
-  const aggregateData = aggregate(snap.docs);
+  const reports = await loadDashboardCohort(db, municipalityId, since);
+  const aggregateData = aggregate(reports);
   let generated;
   if (aggregateData.total === 0) {
     generated = emptyReport();
@@ -300,6 +351,7 @@ async function generateMunicipalityReportHandler(request) {
     status: 'ready',
     periodDays,
     totalReports: aggregateData.total,
+    coverage: { complete: true, scope: 'created_in_period', since: since.toISOString() },
     ...generated,
   };
 }
@@ -320,4 +372,5 @@ module.exports = {
   normalize,
   promptFor,
   emptyReport,
+  loadDashboardCohort,
 };

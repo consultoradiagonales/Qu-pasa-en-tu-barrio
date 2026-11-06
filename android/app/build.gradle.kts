@@ -43,6 +43,8 @@ android {
         // Inyectar la Maps API key desde key.properties (o variable de entorno)
         val mapsKey = keystoreProperties["MAPS_API_KEY"] as String? ?: ""
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
+        manifestPlaceholders["APP_LABEL"] =
+            (project.findProperty("APP_LABEL") as String?) ?: "ConDi"
     }
 
     buildTypes {

@@ -1,0 +1,337 @@
+CONDI · GESTIÓN MUNICIPAL
+Auditoría CivicPlus y oportunidades para ConDi
+Comparación funcional, hallazgos y prioridades para evolucionar ConDi hacia un CRM municipal.
+
+30 de octubre de 2026
+Consultora Diagonales
+Versión 1.0
+
+Documento basado en fuentes públicas oficiales e inspección estática local. Las mejoras y la arquitectura son propuestas; no se modificó ni desplegó la aplicación.
+
+PAQUETE COMPLEMENTARIO
+- Informe HTML navegable
+- Fuentes
+- Evidencia técnica
+- Diagrama editable
+- Backlog
+
+1. VEREDICTO
+
+ConDi debería evolucionar hacia un CRM de servicios municipales conservando Flutter y Firebase.
+
+La mayor enseñanza de SeeClickFix 311 CRM es organizar cada solicitud alrededor de:
+- Responsable
+- Plazo
+- Próxima acción
+- Comunicación verificable
+
+Prioridades recomendadas:
+1. Asegurar permisos y datos completos.
+2. Incorporar catálogo municipal y SLA.
+3. Separar reclamos de órdenes de trabajo.
+
+No conviene comenzar por un chatbot ni replicar toda la suite CivicPlus.
+
+ConDi ya posee:
+- Reportes geolocalizados
+- Estados operativos
+- Cuadrillas
+- Evidencia fotográfica
+- Comunicaciones
+- Alertas meteorológicas
+- Análisis con IA
+
+El salto de valor consiste en convertir estas capacidades en un proceso consistente.
+
+2. ALCANCE Y MÉTODO
+
+Se revisó:
+- Pestaña abierta en Chrome.
+- DOM y recursos JavaScript.
+- Formularios e indicadores semánticos.
+- Documentación oficial de CivicPlus.
+- Documentación de Firebase.
+- Modelos, repositorios, ADMIN, funciones y reglas locales de ConDi.
+
+No se accedió a:
+- Backend de CivicPlus.
+- Base de datos de CivicPlus.
+- Código privado de CivicPlus.
+
+No se modificó ni desplegó código de ConDi.
+
+3. QUÉ HACE LA WEB COMERCIAL Y QUÉ APRENDER DE ELLA
+
+3.1 RECORRIDO VISIBLE
+
+La web comercial:
+- Permite elegir productos CRM.
+- Solicita datos de contacto.
+- Promete simplificar la comunicación interna.
+- Permite reportes desde web y app.
+- Promueve decisiones basadas en datos.
+- Fomenta la participación ciudadana.
+
+Recomendación para ConDi:
+- Landing con recorridos para vecino, cuadrilla y gestión.
+- Casos completos desde ingreso hasta resolución.
+- Demo sin registro.
+- Formulario comercial únicamente para interesados.
+
+3.2 INSPECCIÓN TÉCNICA
+
+Observaciones:
+- WordPress con tema CivicPlus.
+- Uso de jQuery y Algolia.
+- Formularios HubSpot.
+- Videos Vidyard.
+- Múltiples herramientas de analítica.
+- Recursos de terceros.
+
+Aplicaciones recomendadas para ConDi:
+- Separar sitio comercial del portal operativo.
+- Minimizar integraciones externas.
+- Cargar SDKs bajo demanda.
+- Evitar píxeles publicitarios en la operación.
+- Mejorar accesibilidad y semántica.
+- Mantener formularios accesibles.
+
+3.3 POSICIONAMIENTO RECOMENDADO
+
+Propuesta de valor:
+
+"Cada reclamo, con responsable y respuesta".
+
+Diferenciadores:
+- Seguimiento verificable.
+- Identidad local.
+- Calendario municipal.
+- Transparencia.
+- Medición operativa.
+
+4. CÓMO TRABAJA SEECLICKFIX SEGÚN SU DOCUMENTACIÓN
+
+Características principales:
+- Solicitudes multicanal.
+- Bandejas de trabajo.
+- Asignación de responsables.
+- Comentarios y seguimiento.
+- Catálogos configurables.
+- SLA por categoría.
+- Escalaciones.
+- Órdenes de trabajo.
+- Detección de duplicados.
+- Contactos sin cuenta pública.
+- Reportes operativos.
+- Integraciones mediante API.
+
+La API no utiliza webhooks.
+
+5. COMPARACIÓN CON EL CÓDIGO ACTUAL DE CONDI
+
+Fortalezas observadas:
+- Reportes geolocalizados.
+- Flutter.
+- Firebase.
+- Prioridades y filtros.
+- Cuadrillas.
+- Evidencia fotográfica.
+- Mensajería.
+- IA aplicada.
+
+Capacidades a incorporar:
+- Catálogo configurable por municipio.
+- SLA formales.
+- Bandejas personales.
+- Órdenes de trabajo.
+- Gestión de duplicados.
+- CRM de contactos.
+- Timeline completo.
+- Exportaciones.
+- API formal.
+
+6. HALLAZGOS QUE DEBEN RESOLVERSE PRIMERO
+
+H01
+Permisos de Storage insuficientes.
+Prioridad: P0.
+
+H02
+Comentarios sin validación sobre acceso al reporte.
+Prioridad: P0.
+
+H03
+Moderación potencial entre municipios.
+Prioridad: P0.
+
+H04
+Límite de 2.000 reportes para métricas.
+Prioridad: P1.
+
+H05
+Límites en vecinos y reportes para análisis.
+Prioridad: P1.
+
+H06
+Consulta weatherAlerts sin filtro municipal.
+Prioridad: P1.
+
+H07
+Validaciones incompletas del esquema operativo.
+Prioridad: P0.
+
+H08
+Asignaciones sin transacciones.
+Prioridad: P1.
+
+H09
+Riesgo de colisiones al reintentar cargas.
+Prioridad: P1.
+
+7. QUÉ INCORPORAR Y EN QUÉ ORDEN
+
+B01
+Permisos municipales y pruebas negativas.
+
+B02
+Consultas, paginación y KPI completos.
+
+B03
+Catálogo municipal y formularios.
+
+B04
+Bandeja, acuse y enrutamiento explicable.
+
+B05
+SLA, calendario y escalación.
+
+B06
+Timeline de eventos y auditoría.
+
+B07
+Duplicados, seguidores y vínculo canónico.
+
+B08
+Órdenes de trabajo y evidencia.
+
+B09
+Plantillas y bandeja de entregas.
+
+B10
+Contactos y atención por operador.
+
+B11
+Exportación y métricas por cohorte.
+
+B12
+Base de servicios y asistencia IA.
+
+HOJA DE RUTA
+
+Hito A
+Confianza en permisos y datos.
+(B01-B02)
+
+Hito B
+Operación gobernada.
+(B03-B06)
+
+Hito C
+Ejecución y comunicación.
+(B07-B09)
+
+Hito D
+Atención y medición ampliadas.
+(B10-B12)
+
+8. PANTALLAS QUE DEBERÍA TENER CONDI
+
+Vecino:
+- Seleccionar servicio.
+- Ver casos similares.
+- Adjuntar evidencia.
+- Seguir estado.
+- Solicitar revisión.
+
+Operador:
+- Gestión de contactos.
+- Altas en nombre del vecino.
+- Historial de comunicaciones.
+
+Coordinación:
+- Bandeja por responsable.
+- Vencimientos.
+- Próximas acciones.
+
+Cuadrillas:
+- Mi jornada.
+- Órdenes asignadas.
+- Evidencia.
+- Sincronización.
+
+Gestión:
+- Backlog.
+- SLA.
+- Resolución mediana y p90.
+- Reaperturas.
+
+Configuración:
+- Catálogo.
+- Equipos.
+- Calendario.
+- Plantillas.
+- Reglas.
+
+9. INDICADORES Y CONDICIONES DE ACEPTACIÓN
+
+Indicadores:
+- Tiempo de acuse.
+- Backlog operativo.
+- Resolución mediana.
+- Resolución p90.
+- SLA al corte.
+- SLA por cohorte.
+- Reaperturas.
+- Evidencia completa.
+- Entregas.
+
+Pruebas previas al piloto:
+- Aislamiento entre municipios.
+- Casos históricos.
+- Reintentos.
+- Feriados.
+- Cambios concurrentes.
+- Duplicados.
+- Cierres sin evidencia.
+- Notificaciones fallidas.
+- Accesibilidad móvil.
+
+10. FUENTES, LÍMITES Y ENTREGABLES
+
+Fuentes:
+- CivicPlus Demo.
+- Unified Platform.
+- Requests List Overview.
+- Add New Request Categories.
+- Mark A Request As Duplicate.
+- Create A Work Order.
+- Work Order Resources.
+- Subscriptions.
+- Constituents and User Accounts.
+- Requests Reports.
+- API Information.
+- Integrations Overview.
+- CivicPlus Agent.
+- CivicPlus Agent Knowledge Base.
+- Offline Inspection PWA.
+- Firebase Security Rules.
+
+Limitaciones:
+- No se auditó el backend privado.
+- No se certificó accesibilidad.
+- No se certificó rendimiento.
+- No se certificó seguridad integral.
+- No se certificaron SLA contractuales.
+- No se validó ahorro económico.
+
+Fin del documento.

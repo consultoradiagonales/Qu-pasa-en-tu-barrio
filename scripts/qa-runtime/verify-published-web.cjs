@@ -1,0 +1,43 @@
+'use strict';
+const { chromium } = require('playwright');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const base = 'https://project-5fc9024a-e961-42b7-9ee.web.app';
+const output = path.resolve(__dirname, '../../output/publicacion-2026-10-30');
+fs.mkdirSync(output, { recursive: true });
+let activeBrowser;
+
+(async () => {
+  const browser = activeBrowser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe', headless: true });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const versionResponse = await context.request.get(`${base}/version.json?validation=20261030`);
+  if (!versionResponse.ok()) throw new Error('No se pudo leer la versión pública.');
+  const version = await versionResponse.json();
+  if (version.version !== '1.0.22' || version.build_number !== '23') throw new Error('La versión publicada no coincide.');
+  const appResponse = await page.goto(`${base}/`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  if (appResponse.status() !== 200) throw new Error('La app no responde HTTP 200.');
+  await page.waitForSelector('flutter-view, flt-glass-pane', { timeout: 60000 });
+  await page.locator('flt-semantics-placeholder').evaluateAll((items) => items.forEach((item) => item.click()));
+  await page.waitForTimeout(5000);
+  await page.screenshot({ path: path.join(output, 'app-celular.png') });
+  const appText = await page.locator('body').innerText();
+  if (appText.includes('Demo nativa') || appText.includes('se activa al conectar Firebase')) throw new Error('La app abrió la demostración local por un fallo de conexión.');
+  const appRuntime = await page.evaluate(() => ({ title: document.title, flutterViews: document.querySelectorAll('flutter-view, flt-glass-pane').length, width: innerWidth }));
+  const adminResponse = await page.goto(`${base}/admin/`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  if (adminResponse.status() !== 200) throw new Error('El panel no responde HTTP 200.');
+  await page.locator('#auth-screen').waitFor({ state: 'visible', timeout: 30000 });
+  await page.locator('#login-email').waitFor({ state: 'visible' });
+  if (await page.locator('#app-boot-failure').isVisible()) throw new Error('El panel informa error de arranque.');
+  await page.screenshot({ path: path.join(output, 'panel-celular.png') });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2);
+  if (overflow) throw new Error('El panel desborda horizontalmente en pantalla móvil.');
+  if (errors.length) throw new Error(`Errores de JavaScript: ${errors.join('; ')}`);
+  const result = { version, app: `${base}/`, panel: `${base}/admin/`, mobileViewport: '390x844', appRuntime, appVisibleText: appText.slice(0, 800), panelLoginVisible: true, horizontalOverflow: false, javascriptErrors: errors, authenticatedWorkflows: 'Pendiente de validación del usuario; no se ingresaron credenciales ni crearon datos productivos.' };
+  fs.writeFileSync(path.join(output, 'verificacion-web.json'), JSON.stringify(result, null, 2));
+  console.log(JSON.stringify({ version: version.version, mobile: 'OK', panelLogin: 'OK', javascriptErrors: errors.length }));
+  await browser.close();
+})().catch(async (error) => { console.error(error.message); await activeBrowser?.close(); process.exitCode = 1; });

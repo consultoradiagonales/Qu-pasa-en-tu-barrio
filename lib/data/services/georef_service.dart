@@ -48,6 +48,42 @@ class MunicipalitySuggestion {
   }
 }
 
+/// Una ciudad o localidad con su provincia.  La provincia forma parte de la
+/// etiqueta porque en Argentina hay localidades con el mismo nombre.
+class LocalitySuggestion {
+  const LocalitySuggestion({
+    required this.id,
+    required this.name,
+    required this.provinceId,
+    required this.province,
+    this.latitude,
+    this.longitude,
+  });
+
+  final String id;
+  final String name;
+  final String provinceId;
+  final String province;
+  final double? latitude;
+  final double? longitude;
+
+  String get label => province.isEmpty ? name : '$name, $province';
+  bool get hasCoordinates => latitude != null && longitude != null;
+
+  factory LocalitySuggestion.fromJson(Map<String, dynamic> json) {
+    final province = json['provincia'];
+    final centroid = json['centroide'];
+    return LocalitySuggestion(
+      id: json['id']?.toString() ?? '',
+      name: json['nombre']?.toString() ?? '',
+      provinceId: province is Map ? province['id']?.toString() ?? '' : '',
+      province: province is Map ? province['nombre']?.toString() ?? '' : '',
+      latitude: centroid is Map ? (centroid['lat'] as num?)?.toDouble() : null,
+      longitude: centroid is Map ? (centroid['lon'] as num?)?.toDouble() : null,
+    );
+  }
+}
+
 /// Ordena lo más parecido primero: nombre exacto, luego los que empiezan con
 /// lo escrito, luego el resto, y a igualdad por nombre y provincia.
 List<MunicipalitySuggestion> rankMunicipalitySuggestions(
@@ -57,6 +93,28 @@ List<MunicipalitySuggestion> rankMunicipalitySuggestions(
   final needle = normalizeForSearch(query);
   int rank(MunicipalitySuggestion m) {
     final name = normalizeForSearch(m.name);
+    if (name == needle) return 0;
+    if (name.startsWith(needle)) return 1;
+    return 2;
+  }
+
+  return [...items]..sort((a, b) {
+      final byRank = rank(a).compareTo(rank(b));
+      if (byRank != 0) return byRank;
+      final byName = a.name.compareTo(b.name);
+      return byName != 0 ? byName : a.province.compareTo(b.province);
+    });
+}
+
+/// Ordena ciudades/localidades por coincidencia y, en caso de empate, por
+/// provincia. Mantener los homónimos evita que se asigne una ciudad errónea.
+List<LocalitySuggestion> rankLocalitySuggestions(
+  String query,
+  List<LocalitySuggestion> items,
+) {
+  final needle = normalizeForSearch(query);
+  int rank(LocalitySuggestion locality) {
+    final name = normalizeForSearch(locality.name);
     if (name == needle) return 0;
     if (name.startsWith(needle)) return 1;
     return 2;
@@ -159,6 +217,30 @@ class GeoRefService {
         .where((m) => m.id.isNotEmpty && m.name.isNotEmpty)
         .toList();
     return rankMunicipalitySuggestions(text, found).take(12).toList();
+  }
+
+  /// Busca ciudades/localidades en todo el país. Incluye el centroide solo
+  /// para abrir el reporte en la ciudad elegida cuando no hay GPS; nunca
+  /// pretende geocodificar una calle a partir de esos datos.
+  Future<List<LocalitySuggestion>> searchLocalities(String query) async {
+    final text = query.trim();
+    if (text.length < 2) return const [];
+    final response = await _client
+        .get(Uri.parse(
+          '$_baseUrl/localidades?nombre=${Uri.encodeQueryComponent(text)}'
+          '&campos=id,nombre,provincia.id,provincia.nombre,centroide&max=40',
+        ))
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode != 200) {
+      throw Exception('No se pudo buscar la ciudad.');
+    }
+    final payload = jsonDecode(response.body) as Map<String, dynamic>;
+    final found = (payload['localidades'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(LocalitySuggestion.fromJson)
+        .where((locality) => locality.id.isNotEmpty && locality.name.isNotEmpty)
+        .toList();
+    return rankLocalitySuggestions(text, found).take(12).toList();
   }
 
   /// Municipio al que pertenece una coordenada, o null si GeoRef no responde o

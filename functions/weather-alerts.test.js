@@ -28,6 +28,8 @@ test('el mensaje nombra el municipio y aclara que es un promedio', () => {
   const message = messageFor('Azul', { hazard: 'rain', level: 2, value: 85 });
   assert.match(message.title, /^Alerta: lluvia intensa en Azul$/);
   assert.match(message.body, /85 mm/);
+  assert.match(message.body, /Ciudad: Azul/);
+  assert.match(message.body, /Azul y alrededores/);
 });
 
 test('resume solo las proximas 24 horas', () => {
@@ -46,9 +48,10 @@ const POLYGON = '-37.0,-70.0 -37.0,-69.0 -38.0,-69.0 -38.0,-70.0 -37.0,-70.0';
 function capXml({
   msgType = 'Alert', status = 'Actual', event = 'Lluvias', severity = 'Moderate', polygon = POLYGON,
   onset = '2026-10-19T15:00:00-03:00', expires = '2026-10-19T20:59:59-03:00', areaDesc = '',
+  identifier = 'urn:oid:1', sent = '2026-10-18T08:00:00-03:00',
 } = {}) {
   return '<?xml version="1.0"?><alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">' +
-    `<identifier>urn:oid:1</identifier><sender>smn@smn.gob.ar</sender><status>${status}</status>` +
+    `<identifier>${identifier}</identifier><sender>smn@smn.gob.ar</sender><sent>${sent}</sent><status>${status}</status>` +
     `<msgType>${msgType}</msgType><scope>Public</scope><info><language>es-AR</language>` +
     `<event>${event}</event><severity>${severity}</severity><onset>${onset}</onset>` +
     `<expires>${expires}</expires><headline>${event}</headline>` +
@@ -127,12 +130,33 @@ test('smnAlertsToMessages deja un solo aviso por peligro, el de mayor nivel', ()
   assert.equal(by.rain.level, 2);
   assert.match(by.rain.title, /^Alerta naranja por lluvias$/);
   assert.match(by.rain.description, /Evitá salir/);
+  assert.equal(by.rain.polygons.length, 1);
+  assert.equal(by.rain.onset, Date.parse('2026-10-19T15:00:00-03:00'));
+  assert.equal(by.rain.expires, Date.parse('2026-10-19T20:59:59-03:00'));
+});
+
+test('smnAlertsToMessages prioriza nivel, aviso vigente y actualización más reciente', () => {
+  const currentOld = w.parseCapAlert(capXml({
+    identifier: 'current-old', sent: '2026-10-18T07:00:00-03:00',
+    onset: '2026-10-18T06:00:00-03:00', expires: '2026-10-18T18:00:00-03:00',
+  }));
+  const currentNew = w.parseCapAlert(capXml({
+    identifier: 'current-new', sent: '2026-10-18T08:30:00-03:00',
+    onset: '2026-10-18T06:00:00-03:00', expires: '2026-10-18T18:00:00-03:00',
+  }));
+  const future = w.parseCapAlert(capXml({
+    identifier: 'future', sent: '2026-10-18T09:00:00-03:00',
+    onset: '2026-10-18T15:00:00-03:00', expires: '2026-10-18T23:00:00-03:00',
+  }));
+  const selected = w.smnAlertsToMessages([future, currentOld, currentNew], NOW)[0];
+  assert.equal(selected.versionKey, currentNew.versionKey);
 });
 
 test('loadSmnCapAlerts lee el indice (RSS o HTML), reintenta y omite XML rotos', async () => {
   const base = 'https://ssl.smn.gob.ar/feeds/CAP/xml_generados/';
   const index = `<rss><item><link>${base}a.xml</link></item><item><link>${base}b.xml</link></item>` +
-    `<a href="${base}c.xml">Ver XML CAP</a><guid>${base}a.xml</guid></rss>`;
+    `<a href="${base}c.xml">Ver XML CAP</a><guid>${base}a.xml</guid>` +
+    '<item><link>https:///feeds/CAP/avisocortoplazo/d.xml</link></item></rss>';
   const calls = {};
   const getText = async (url) => {
     calls[url] = (calls[url] || 0) + 1;
@@ -142,12 +166,23 @@ test('loadSmnCapAlerts lee el indice (RSS o HTML), reintenta y omite XML rotos',
       return capXml();
     }
     if (url.endsWith('b.xml')) throw new Error('HTTP 500'); // falla siempre
-    return capXml({ event: 'Nevadas' });
+    if (url.endsWith('c.xml')) return capXml({ event: 'Nevadas' });
+    return capXml({ event: 'Tormentas' });
   };
   const alerts = await w.loadSmnCapAlerts(getText);
-  assert.deepEqual(alerts.map((a) => a.hazard).sort(), ['rain', 'snow']);
+  assert.deepEqual(alerts.map((a) => a.hazard).sort(), ['rain', 'snow', 'storm']);
   assert.equal(calls[`${base}a.xml`], 2);
+  assert.equal(calls['https://ssl.smn.gob.ar/feeds/CAP/avisocortoplazo/d.xml'], 1);
   await assert.rejects(() => w.loadSmnCapAlerts(async () => { throw new Error('HTTP 503'); }), /503/);
+
+  await assert.rejects(
+    () => w.loadSmnCapAlerts(async (url) => {
+      if (url.endsWith('AR.php')) return index;
+      if (url.endsWith('a.xml')) return capXml();
+      throw new Error('HTTP 429');
+    }),
+    /SMN CAP incompleto: 1\/4/,
+  );
 });
 
 test('mapWithConcurrency respeta el limite y el orden; withTimeout corta', async () => {
@@ -169,17 +204,43 @@ test('mapWithConcurrency respeta el limite y el orden; withTimeout corta', async
 
 test('buildAlerts separa peligros propios de los del SMN con claves por nivel', () => {
   const alerts = w.buildAlerts(
-    { name: 'Azul' },
+    { name: 'Azul', province: 'Buenos Aires' },
     [{ hazard: 'rain', level: 2, value: 90 }],
-    [{ hazard: 'rain', level: 1, title: 'Alerta amarilla por lluvias', description: 'detalle' }],
+    [{
+      hazard: 'rain', level: 1, title: 'Alerta amarilla por lluvias', description: 'detalle',
+      affectedZones: ['Azul', 'Tandil'], areaDesc: [],
+      onset: Date.parse('2026-10-18T10:00:00-03:00'),
+      expires: Date.parse('2026-10-18T18:30:00-03:00'),
+    }],
   );
   assert.deepEqual(alerts.map((a) => a.key), ['rain_2', 'smn_rain_1']);
-  assert.equal(alerts[1].title, 'SMN: Alerta amarilla por lluvias');
+  assert.equal(alerts[1].title, 'SMN: Alerta amarilla por lluvias en Azul');
+  assert.match(alerts[1].body, /Ciudad: Azul, Buenos Aires/);
+  assert.match(alerts[1].body, /Zonas afectadas: Azul, Tandil/);
+  assert.match(alerts[1].body, /Vigencia estimada: desde el domingo 18\/10 a las 10:00 hasta el domingo 18\/10 a las 18:30/);
+  assert.deepEqual(alerts[1].affectedZones, ['Azul', 'Tandil']);
+  assert.equal(alerts[1].onset, Date.parse('2026-10-18T10:00:00-03:00'));
+});
+
+test('identifica la ciudad y municipios aledaños dentro del polígono oficial', () => {
+  const alert = w.parseCapAlert(capXml());
+  const center = { name: 'Zapala', province: 'Neuquén', lat: -37.5, lng: -69.5 };
+  const places = [
+    { name: 'Aledaño Norte', lat: -37.2, lng: -69.4 },
+    { name: 'Zapala', lat: -37.5, lng: -69.5 },
+    { name: 'Fuera del área', lat: -34.6, lng: -58.4 },
+  ];
+  const names = w.affectedMunicipalityNames(center, alert, places);
+  assert.deepEqual(names, ['Zapala', 'Aledaño Norte']);
+  assert.equal(
+    w.affectedAreaText(center, { ...alert, affectedZones: names }),
+    'Zapala, Aledaño Norte',
+  );
 });
 
 // ---- runWeatherAlerts con Firestore y fetch simulados ----------------------
 
-function fakeDb({ users, geo }) {
+function fakeDb({ users, geo, municipalities = {} }) {
   const store = new Map();
   const key = (c, id) => `${c}/${id}`;
   const docRef = (c, id) => ({
@@ -199,6 +260,7 @@ function fakeDb({ users, geo }) {
     async delete() { store.delete(key(c, id)); },
   });
   for (const [id, data] of Object.entries(geo)) store.set(key('municipalityGeo', id), data);
+  for (const [id, data] of Object.entries(municipalities)) store.set(key('municipalities', id), data);
   return {
     store,
     collection(c) {
@@ -274,6 +336,88 @@ test('runWeatherAlerts: dia argentino, dedupe, escalada de nivel 1 a 2 y sin vue
   } finally { restore(); }
 });
 
+test('runWeatherAlerts procesa municipios reales aunque el identificador no use prefijo georef_', async () => {
+  const db = fakeDb({ users: [CITIZEN('u1', '060707')], geo: { georef_060707: GEO_A } });
+  const restore = mockFetch(forecastMock(2));
+  try {
+    const out = await w.runWeatherAlerts(db, NOW, noSmn);
+    assert.equal(out.length, 1);
+    assert.ok(db.store.has('weatherAlerts/georef_060707_2026-10-18_rain_1'));
+  } finally { restore(); }
+});
+
+test('agrupa el identificador GeoRef heredado y el actual como un solo municipio', async () => {
+  assert.equal(w.canonicalMunicipalityId('060707'), 'georef_060707');
+  assert.equal(w.canonicalMunicipalityId('georef_060707'), 'georef_060707');
+  const users = [CITIZEN('u-old', '060707'), CITIZEN('u-new', 'georef_060707')];
+  const db = fakeDb({ users, geo: { georef_060707: GEO_A } });
+  const restore = mockFetch(forecastMock(2));
+  try {
+    const out = await w.runWeatherAlerts(db, NOW, noSmn);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].total, 2);
+    const notices = [...db.store.entries()].filter(([key]) => key.startsWith('notifications/'));
+    assert.deepEqual(notices.map(([, value]) => value.userId).sort(), ['u-new', 'u-old']);
+    assert.ok(notices.every(([, value]) => value.municipalityId === 'georef_060707'));
+  } finally { restore(); }
+});
+
+test('un usuario recién asignado recibe la alerta vigente sin duplicar a los anteriores', async () => {
+  const users = [CITIZEN('u1', 'georef_1')];
+  const db = fakeDb({ users, geo: { georef_1: GEO_A } });
+  const restore = mockFetch(forecastMock(2));
+  try {
+    assert.equal((await w.runWeatherAlerts(db, NOW, noSmn)).length, 1);
+    users.push(CITIZEN('u2', 'georef_1'));
+    const second = await w.runWeatherAlerts(db, NOW, noSmn);
+    assert.equal(second.length, 1);
+    assert.equal(second[0].inApp, 1);
+    assert.deepEqual(await w.runWeatherAlerts(db, NOW, noSmn), []);
+    const notices = [...db.store.values()].filter((value) => value?.type === 'weather_alert');
+    assert.deepEqual(notices.map((value) => value.userId).sort(), ['u1', 'u2']);
+  } finally { restore(); }
+});
+
+test('un marcador legado no duplica el aviso y sí alcanza a un usuario nuevo', async () => {
+  const users = [CITIZEN('u1', 'georef_1'), CITIZEN('u2', 'georef_1')];
+  const db = fakeDb({ users, geo: { georef_1: GEO_A } });
+  const alertKey = 'georef_1_2026-10-18_smn_rain_1';
+  db.store.set(`weatherAlerts/${alertKey}`, {
+    municipalityId: 'georef_1', hazard: 'smn_rain', level: 1,
+  });
+  db.store.set(`notifications/weather_${alertKey}_u1`, {
+    userId: 'u1', type: 'weather_alert', delivery: 'in_app',
+  });
+  const restore = mockFetch(forecastMock(0));
+  try {
+    const smn = [w.parseCapAlert(capXml({ onset: '2026-10-18T10:00:00-03:00' }))];
+    const out = await w.runWeatherAlerts(db, NOW, { loadSmn: async () => smn });
+    assert.equal(out.length, 1);
+    assert.equal(out[0].inApp, 1);
+    assert.ok(db.store.has(`notifications/weather_${alertKey}_u2`));
+    const versionKey = db.store.get(`weatherAlerts/${alertKey}`).versionKey;
+    assert.ok(versionKey);
+    assert.equal(db.store.has(`notifications/weather_${alertKey}_${versionKey}_u1`), false);
+    assert.equal(db.store.has(`notifications/weather_${alertKey}_${versionKey}_u2`), false);
+  } finally { restore(); }
+});
+
+test('municipalityCenter resuelve identificadores textuales desde la ficha municipal', async () => {
+  const db = fakeDb({
+    users: [], geo: {},
+    municipalities: { 'la-plata': { name: 'La Plata', province: 'Buenos Aires' } },
+  });
+  const restore = mockFetch((url) => {
+    assert.match(url, /nombre=La\+Plata|nombre=La%20Plata/);
+    return { municipios: [{ nombre: 'La Plata', provincia: { nombre: 'Buenos Aires' }, centroide: { lat: -35.0038, lon: -58.0178 } }] };
+  });
+  try {
+    const center = await w.municipalityCenter(db, 'la-plata');
+    assert.deepEqual(center, { name: 'La Plata', province: 'Buenos Aires', lat: -35.0038, lng: -58.0178 });
+    assert.deepEqual(db.store.get('municipalityGeo/la-plata'), center);
+  } finally { restore(); }
+});
+
 test('runWeatherAlerts: alerta del SMN por poligono; con el feed caido se sigue igual', async () => {
   const db = fakeDb({ users: [CITIZEN('u1', 'georef_1')], geo: { georef_1: GEO_A } });
   const restore = mockFetch(forecastMock(0));
@@ -282,11 +426,90 @@ test('runWeatherAlerts: alerta del SMN por poligono; con el feed caido se sigue 
     const out = await w.runWeatherAlerts(db, NOW, { loadSmn: async () => smn });
     assert.deepEqual(out.map((o) => o.alert), ['smn_rain_1']);
     const saved = db.store.get('weatherAlerts/georef_1_2026-10-18_smn_rain_1');
-    assert.match(saved.title, /^SMN: Alerta amarilla por lluvias$/);
+    assert.match(saved.title, /^SMN: Alerta amarilla por lluvias en Zapala$/);
+    assert.match(saved.body, /Ciudad: Zapala, Neuquén/);
+    assert.match(saved.body, /Zonas afectadas: Zapala y zonas aledañas/);
+    assert.match(saved.body, /Vigencia estimada: desde el domingo 18\/10 a las 10:00/);
+    assert.deepEqual(saved.affectedZones, ['Zapala']);
 
     const db2 = fakeDb({ users: [CITIZEN('u1', 'georef_1')], geo: { georef_1: GEO_A } });
     const down = await w.runWeatherAlerts(db2, NOW, { loadSmn: async () => { throw new Error('HTTP 503'); } });
     assert.deepEqual(down, []);
+  } finally { restore(); }
+});
+
+test('runWeatherAlerts entrega a dos usuarios solo la alerta SMN de su municipio elegido', async () => {
+  const geoB = { name: 'La Plata', province: 'Buenos Aires', lat: -35.0038, lng: -58.0178 };
+  const db = fakeDb({
+    users: [CITIZEN('u-zapala', 'georef_zapala'), CITIZEN('u-laplata', 'georef_laplata')],
+    geo: { georef_zapala: GEO_A, georef_laplata: geoB },
+  });
+  const laPlataPolygon = '-34.5,-58.5 -34.5,-57.5 -35.5,-57.5 -35.5,-58.5 -34.5,-58.5';
+  const smn = [
+    w.parseCapAlert(capXml({
+      event: 'Lluvias', onset: '2026-10-18T10:00:00-03:00',
+      expires: '2026-10-18T18:00:00-03:00',
+    })),
+    w.parseCapAlert(capXml({
+      event: 'Tormentas', polygon: laPlataPolygon, onset: '2026-10-18T14:30:00-03:00',
+      expires: '2026-10-18T22:00:00-03:00',
+    })),
+  ];
+  const restore = mockFetch((url) => {
+    if (url.includes('open-meteo')) return hourly(0);
+    if (url.includes('apis.datos.gob.ar/georef/api/municipios')) {
+      return {
+        municipios: [
+          { nombre: 'Zapala', provincia: { nombre: 'Neuquén' }, centroide: { lat: -37.5, lon: -69.5 } },
+          { nombre: 'Aledaño Zapala', provincia: { nombre: 'Neuquén' }, centroide: { lat: -37.7, lon: -69.7 } },
+          { nombre: 'La Plata', provincia: { nombre: 'Buenos Aires' }, centroide: { lat: -35.0038, lon: -58.0178 } },
+          { nombre: 'Berisso', provincia: { nombre: 'Buenos Aires' }, centroide: { lat: -34.87, lon: -57.88 } },
+        ],
+      };
+    }
+    throw new Error('HTTP 503');
+  });
+  try {
+    const out = await w.runWeatherAlerts(db, NOW, { loadSmn: async () => smn });
+    assert.deepEqual(out.map((item) => `${item.municipalityId}:${item.alert}`).sort(), [
+      'georef_laplata:smn_storm_1',
+      'georef_zapala:smn_rain_1',
+    ]);
+
+    const notices = [...db.store.values()].filter((value) => value?.type === 'weather_alert');
+    const zapala = notices.find((value) => value.userId === 'u-zapala');
+    const laPlata = notices.find((value) => value.userId === 'u-laplata');
+    assert.equal(zapala.municipalityName, 'Zapala');
+    assert.deepEqual(zapala.affectedZones, ['Zapala', 'Aledaño Zapala']);
+    assert.match(zapala.body, /domingo 18\/10 a las 10:00/);
+    assert.equal(laPlata.municipalityName, 'La Plata');
+    assert.deepEqual(laPlata.affectedZones, ['La Plata', 'Berisso']);
+    assert.match(laPlata.body, /domingo 18\/10 a las 14:30/);
+    assert.equal(notices.some((value) => value.userId === 'u-laplata' && value.municipalityName === 'Zapala'), false);
+    assert.equal(notices.some((value) => value.userId === 'u-zapala' && value.municipalityName === 'La Plata'), false);
+  } finally { restore(); }
+});
+
+test('una actualización CAP del mismo nivel se vuelve a entregar y actualiza la vigencia', async () => {
+  const db = fakeDb({ users: [CITIZEN('u1', 'georef_1')], geo: { georef_1: GEO_A } });
+  const restore = mockFetch(forecastMock(0));
+  try {
+    const first = w.parseCapAlert(capXml({
+      identifier: 'smn-v1', sent: '2026-10-18T08:00:00-03:00',
+      onset: '2026-10-18T10:00:00-03:00', expires: '2026-10-18T18:00:00-03:00',
+    }));
+    const updated = w.parseCapAlert(capXml({
+      identifier: 'smn-v2', sent: '2026-10-18T09:00:00-03:00',
+      onset: '2026-10-18T11:30:00-03:00', expires: '2026-10-18T21:00:00-03:00',
+    }));
+    assert.equal((await w.runWeatherAlerts(db, NOW, { loadSmn: async () => [first] })).length, 1);
+    assert.equal((await w.runWeatherAlerts(db, NOW, { loadSmn: async () => [updated] })).length, 1);
+    assert.deepEqual(await w.runWeatherAlerts(db, NOW, { loadSmn: async () => [updated] }), []);
+    const notices = [...db.store.values()].filter((value) => value?.type === 'weather_alert');
+    assert.equal(notices.length, 2);
+    assert.match(notices.find((value) => value.versionKey === updated.versionKey).body, /11:30/);
+    const marker = db.store.get('weatherAlerts/georef_1_2026-10-18_smn_rain_1');
+    assert.equal(marker.versionKey, updated.versionKey);
   } finally { restore(); }
 });
 

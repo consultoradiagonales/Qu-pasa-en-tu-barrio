@@ -14,6 +14,7 @@ import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/auth/screens/select_municipality_screen.dart';
 import '../../features/map/screens/map_screen.dart';
+import '../../features/home/screens/citizen_home_screen.dart';
 import '../../features/report/screens/new_report_screen.dart';
 import '../../features/report_detail/screens/report_detail_screen.dart';
 import '../../features/my_reports/screens/my_reports_screen.dart';
@@ -23,6 +24,7 @@ import '../../features/field/screens/work_in_progress_screen.dart';
 import '../../features/coordinator/screens/coordinator_home_screen.dart';
 import '../../features/admin/screens/admin_console_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/weather/screens/weather_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/advertising/local_ads_banner.dart';
 import '../services/device_profile_service.dart';
@@ -78,8 +80,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final target = state.matchedLocation;
       final isReport = target == '/report/new';
+      final isCitizenHome = target == '/home';
       // Photo capture is public. Authentication is requested only on send.
-      if (!isLoggedIn && !isOnAuth && !isReport) {
+      if (!isLoggedIn && !isOnAuth && !isReport && !isCitizenHome) {
         final next = isOnMunicipio ? 'report' : target;
         return '/auth/login?next=${Uri.encodeComponent(next)}';
       }
@@ -131,6 +134,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => _CitizenShell(child: child),
         routes: [
           GoRoute(
+            path: '/home',
+            builder: (context, state) => const CitizenHomeScreen(),
+          ),
+          GoRoute(
             path: '/map',
             builder: (context, state) => const MapScreen(),
           ),
@@ -145,6 +152,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
+            routes: [
+              GoRoute(
+                path: 'clima',
+                builder: (context, state) => const WeatherScreen(),
+              ),
+            ],
           ),
         ],
       ),
@@ -276,9 +289,9 @@ class _CitizenShellState extends ConsumerState<_CitizenShell> {
             onDestinationSelected: (i) => _navigate(context, i),
             destinations: const [
               NavigationDestination(
-                icon: Icon(Icons.map_outlined),
-                selectedIcon: Icon(Icons.map),
-                label: 'Mapa',
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Inicio',
               ),
               NavigationDestination(
                 icon: Icon(Icons.list_alt_outlined),
@@ -312,7 +325,7 @@ class _CitizenShellState extends ConsumerState<_CitizenShell> {
   void _navigate(BuildContext context, int index) {
     switch (index) {
       case 0:
-        context.go('/map');
+        context.go('/home');
         break;
       case 1:
         context.go('/my-reports');

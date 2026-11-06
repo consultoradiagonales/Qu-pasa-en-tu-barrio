@@ -3,12 +3,15 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { pushPreview } = require('./push-delivery');
+const { canManageMunicipality } = require('./management-access');
 
 const REGION = 'southamerica-east1';
 const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator']);
 const CLOSED_STATUSES = new Set(['resolved', 'closed', 'rejected']);
+const MAX_MESSAGE_LENGTH = 4000;
 
-function cleanMessage(value, max = 280) {
+function cleanMessage(value, max = MAX_MESSAGE_LENGTH) {
   if (typeof value !== 'string') return '';
   return value
     .replace(/[\u0000-\u001f]/g, ' ')
@@ -28,8 +31,7 @@ function validReportId(value) {
 
 function canManage(profile, report) {
   if (!profile || profile.disabled === true || !MANAGEMENT_ROLES.has(profile.role)) return false;
-  return profile.role === 'admin' ||
-    (typeof profile.municipalityId === 'string' && profile.municipalityId === report.municipalityId);
+  return canManageMunicipality(profile, report.municipalityId);
 }
 
 function evidenceFor(report) {
@@ -97,6 +99,7 @@ async function sendReportUpdateHandler(request) {
   let notification = await notificationRef.get();
   if (!notification.exists) {
     try {
+      const createdAtMs = Date.now();
       await notificationRef.create({
         userId: report.userId,
         reportId,
@@ -107,6 +110,8 @@ async function sendReportUpdateHandler(request) {
         read: false,
         delivery: 'pending',
         createdAt: FieldValue.serverTimestamp(),
+        createdAtMs,
+        sortKey: `${String(createdAtMs).padStart(13, '0')}_${notificationRef.id}`,
       });
     } catch (error) {
       if (error?.code !== 6 && error?.code !== 'already-exists') throw error;
@@ -129,7 +134,7 @@ async function sendReportUpdateHandler(request) {
 
   const push = {
     token,
-    notification: { title: 'Actualización de tu reporte', body: message },
+    notification: { title: 'Actualización de tu reporte', body: pushPreview(message) },
     data: {
       reportId,
       notificationId: notificationRef.id,
@@ -176,6 +181,7 @@ module.exports = {
   setReportPriorityHandler,
   sendReportUpdateHandler,
   cleanMessage,
+  MAX_MESSAGE_LENGTH,
   validId,
   evidenceFor,
   canManage,

@@ -1,15 +1,12 @@
-import 'dart:math';
-
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/error_text.dart';
+import '../../../data/repositories/admin_messages_repository.dart';
 import '../../../data/repositories/push_reach_repository.dart';
 
-/// Redacta un mensaje y lo envía como notificación a la app de los vecinos.
-/// El permiso real lo valida la Cloud Function `sendCustomMessage`; el rol que
-/// recibe esta vista solo decide qué opciones se ofrecen.
+/// Redacta un mensaje para los vecinos. El servidor lo deja en la bandeja de
+/// cada destinatario y envía push cuando el celular tiene un token válido.
 class SendMessageView extends ConsumerStatefulWidget {
   const SendMessageView({super.key, required this.isAdmin});
 
@@ -24,22 +21,10 @@ enum _Audience { municipality, everyone }
 class _SendMessageViewState extends ConsumerState<SendMessageView> {
   final _title = TextEditingController();
   final _body = TextEditingController();
-  late final _functions =
-      FirebaseFunctions.instanceFor(region: 'southamerica-east1');
   _Audience _audience = _Audience.municipality;
   bool _sending = false;
   String? _result;
   bool _failed = false;
-
-  // Un id por mensaje: si se reintenta el mismo envío, el servidor no lo
-  // duplica. Se renueva solo cuando el envío salió bien.
-  String _requestId = _newId();
-
-  static String _newId() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    final random = Random.secure();
-    return List.generate(24, (_) => chars[random.nextInt(chars.length)]).join();
-  }
 
   @override
   void dispose() {
@@ -77,26 +62,21 @@ class _SendMessageViewState extends ConsumerState<SendMessageView> {
       _result = null;
     });
     try {
-      final response =
-          await _functions.httpsCallable('sendCustomMessage').call({
-        'title': _title.text.trim(),
-        'body': _body.text.trim(),
-        'requestId': _requestId,
-        'audience': {'type': everyone ? 'all' : 'municipality'},
-      });
-      final data = Map<String, dynamic>.from(response.data as Map);
-      final total = data['total'] ?? 0;
-      final pushed = data['pushed'] ?? 0;
+      final municipalityId = ref.read(reachMunicipalityIdProvider);
+      final response = await ref.read(adminMessagesRepositoryProvider).send(
+            title: _title.text.trim(),
+            body: _body.text.trim(),
+            senderMunicipalityId: municipalityId,
+            audience: everyone
+                ? MessageAudience.everyone
+                : MessageAudience.municipality,
+          );
       if (!mounted) return;
       setState(() {
         _failed = false;
-        _result = total == 0
-            ? 'No hay vecinos para recibir este mensaje todavía.'
-            : 'Enviado a $total personas ($pushed con notificación en el '
-                'celular; el resto lo ve dentro de la app).';
+        _result = _deliveryMessage(response);
         _title.clear();
         _body.clear();
-        _requestId = _newId();
       });
     } catch (error) {
       if (!mounted) return;
@@ -107,6 +87,21 @@ class _SendMessageViewState extends ConsumerState<SendMessageView> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  String _deliveryMessage(MessageDispatchResult response) {
+    if (response.total == 0) {
+      return 'No hay vecinos para recibir este mensaje todavía.';
+    }
+    if (response.pushed == 0) {
+      return 'Mensaje disponible para ${response.total} personas en la '
+          'bandeja de ConDi. Ningún celular tiene notificaciones activas.';
+    }
+    if (response.inApp == 0) {
+      return 'Notificación enviada a ${response.pushed} persona${response.pushed == 1 ? '' : 's'}.';
+    }
+    return 'Notificación enviada a ${response.pushed} persona${response.pushed == 1 ? '' : 's'}; '
+        '${response.inApp} la verá${response.inApp == 1 ? '' : 'n'} al abrir ConDi.';
   }
 
   // Clave null = todos los usuarios. Si el municipio aún no se conoce no se
@@ -128,8 +123,8 @@ class _SendMessageViewState extends ConsumerState<SendMessageView> {
         Text('Enviar mensaje a los vecinos',
             style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 6),
-        const Text('Aparece como notificación en el celular y queda en la '
-            'bandeja de la app.'),
+        const Text(
+            'El mensaje queda en la bandeja y, si el celular está habilitado, llega como notificación.'),
         const SizedBox(height: 20),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
@@ -151,26 +146,36 @@ class _SendMessageViewState extends ConsumerState<SendMessageView> {
                 ],
                 onChanged: _sending
                     ? null
-                    : (value) =>
-                        setState(() => _audience = value ?? _audience),
+                    : (value) => setState(() => _audience = value ?? _audience),
               ),
               const SizedBox(height: 16),
               TextField(
                 key: const Key('message-title'),
                 controller: _title,
-                maxLength: 80,
+                maxLength: 120,
                 enabled: !_sending,
-                decoration: const InputDecoration(labelText: 'Título'),
+                decoration: const InputDecoration(
+                  labelText: 'Título',
+                  helperText: 'Hasta 120 caracteres.',
+                ),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 8),
               TextField(
                 key: const Key('message-body'),
                 controller: _body,
-                maxLength: 280,
-                maxLines: 4,
+                maxLength: 4000,
+                minLines: 6,
+                maxLines: 12,
+                keyboardType: TextInputType.multiline,
+                textCapitalization: TextCapitalization.sentences,
                 enabled: !_sending,
-                decoration: const InputDecoration(labelText: 'Mensaje'),
+                decoration: const InputDecoration(
+                  labelText: 'Mensaje',
+                  alignLabelWithHint: true,
+                  helperText:
+                      'Hasta 4.000 caracteres. El mensaje completo queda en la bandeja.',
+                ),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 16),

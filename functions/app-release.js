@@ -2,6 +2,7 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { isCentralAdmin } = require('./management-access');
 
 const REGION = 'southamerica-east1';
 const RELEASE_DOCUMENT = 'appConfiguration/mobileRelease';
@@ -65,7 +66,7 @@ async function requireAdmin(request) {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
   const profile = await getFirestore().collection('users').doc(uid).get();
-  if (!profile.exists || profile.get('disabled') === true || profile.get('role') !== ADMIN_ROLE) {
+  if (!profile.exists || !isCentralAdmin(profile.data())) {
     throw new HttpsError('permission-denied', 'Solo la administración puede configurar actualizaciones.');
   }
 }

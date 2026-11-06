@@ -110,6 +110,34 @@ void main() {
     return submit;
   }
 
+  Future<void> reveal(WidgetTester tester, Finder finder) async {
+    final scrollable = find.byType(Scrollable).first;
+    for (var attempt = 0;
+        attempt < 12 && finder.evaluate().isEmpty;
+        attempt++) {
+      await tester.drag(scrollable, const Offset(0, -220));
+      await tester.pumpAndSettle();
+    }
+    expect(finder, findsOneWidget);
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> selectCategory(WidgetTester tester, String label) async {
+    final dropdown = find.byKey(const Key('report-category'));
+    await reveal(tester, dropdown);
+    await tester.tap(dropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label).last);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapRevealed(WidgetTester tester, Finder finder) async {
+    await reveal(tester, finder);
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
+  }
+
   test(
     'Default login destination never chooses management based on the role',
     () {
@@ -133,11 +161,9 @@ void main() {
       expect(events, ['camera']);
       expect(find.text('¿Dónde está?'), findsOneWidget);
       expect(find.text('Centro de gestión'), findsNothing);
-      await tester.tap(find.text('Usar mi ubicación'));
-      await tester.pumpAndSettle();
+      await tapRevealed(tester, find.text('Usar mi ubicación'));
       expect(events, ['camera', 'gps']);
-      await tester.tap(find.text('Usar esta ubicación'));
-      await tester.pumpAndSettle();
+      await tapRevealed(tester, find.text('Usar esta ubicación'));
       await tester.scrollUntilVisible(
         find.byKey(const Key('photo-evidence-confirmed')),
         200,
@@ -148,12 +174,12 @@ void main() {
       );
       expect(sendBeforeReview.onPressed, isNull);
       await tester.tap(find.byKey(const Key('photo-evidence-confirmed')));
-      await tester.pumpAndSettle();
+      await selectCategory(tester, 'Bache');
       await tester.tap(find.text('Enviar reporte'));
       await tester.pumpAndSettle();
       expect(submit.calls, 1);
       expect(submit.submitted!.comment, '');
-      expect(submit.submitted!.presetId, 'other');
+      expect(submit.submitted!.presetId, 'pothole');
       expect(submit.submitted!.locationConfirmed, true);
       expect(find.text('Reporte recibido'), findsOneWidget);
       expect(storage.value, isNull);
@@ -175,8 +201,7 @@ void main() {
   ) async {
     final capture = FakeCapture(photo, <String>[])..gpsDenied = true;
     await mount(tester, capture, MemoryStorage());
-    await tester.tap(find.text('Usar mi ubicación'));
-    await tester.pumpAndSettle();
+    await tapRevealed(tester, find.text('Usar mi ubicación'));
     await tester.scrollUntilVisible(
       find.text('Marcá el punto en el mapa.'),
       200,
@@ -188,21 +213,44 @@ void main() {
     );
     expect(button.onPressed, isNull);
   });
-  testWidgets('Manual address can continue without GPS or a map',
+  testWidgets('Manual address requires choosing a city from the suggestions',
       (tester) async {
+    const address =
+        'Av. 7 Nº 1234, Torre A - 2° B, entre 48/49. Frente al parque.';
+    final storage = MemoryStorage();
+    final submit = await mount(
+      tester,
+      FakeCapture(photo, <String>[]),
+      storage,
+    );
+    await tester.enterText(
+      find.byKey(const Key('manual-address')),
+      address,
+    );
+    await tester.pumpAndSettle();
+    expect(storage.value?.address, address);
+    expect(find.byKey(const Key('manual-intersection')), findsNothing);
+    expect(find.byKey(const Key('manual-height')), findsNothing);
+    await tapRevealed(tester, find.byKey(const Key('use-manual-address')));
+    expect(
+      find.text('Elegí una ciudad o localidad de la lista.'),
+      findsOneWidget,
+    );
+    final button = tester.widget<FilledButton>(
+      find.byKey(const Key('confirm-location')),
+    );
+    expect(button.onPressed, isNull);
+    expect(submit.calls, 0);
+  });
+
+  testWidgets('A category must be selected before sending', (tester) async {
     final submit = await mount(
       tester,
       FakeCapture(photo, <String>[]),
       MemoryStorage(),
     );
-    await tester.enterText(
-      find.byKey(const Key('manual-address')),
-      'Calle 133 entre 43 y 44',
-    );
-    await tester.tap(find.byKey(const Key('use-manual-address')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('confirm-location')));
-    await tester.pumpAndSettle();
+    await tapRevealed(tester, find.text('Usar mi ubicación'));
+    await tapRevealed(tester, find.text('Usar esta ubicación'));
     await tester.scrollUntilVisible(
       find.byKey(const Key('photo-evidence-confirmed')),
       200,
@@ -210,11 +258,19 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('photo-evidence-confirmed')));
     await tester.pumpAndSettle();
+    var send = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Enviar reporte'),
+    );
+    expect(send.onPressed, isNull);
+    await selectCategory(tester, 'Bache');
+    send = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Enviar reporte'),
+    );
+    expect(send.onPressed, isNotNull);
     await tester.tap(find.text('Enviar reporte'));
     await tester.pumpAndSettle();
     expect(submit.calls, 1);
-    expect(submit.submitted!.usesManualAddress, true);
-    expect(submit.submitted!.location, isNull);
+    expect(submit.submitted!.presetId, 'pothole');
   });
   testWidgets(
     'Saved draft survives authentication/recreation without reopening camera',
@@ -251,10 +307,8 @@ void main() {
       FakeCapture(photo, <String>[]),
       MemoryStorage(),
     );
-    await tester.tap(find.text('Usar mi ubicación'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Usar esta ubicación'));
-    await tester.pumpAndSettle();
+    await tapRevealed(tester, find.text('Usar mi ubicación'));
+    await tapRevealed(tester, find.text('Usar esta ubicación'));
     submit.pending = Completer<String>();
     await tester.scrollUntilVisible(
       find.byKey(const Key('photo-evidence-confirmed')),
@@ -262,7 +316,7 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(find.byKey(const Key('photo-evidence-confirmed')));
-    await tester.pumpAndSettle();
+    await selectCategory(tester, 'Bache');
     await tester.tap(find.text('Enviar reporte'));
     await tester.pump();
     await tester.tap(find.text('Enviando…'));
@@ -283,5 +337,26 @@ void main() {
     );
     expect(find.text('Sacar foto'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  test('New report options are available once and keep broad categories', () {
+    final byLabel = {for (final preset in reportPresets) preset.label: preset};
+    expect(
+      byLabel.keys,
+      containsAll(const [
+        'Agua estancada',
+        'Plagas',
+        'Ruidos molestos',
+        'Venta de droga',
+        'Picada motos o autos',
+        'Robos reiterados',
+        'Calle anegada',
+        'Disturbios',
+        'Otro',
+      ]),
+    );
+    expect(reportPresets.where((preset) => preset.label == 'Otro').length, 1);
+    expect(byLabel['Venta de droga']!.category.value, 'security');
+    expect(byLabel['Calle anegada']!.category.value, 'infrastructure');
   });
 }

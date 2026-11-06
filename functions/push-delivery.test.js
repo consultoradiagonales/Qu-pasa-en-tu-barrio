@@ -154,3 +154,46 @@ test('uid duplicado en la lista no duplica el aviso', async () => {
   assert.equal(result.pushed, 1);
   assert.equal(messaging.impl.calls[0].length, 1);
 });
+
+
+test('mensaje largo queda completo en la bandeja y solo el push usa una vista previa', async () => {
+  const db = new FakeDb();
+  const messaging = fakeMessaging();
+  const body = 'a'.repeat(4000);
+  await deliverToUsers(db, [{ uid: 'u1', fcmToken: 'tok' }], { ...OPTS, key: 'long1', body }, messaging);
+  const stored = db.get('notifications/long1_u1');
+  assert.equal(stored.body, body);
+  assert.equal(stored.body.length, 4000);
+  assert.match(stored.sortKey, /^\d{13}_long1_u1$/);
+  assert.equal(typeof stored.createdAtMs, 'number');
+  const push = messaging.impl.calls[0][0].notification.body;
+  assert.equal([...push].length, 240);
+  assert.ok(push.endsWith('…'));
+});
+
+test('rechaza cargas de notificacion sin esquema seguro o que exceden el maximo', async () => {
+  await assert.rejects(
+    deliverToUsers(new FakeDb(), [], { ...OPTS, body: 'x'.repeat(4001) }),
+    RangeError,
+  );
+  await assert.rejects(
+    deliverToUsers(new FakeDb(), [], { ...OPTS, key: 'key/invalid' }),
+    TypeError,
+  );
+});
+
+
+test('campos de entrega no pueden ser sobrescritos por datos auxiliares', async () => {
+  const db = new FakeDb();
+  await deliverToUsers(db, [{ uid: 'u1' }], {
+    ...OPTS,
+    key: 'fixed1',
+    data: { userId: 'other', title: 'other', body: 'other', read: true, sortKey: 'unsafe' },
+  });
+  const stored = db.get('notifications/fixed1_u1');
+  assert.equal(stored.userId, 'u1');
+  assert.equal(stored.title, OPTS.title);
+  assert.equal(stored.body, OPTS.body);
+  assert.equal(stored.read, false);
+  assert.notEqual(stored.sortKey, 'unsafe');
+});

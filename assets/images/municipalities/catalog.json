@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "retrievedAt": "2026-10-31",
+  "province": {
+    "id": "06",
+    "name": "Provincia de Buenos Aires",
+    "crestAsset": "assets/images/municipalities/buenos_aires_province.svg",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/7/71/Coat_of_arms_of_the_Buenos_Aires_Province.svg",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File:Coat_of_arms_of_the_Buenos_Aires_Province.svg",
+    "license": "Dominio público PD-AR-Gov; fuente reconocida. Vector por Hurfer."
+  },
+  "municipalities": [
+    {
+      "id": "georef_060252",
+      "code": "060252",
+      "censusCode": "06252",
+      "key": "escobar",
+      "name": "Escobar",
+      "provinceId": "06",
+      "province": "Buenos Aires",
+      "center": {
+        "lat": -34.3286828340823,
+        "lng": -58.7711786108508
+      },
+      "crestAsset": "assets/images/municipalities/escobar_official.png",
+      "source": "https://www.gba.gob.ar/owlcarousel/src/img/municipios/escobar.png",
+      "sourcePage": "https://www.gba.gob.ar/municipios",
+      "sourceLabel": "Escobar",
+      "sha256": "14cfc7d8fc6a5541f166a7fe341dbee5c0dd9fa1561b37c77b6b62eebd399c73"
+    },
+    {
+      "id": "georef_060441",
+      "code": "060441",
+      "censusCode": "06441",
+      "key": "la_plata",
+      "name": "La Plata",
+      "provinceId": "06",
+      "province": "Buenos Aires",
+      "center": {
+        "lat": -35.0038470156373,
+        "lng": -58.0177777886065
+      },
+      "crestAsset": "assets/images/municipalities/la_plata_official.png",
+      "source": "https://www.gba.gob.ar/owlcarousel/src/img/municipios/LaPlata.png",
+      "sourcePage": "https://www.gba.gob.ar/municipios",
+      "sourceLabel": "La Plata",
+      "sha256": "b0563417767321cd349b8878287e0ff1e91768dd9e46eac384c0bc88c203037f"
+    },
+    {
+      "id": "georef_060679",
+      "code": "060679",
+      "censusCode": "06679",
+      "key": "rivadavia",
+      "name": "Rivadavia",
+      "provinceId": "06",
+      "province": "Buenos Aires",
+      "center": {
+        "lat": -35.5810567049068,
+        "lng": -63.0947611588419
+      },
+      "crestAsset": "assets/images/municipalities/rivadavia_official.png",
+      "source": "https://www.gba.gob.ar/owlcarousel/src/img/municipios/Rivadavia.png",
+      "sourcePage": "https://www.gba.gob.ar/municipios",
+      "sourceLabel": "Rivadavia",
+      "sha256": "196c04cdc71376b79f1a4076d72dfa020b75773148051561d6bcd603599e97fb"
+    },
+    {
+      "id": "georef_060707",
+      "code": "060707",
+      "censusCode": "06707",
+      "key": "saladillo",
+      "name": "Saladillo",
+      "provinceId": "06",
+      "province": "Buenos Aires",
+      "center": {
+        "lat": -35.6768064519233,
+        "lng": -59.7026607444532
+      },
+      "crestAsset": "assets/images/municipalities/saladillo_official.png",
+      "source": "https://www.gba.gob.ar/owlcarousel/src/img/municipios/Saladillo.png",
+      "sourcePage": "https://www.gba.gob.ar/municipios",
+      "sourceLabel": "Saladillo",
+      "sha256": "cee477047f765a31bd0119aa975c8cf81ccc6f97f288e1ab2c3f55ce2b850211"
+    },
+    {
+      "id": "georef_060826",
+      "code": "060826",
+      "censusCode": "06826",
+      "key": "trenque_lauquen",
+      "name": "Trenque Lauquen",
+      "provinceId": "06",
+      "province": "Buenos Aires",
+      "center": {
+        "lat": -36.0567662720747,
+        "lng": -62.635079783239
+      },
+      "crestAsset": "assets/images/municipalities/trenque_lauquen_official.png",
+      "source": "https://www.gba.gob.ar/owlcarousel/src/img/municipios/TrenqueLauquen.png",
+      "sourcePage": "https://www.gba.gob.ar/municipios",
+      "sourceLabel": "Trenque Lauquen",
+      "sha256": "89295aa5cdeac89f7aace29fe8ca04f6754cb58066af4c1bc08425bb140ce685"
+    }
+  ],
+  "notice": "Identidad territorial de referencia. La inclusión no acredita contratación, adhesión ni representación oficial."
+}

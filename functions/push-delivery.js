@@ -5,6 +5,29 @@ const { getMessaging } = require('firebase-admin/messaging');
 
 const CHANNEL_ID = 'condi_report_updates';
 const BATCH = 500;
+const MAX_TITLE_LENGTH = 120;
+const MAX_BODY_LENGTH = 4000;
+const PUSH_PREVIEW_LENGTH = 240;
+
+function pushPreview(value, max = PUSH_PREVIEW_LENGTH) {
+  const chars = Array.from(value);
+  return chars.length <= max ? value : `${chars.slice(0, max - 1).join('')}…`;
+}
+
+function assertNotificationPayload({ key, type, title, body }) {
+  if (typeof key !== 'string' || !/^[A-Za-z0-9_-]{1,180}$/.test(key)) {
+    throw new TypeError('Invalid notification key.');
+  }
+  if (typeof type !== 'string' || type.length < 1 || type.length > 80) {
+    throw new TypeError('Invalid notification type.');
+  }
+  if (typeof title !== 'string' || title.trim().length < 1 || Array.from(title).length > MAX_TITLE_LENGTH) {
+    throw new RangeError('Invalid notification title.');
+  }
+  if (typeof body !== 'string' || body.trim().length < 1 || Array.from(body).length > MAX_BODY_LENGTH) {
+    throw new RangeError('Invalid notification body.');
+  }
+}
 
 function isInvalidToken(code) {
   return code === 'messaging/registration-token-not-registered' ||
@@ -21,6 +44,7 @@ function isInvalidToken(code) {
  * Devuelve { total, pushed, inApp }.
  */
 async function deliverToUsers(db, users, { key, type, title, body, data = {} }, messagingProvider = getMessaging) {
+  assertNotificationPayload({ key, type, title, body });
   const result = { total: users.length, pushed: 0, inApp: 0 };
   for (let start = 0; start < users.length; start += BATCH) {
     const chunk = users.slice(start, start + BATCH);
@@ -30,7 +54,9 @@ async function deliverToUsers(db, users, { key, type, title, body, data = {} }, 
     await Promise.all(chunk.map(async (user) => {
       const ref = db.collection('notifications').doc(`${key}_${user.uid}`);
       try {
+        const createdAtMs = Date.now();
         await ref.create({
+          ...data,
           userId: user.uid,
           type,
           title,
@@ -38,7 +64,8 @@ async function deliverToUsers(db, users, { key, type, title, body, data = {} }, 
           read: false,
           delivery: 'pending',
           createdAt: FieldValue.serverTimestamp(),
-          ...data,
+          createdAtMs,
+          sortKey: `${String(createdAtMs).padStart(13, '0')}_${ref.id}`,
         });
         fresh.push({ ...user, ref });
       } catch (error) {
@@ -60,7 +87,7 @@ async function deliverToUsers(db, users, { key, type, title, body, data = {} }, 
       try {
         response = await messagingProvider().sendEach(withToken.map((u) => ({
           token: u.fcmToken,
-          notification: { title, body },
+          notification: { title: pushPreview(title, MAX_TITLE_LENGTH), body: pushPreview(body) },
           data: { ...stringData, notificationId: u.ref.id },
           android: { collapseKey: u.ref.id, notification: { channelId: CHANNEL_ID } },
           apns: { payload: { aps: { sound: 'default' } } },
@@ -96,4 +123,11 @@ async function deliverToUsers(db, users, { key, type, title, body, data = {} }, 
   return result;
 }
 
-module.exports = { deliverToUsers };
+module.exports = {
+  deliverToUsers,
+  pushPreview,
+  assertNotificationPayload,
+  MAX_TITLE_LENGTH,
+  MAX_BODY_LENGTH,
+  PUSH_PREVIEW_LENGTH,
+};

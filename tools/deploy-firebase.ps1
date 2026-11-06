@@ -3,7 +3,7 @@
 # Uso: .\tools\deploy-firebase.ps1
 
 $ErrorActionPreference = "Stop"
-$PROJECT = "E:\CODEX ChatGPT\04 - APP municipal → Qué pasa en tu barrio"
+$PROJECT = Split-Path -Parent $PSScriptRoot
 
 Push-Location $PROJECT
 

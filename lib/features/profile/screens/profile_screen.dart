@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/device_profile_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/municipality_identity.dart';
+import '../../../data/models/user_model.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../core/utils/error_text.dart';
@@ -30,11 +32,20 @@ class ProfileScreen extends ConsumerWidget {
         data: (userModel) => ListView(
           padding: const EdgeInsets.all(24),
           children: [
+            Center(
+              child: MunicipalityIdentity(
+                municipalityId: userModel?.municipalityId,
+                municipalityName: userModel?.municipalityName,
+                subtitle: 'Municipio asociado a tu cuenta',
+                crestSize: 56,
+              ),
+            ),
+            const Divider(height: 40),
             // Avatar
             Center(
               child: CircleAvatar(
                 radius: 48,
-                backgroundColor: AppColors.primary.withOpacity(0.15),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                 child: Text(
                   userModel?.realName.isNotEmpty == true
                       ? userModel!.realName[0].toUpperCase()
@@ -65,7 +76,7 @@ class ProfileScreen extends ConsumerWidget {
                   _rolLabel(userModel?.role.value ?? 'citizen'),
                   style: const TextStyle(fontSize: 12),
                 ),
-                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
               ),
             ),
             const SizedBox(height: 32),
@@ -82,6 +93,20 @@ class ProfileScreen extends ConsumerWidget {
             const Divider(height: 40),
 
             // Opciones
+            if (userModel?.role == UserRole.citizen)
+              _MenuItem(
+                key: const Key('profile-change-municipality'),
+                icon: Icons.location_city_outlined,
+                label: 'Municipio y alertas climáticas',
+                onTap: () => context.go('/auth/municipio?next=profile'),
+              ),
+            if (userModel?.role == UserRole.citizen)
+              _MenuItem(
+                key: const Key('profile-weather'),
+                icon: Icons.thunderstorm_outlined,
+                label: 'Clima y prevención',
+                onTap: () => context.go('/profile/clima'),
+              ),
             _MenuItem(
               icon: Icons.lock_outline,
               label: 'Cambiar contraseña',
@@ -155,7 +180,35 @@ class ProfileScreen extends ConsumerWidget {
             _MenuItem(
               icon: Icons.info_outline,
               label: 'Acerca de la app',
-              onTap: () {/* TODO: pantalla about */},
+              onTap: () => showAboutDialog(
+                context: context,
+                applicationName: 'ConDi',
+                applicationVersion: 'MVP municipal',
+                children: [
+                  const Text(
+                      'Plataforma privada de Consultora Diagonales para registrar y seguir problemas urbanos. No representa por sí misma a un gobierno ni implica adhesión de todos los municipios. La atención municipal depende de las instituciones que operen el servicio.'),
+                  const SizedBox(height: 12),
+                  const Text(
+                      'Los escudos identifican el ámbito territorial. ConDi no es un servicio de emergencias.'),
+                  TextButton(
+                      onPressed: () => launchUrl(
+                          Uri.parse('https://www.gba.gob.ar/municipios'),
+                          mode: LaunchMode.externalApplication),
+                      child: const Text('Fuente de identidades municipales')),
+                  TextButton(
+                      onPressed: () => launchUrl(
+                          Uri.parse('https://www.smn.gob.ar/'),
+                          mode: LaunchMode.externalApplication),
+                      child: const Text(
+                          'Fuente de alertas: Servicio Meteorológico Nacional')),
+                  TextButton(
+                      onPressed: () => launchUrl(
+                          Uri.parse(
+                              'https://datosgobar.github.io/georef-ar-api/'),
+                          mode: LaunchMode.externalApplication),
+                      child: const Text('Fuente territorial: Georef')),
+                ],
+              ),
             ),
             const Divider(height: 32),
 
@@ -166,7 +219,7 @@ class ProfileScreen extends ConsumerWidget {
               color: Colors.orange,
               onTap: () async {
                 await ref.read(authServiceProvider).signOut();
-                if (context.mounted) context.go('/report/new?mode=camera');
+                if (context.mounted) context.go(citizenStartLocation);
               },
             ),
 
@@ -218,7 +271,7 @@ class ProfileScreen extends ConsumerWidget {
       } catch (_) {}
       await ref.read(userRepositoryProvider).deleteUserData(uid);
       await ref.read(authServiceProvider).deleteAccount();
-      if (context.mounted) context.go('/report/new?mode=camera');
+      if (context.mounted) context.go(citizenStartLocation);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -354,7 +407,8 @@ class _MenuItem extends StatelessWidget {
   final VoidCallback onTap;
   final Color? color;
   const _MenuItem(
-      {required this.icon,
+      {super.key,
+      required this.icon,
       required this.label,
       required this.onTap,
       this.color});

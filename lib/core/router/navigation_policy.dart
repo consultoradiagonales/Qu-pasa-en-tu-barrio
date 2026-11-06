@@ -1,6 +1,6 @@
-/// The citizen app always opens reporting. Operations requires an explicit
-/// web URL or a separately configured operations build.
-const citizenStartLocation = '/report/new?mode=camera';
+/// La app ciudadana abre un inicio simple: cámara rápida arriba y cuenta abajo.
+/// Operations requiere una URL web explícita o un build separado.
+const citizenStartLocation = '/home';
 const operationsBuild = bool.fromEnvironment('CONDI_OPERATIONS');
 
 bool isOperationsPath(String path) =>
@@ -12,10 +12,13 @@ String signedInDestination(String? next) {
   if (next == '/admin' ||
       next == '/coordinator' ||
       next == '/field' ||
+      next == '/home' ||
       next == '/map' ||
       next == '/my-reports' ||
       next == '/profile' ||
-      next == '/notifications') return next!;
+      next == '/notifications') {
+    return next!;
+  }
   if (next == 'report') return '/report/new?resume=1';
   return citizenStartLocation;
 }

@@ -5,6 +5,22 @@
       "queryScope": "COLLECTION",
       "fields": [
         {"fieldPath": "hidden", "order": "ASCENDING"},
+        {"fieldPath": "municipalityId", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "weatherAlerts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "municipalityId", "order": "ASCENDING"},
+        {"fieldPath": "createdAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "reports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "hidden", "order": "ASCENDING"},
         {"fieldPath": "createdAt", "order": "DESCENDING"}
       ]
     },

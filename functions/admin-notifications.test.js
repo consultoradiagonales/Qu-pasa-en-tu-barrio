@@ -11,7 +11,8 @@ const {
 
 test('manual notification text is bounded and does not preserve links', () => {
   assert.equal(cleanMessage('  Novedad\nhttps://example.test/a  '), 'Novedad [enlace omitido]');
-  assert.equal(cleanMessage('x'.repeat(400)).length, 280);
+  assert.equal(cleanMessage('x'.repeat(4000)).length, 4000);
+  assert.equal(cleanMessage('x'.repeat(4001)).length, 4000);
 });
 
 test('request ids require a safe opaque token', () => {
@@ -30,6 +31,8 @@ test('only enabled municipal staff can manage a report', () => {
   const report = { municipalityId: 'm1' };
   assert.equal(canManage({ role: 'coordinator', municipalityId: 'm1', disabled: false }, report), true);
   assert.equal(canManage({ role: 'coordinator', municipalityId: 'm2', disabled: false }, report), false);
-  assert.equal(canManage({ role: 'admin', municipalityId: '', disabled: false }, report), true);
+  assert.equal(canManage({ role: 'admin', organizationId: 'diagonales', municipalityId: '', disabled: false }, report), true);
+  assert.equal(canManage({ role: 'admin', municipalityId: 'm2', disabled: false }, report), false);
+  assert.equal(canManage({ role: 'admin', municipalityId: 'm1', disabled: false }, report), true);
   assert.equal(canManage({ role: 'admin', municipalityId: 'm1', disabled: true }, report), false);
 });

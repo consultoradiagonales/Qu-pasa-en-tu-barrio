@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-30",
+  "pdf": {
+    "auditoria-condi-civicplus.pdf": {"pages": 8, "textCharacters": 19943, "allPagesRenderedAndVisuallyReviewed": true},
+    "arquitectura-condi-crm.pdf": {"pages": 8, "textCharacters": 22830, "allPagesRenderedAndVisuallyReviewed": true}
+  },
+  "html": {
+    "localChromeReviewed": true,
+    "visibleEmbeddedDataError": false,
+    "missingImages": 0,
+    "consoleErrorsObserved": 0,
+    "menuOpenAndEscapeClose": true,
+    "networkReflowsOnResize": true,
+    "checks": [
+      {"cssViewport": [390, 844], "scrollWidth": 374, "clientWidth": 374},
+      {"cssViewport": [411, 915], "scrollWidth": 395, "clientWidth": 395},
+      {"cssViewport": [413, 915], "scrollWidth": 396, "clientWidth": 396},
+      {"cssViewport": [1440, 1000], "scrollWidth": 1423, "clientWidth": 1423}
+    ],
+    "breakpointNote": "El objetivo de 412 px se verifico por ambos lados (411 y 413) debido al redondeo de escala de Chrome. Sin desborde horizontal en las cuatro mediciones.",
+    "browserViewportRestored": true
+  },
+  "scope": {
+    "demoFormSubmitted": false,
+    "privateCivicPlusBackendInspected": false,
+    "condiProductionQueriedOrChanged": false,
+    "applicationSourceChangedInThisAudit": false,
+    "securityExploitationAttempted": false,
+    "applicationTestsExecuted": false
+  }
+}

@@ -11,6 +11,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/services/report_permissions.dart';
 import '../../../core/utils/error_text.dart';
 import '../../../core/utils/platform_support.dart';
+import '../../../core/widgets/locality_autocomplete.dart';
 import '../../../core/widgets/municipality_autocomplete.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/user_repository.dart';
@@ -37,11 +38,9 @@ class NewReportScreen extends ConsumerStatefulWidget {
 
 class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   final _comment = TextEditingController();
-  final _address = TextEditingController();
+  final _manualAddress = TextEditingController();
   int _step = 0;
-  bool _openingCamera = false,
-      _locating = false,
-      _sending = false;
+  bool _openingCamera = false, _locating = false, _sending = false;
   bool _showMap = false;
   String? _error, _sentId;
   bool _sentWithAi = false;
@@ -57,7 +56,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   @override
   void dispose() {
     _comment.dispose();
-    _address.dispose();
+    _manualAddress.dispose();
     super.dispose();
   }
 
@@ -70,10 +69,11 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
     if (!mounted) return;
     try {
       final recovered = await ref.read(reportCaptureProvider).recoverPhoto();
-      if (recovered != null)
+      if (recovered != null) {
         _update(
           _draft.copyWith(photoPath: recovered.path, clearLocation: true),
         );
+      }
       if (_draft.hasPhoto) {
         try {
           final bytes = await ref
@@ -86,7 +86,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       }
       if (!mounted) return;
       _comment.text = _draft.comment;
-      _address.text = _draft.address;
+      _manualAddress.text = _draft.address;
       if (widget.initialLocation != null && !_draft.locationConfirmed) {
         _update(_draft.copyWith(location: widget.initialLocation));
       }
@@ -155,18 +155,49 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   }
 
   void _useManualAddress() {
-    final address = _address.text.trim();
-    if (address.length < 4) {
+    final address = _manualAddress.text.trim();
+    if (_draft.territory.trim().isEmpty) {
+      setState(() => _error = 'Elegí una ciudad o localidad de la lista.');
+      return;
+    }
+    if (address.length < 2) {
       setState(() => _error =
-          'Escribí una dirección o referencia de al menos 4 caracteres.');
+          'Escribí una calle o una intersección para completar la dirección.');
       return;
     }
     _update(_draft.copyWith(
       address: address,
-      clearLocation: true,
       usesManualAddress: true,
+      locationConfirmed: _draft.location != null,
     ));
     setState(() => _error = null);
+  }
+
+  void _syncManualAddress(String value) {
+    _update(_draft.copyWith(address: value, usesManualAddress: true));
+  }
+
+  void _selectLocality(LocalitySuggestion? locality) {
+    if (locality == null) {
+      _update(_draft.copyWith(territory: ''));
+      return;
+    }
+    _update(_draft.copyWith(
+      territory: locality.label,
+      usesManualAddress: true,
+      location: locality.hasCoordinates
+          ? LatLng(locality.latitude!, locality.longitude!)
+          : null,
+      clearLocation: !locality.hasCoordinates,
+      locationConfirmed: false,
+    ));
+  }
+
+  String _locationDescription(ReportDraft draft) {
+    final description = [draft.territory, draft.address]
+        .where((value) => value.trim().isNotEmpty)
+        .join(' · ');
+    return description.isEmpty ? 'Ubicación confirmada' : description;
   }
 
   Future<bool> _identify() async {
@@ -251,7 +282,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       return true;
     }
     final place = found;
-    if (place == null || !mounted) return true;
+    if (!mounted) return true;
 
     final choice = await showDialog<String>(
       context: context,
@@ -305,11 +336,12 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       final wantsAi = _draft.aiRequested;
       final id = await ref.read(reportSubmitProvider).submit(_draft);
       await ref.read(reportDraftProvider.notifier).clear();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _sentId = id;
           _sentWithAi = wantsAi;
         });
+      }
     } on MunicipalityRequired {
       if (mounted) context.go('/auth/municipio?next=report');
     } catch (e) {
@@ -322,7 +354,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   Future<void> _newPhoto() async {
     await ref.read(reportDraftProvider.notifier).clear();
     _comment.clear();
-    _address.clear();
+    _manualAddress.clear();
     setState(() {
       _sentId = null;
       _step = 0;
@@ -463,10 +495,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
                               Expanded(
                                 child: FilledButton(
                                   key: const Key('confirm-location'),
-                                  onPressed: (draft.location == null &&
-                                              !(draft.usesManualAddress &&
-                                                  draft.hasManualAddress)) ||
-                                          _locating
+                                  onPressed: draft.location == null || _locating
                                       ? null
                                       : () {
                                           _update(
@@ -479,11 +508,8 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
                                             _error = null;
                                           });
                                         },
-                                  child: Text(
-                                    draft.usesManualAddress &&
-                                            draft.location == null
-                                        ? 'Usar dirección escrita'
-                                        : 'Usar esta ubicación',
+                                  child: const Text(
+                                    'Usar esta ubicación',
                                     textAlign: TextAlign.center,
                                   ),
                                 ),
@@ -491,7 +517,9 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
                             if (_step == 2)
                               Expanded(
                                 child: FilledButton.icon(
-                                  onPressed: _sending || !_photoConfirmed
+                                  onPressed: _sending ||
+                                          !_photoConfirmed ||
+                                          !_draft.canSend
                                       ? null
                                       : _send,
                                   icon: _sending
@@ -567,16 +595,35 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        const Text(
+          'Dirección manual',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Elegí la ciudad y completá solo los datos de la calle que conozcas.',
+        ),
+        const SizedBox(height: 10),
+        LocalityAutocomplete(
+          key: const Key('manual-locality'),
+          initialText: draft.territory,
+          onSelected: _selectLocality,
+        ),
+        const SizedBox(height: 8),
         TextField(
           key: const Key('manual-address'),
-          controller: _address,
-          maxLength: 180,
-          textCapitalization: TextCapitalization.words,
-          onChanged: (value) => _update(_draft.copyWith(address: value)),
+          controller: _manualAddress,
+          maxLength: 240,
+          keyboardType: TextInputType.streetAddress,
+          textInputAction: TextInputAction.done,
+          textCapitalization: TextCapitalization.sentences,
+          autocorrect: true,
+          enableSuggestions: true,
+          onChanged: _syncManualAddress,
           decoration: const InputDecoration(
-            labelText: 'Dirección o referencia manual',
-            hintText: 'Ej.: calle 133 entre 43 y 44',
-            prefixIcon: Icon(Icons.edit_location_alt_outlined),
+            labelText: 'Dirección o referencia',
+            hintText: 'Ej.: Av. 7 Nº 123, entre 48 y 49, frente a la plaza',
+            prefixIcon: Icon(Icons.signpost_outlined),
           ),
         ),
         Align(
@@ -585,19 +632,19 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
             key: const Key('use-manual-address'),
             onPressed: _useManualAddress,
             icon: const Icon(Icons.location_searching_outlined),
-            label: const Text('Usar dirección escrita'),
+            label: const Text('Usar dirección manual'),
           ),
         ),
         const SizedBox(height: 6),
         const Text(
-          'No hace falta activar GPS ni cargar el mapa. La gestión verá la dirección para ubicar el problema.',
+          'Al elegir la ciudad, la app usa su centro como referencia. Podés mejorar el punto con GPS o tocando el mapa.',
           style: TextStyle(fontSize: 12),
         ),
         if (draft.usesManualAddress && draft.location == null)
           const Padding(
             padding: EdgeInsets.only(top: 8),
             child: Text(
-              'Dirección manual seleccionada. Confirmala con el botón inferior para continuar.',
+              'No pudimos ubicar esa ciudad. Usá tu ubicación o marcá el punto en el mapa.',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -712,7 +759,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                draft.address.isEmpty ? 'Ubicación confirmada' : draft.address,
+                _locationDescription(draft),
               ),
             ),
             TextButton(
@@ -722,20 +769,40 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: reportPresets
+        DropdownButtonFormField<String>(
+          key: const Key('report-category'),
+          initialValue: draft.hasCategory ? draft.presetId : null,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Tipo de problema',
+            prefixIcon: Icon(Icons.report_problem_outlined),
+          ),
+          hint: const Text('Elegí una categoría'),
+          items: reportPresets
               .map(
-                (preset) => ChoiceChip(
-                  label: Text(preset.label),
-                  selected: draft.presetId == preset.id,
-                  onSelected: (_) =>
-                      _update(draft.copyWith(presetId: preset.id)),
+                (preset) => DropdownMenuItem<String>(
+                  value: preset.id,
+                  child: Text(
+                    preset.label,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
-              .toList(),
+              .toList(growable: false),
+          onChanged: (presetId) {
+            if (presetId != null) {
+              _update(draft.copyWith(presetId: presetId));
+            }
+          },
         ),
+        if (!draft.hasCategory)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Elegí una categoría para poder enviar el reporte.',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
         const SizedBox(height: 18),
         TextField(
           key: const Key('optional-comment'),

@@ -6,9 +6,9 @@ import 'package:flutter/foundation.dart';
 ///
 /// Es independiente de Firebase a propósito (todo entra por funciones) para
 /// poder probar los reintentos sin plataforma. Reglas de diseño:
-/// - El token NO depende del permiso de notificaciones: getToken() funciona
-///   igual. El permiso solo decide si el sistema muestra el aviso, así que se
-///   pide después y sus errores no bloquean el guardado del token.
+/// - Se solicita el permiso antes del token, cuando el sistema todavía puede
+///   mostrar la autorización. Si se rechaza o falla, igual se intenta guardar
+///   el token para que la persona conserve la bandeja dentro de ConDi.
 /// - Ningún error se traga sin dejar rastro en el log.
 /// - Si algo falla (red, doc de usuario aún no creado al registrarse,
 ///   servicio de Google no disponible) se reintenta con espera creciente.
@@ -45,6 +45,7 @@ class PushTokenRegistrar {
   }
 
   Future<bool> _run(String uid) async {
+    await _askPermission();
     final attempts = retryDelays.length + 1;
     for (var attempt = 0; attempt < attempts; attempt++) {
       try {
@@ -54,7 +55,6 @@ class PushTokenRegistrar {
         }
         await saveToken(uid, token);
         log('Push: token FCM guardado (intento ${attempt + 1}).');
-        await _askPermission();
         return true;
       } catch (error) {
         log('Push: no se pudo registrar el token FCM '
@@ -64,9 +64,6 @@ class PushTokenRegistrar {
         }
       }
     }
-    // Aun sin token, igual se pide el permiso para que los avisos locales
-    // funcionen.
-    await _askPermission();
     return false;
   }
 

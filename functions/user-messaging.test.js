@@ -7,6 +7,7 @@ const {
   deleteDeviceProfileHandler,
   sendCustomMessageHandler,
   cleanText,
+  cleanActionUrl,
   CONSENT_VERSION,
 } = require('./user-messaging');
 const { FakeDb, fakeMessaging } = require('./test-helpers/fake-firestore');
@@ -33,8 +34,21 @@ test('enviar mensajes exige sesion iniciada', async () => {
 
 test('cleanText quita enlaces y caracteres de control', () => {
   assert.equal(cleanText('Hola\n https://x.com/a  mundo', 50), 'Hola [enlace omitido] mundo');
+  assert.equal(
+    cleanText('Actualizá: https://play.google.com/apps/internaltest/4701647237677047143', 280),
+    'Actualizá: https://play.google.com/apps/internaltest/4701647237677047143',
+  );
+  assert.equal(
+    cleanText('Instalá https://play.google.com/store/apps/details?id=ar.com.consultoradiagonales.condi.', 280),
+    'Instalá https://play.google.com/store/apps/details?id=ar.com.consultoradiagonales.condi.',
+  );
   assert.equal(cleanText(5, 10), '');
   assert.equal(cleanText('abcdef', 3), 'abc');
+  assert.equal(
+    cleanActionUrl('https://play.google.com/apps/internaltest/4701647237677047143'),
+    'https://play.google.com/apps/internaltest/4701647237677047143',
+  );
+  assert.equal(cleanActionUrl('https://play.google.com.evil.example/app'), '');
 });
 
 // ---- saveDeviceProfile / deleteDeviceProfile ----
@@ -99,7 +113,7 @@ test('deleteDeviceProfile borra el documento propio y exige sesion', async () =>
 
 function world(extra = {}) {
   return new FakeDb({
-    'users/admin1': { role: 'admin', disabled: false, municipalityId: 'm1', fcmToken: 'tAdmin' },
+    'users/admin1': { role: 'admin', organizationId: 'diagonales', disabled: false, municipalityId: 'm1', fcmToken: 'tAdmin' },
     'users/coord1': { role: 'coordinator', disabled: false, municipalityId: 'm1', fcmToken: 'tCoord' },
     'users/mod2': { role: 'moderator', disabled: false, municipalityId: 'm2' },
     'users/cit1': { role: 'citizen', disabled: false, municipalityId: 'm1', fcmToken: 'tCit1' },
@@ -168,7 +182,7 @@ test('municipio sin municipalityId usa el propio; sin municipio asignado falla',
   assert.equal(res.total, 3);
   await assert.rejects(
     call('coordNone', { audience: { type: 'municipality' } }, db),
-    (e) => e.code === 'failed-precondition',
+    (e) => e.code === 'permission-denied',
   );
 });
 
@@ -179,15 +193,15 @@ test('administrador puede elegir cualquier municipio', async () => {
   assert.deepEqual(notified(db), ['cit3']);
 });
 
-test('"all" por admin incluye a cualquier rol activo y excluye a los deshabilitados', async () => {
+test('"all" por admin incluye a todos los vecinos activos y excluye al personal/deshabilitados', async () => {
   const db = world();
   const messaging = fakeMessaging();
   const res = await call('admin1', { audience: { type: 'all' } }, db, messaging);
-  assert.deepEqual(notified(db), ['admin1', 'cit1', 'cit2', 'cit3', 'coord1', 'mod2', 'plain']);
+  assert.deepEqual(notified(db), ['cit1', 'cit2', 'cit3', 'plain']);
   assert.equal(res.ok, true);
-  assert.equal(res.total, 7);
-  assert.equal(res.pushed, 4); // admin1, coord1, cit1, cit3 tienen token
-  assert.equal(res.inApp, 3);
+  assert.equal(res.total, 4);
+  assert.equal(res.pushed, 2); // cit1 y cit3 tienen token
+  assert.equal(res.inApp, 2);
   const tokens = messaging.impl.calls.flat().map((m) => m.token).sort();
   assert.ok(!tokens.includes('tOff'));
 });
@@ -206,17 +220,39 @@ test('usuario puntual: staff solo a su municipio, admin a cualquiera, deshabilit
   }
 });
 
+test('selección de vecinos: permite varios del ámbito y bloquea cruces, personal o listas inválidas', async () => {
+  const db = world();
+  const ok = await call('coord1', { audience: { type: 'users', uids: ['cit1', 'cit2', 'cit1'] } }, db);
+  assert.equal(ok.total, 2);
+  assert.deepEqual(notified(db), ['cit1', 'cit2']);
+
+  await assert.rejects(
+    call('coord1', { audience: { type: 'users', uids: ['cit1', 'cit3'] } }, world()),
+    (e) => e.code === 'permission-denied',
+  );
+  await assert.rejects(
+    call('admin1', { audience: { type: 'users', uids: ['coord1'] } }, world()),
+    (e) => e.code === 'not-found',
+  );
+  for (const uids of [[], 'cit1', ['a/b'], Array.from({ length: 101 }, (_, i) => `cit${i}`)]) {
+    await assert.rejects(
+      call('admin1', { audience: { type: 'users', uids } }, world()),
+      (e) => e.code === 'invalid-argument',
+    );
+  }
+});
+
 test('idempotencia por requestId: reenviar la misma solicitud no duplica', async () => {
   const db = world();
   const messaging = fakeMessaging();
   const first = await call('admin1', { audience: { type: 'all' } }, db, messaging);
   const second = await call('admin1', { audience: { type: 'all' } }, db, messaging);
-  assert.equal(first.pushed, 4);
+  assert.equal(first.pushed, 2);
   assert.deepEqual({ pushed: second.pushed, inApp: second.inApp }, { pushed: 0, inApp: 0 });
-  assert.equal(messaging.impl.calls.flat().length, 4);
+  assert.equal(messaging.impl.calls.flat().length, 2);
   // un requestId distinto es un mensaje nuevo
   const third = await call('admin1', { audience: { type: 'all' }, requestId: 'req-otrodistinto1' }, db, messaging);
-  assert.equal(third.pushed, 4);
+  assert.equal(third.pushed, 2);
 });
 
 test('audiencia vacia devuelve total 0 sin tocar FCM; titulo y cuerpo se sanean', async () => {
@@ -231,4 +267,67 @@ test('audiencia vacia devuelve total 0 sin tocar FCM; titulo y cuerpo se sanean'
   assert.equal(doc.title, 'Hola [enlace omitido]');
   assert.equal(doc.body, 'Ver [enlace omitido] ya');
   assert.equal(doc.type, 'municipality_message');
+});
+
+
+test('el mensaje municipal conserva hasta 4000 caracteres y registra orden estable', async () => {
+  const db = world();
+  const messaging = fakeMessaging();
+  const body = 'Mensaje completo '.repeat(250).slice(0, 4000);
+  await call('coord1', {
+    audience: { type: 'user', uid: 'cit1' },
+    title: 'Actualizacion extensa',
+    body,
+    requestId: 'req-mensaje-largo1',
+  }, db, messaging);
+  const doc = db.get('notifications/custom_req-mensaje-largo1_cit1');
+  assert.equal(doc.body, body);
+  assert.equal(doc.body.length, body.length);
+  assert.match(doc.sortKey, /^\d{13}_custom_req-mensaje-largo1_cit1$/);
+  assert.equal([...messaging.impl.calls[0][0].notification.body].length, 240);
+});
+
+test('la actualización propaga actionUrl oficial a la bandeja y al push', async () => {
+  const db = world();
+  const messaging = fakeMessaging();
+  const actionUrl =
+    'https://play.google.com/apps/internaltest/4701647237677047143';
+  await call('admin1', {
+    audience: { type: 'user', uid: 'cit1' },
+    title: 'Actualizá ConDi',
+    body: 'Instalá la nueva versión.',
+    actionUrl,
+    requestId: 'req-actualizacion1',
+  }, db, messaging);
+
+  const doc = db.get('notifications/custom_req-actualizacion1_cit1');
+  assert.equal(doc.actionUrl, actionUrl);
+  assert.equal(messaging.impl.calls[0][0].data.actionUrl, actionUrl);
+});
+
+test('extrae el enlace oficial del cuerpo y descarta acciones no confiables', async () => {
+  const actionUrl =
+    'https://play.google.com/store/apps/details?id=ar.com.consultoradiagonales.condi';
+  const db = world();
+  const messaging = fakeMessaging();
+  await call('admin1', {
+    audience: { type: 'user', uid: 'cit1' },
+    body: `Actualizá desde ${actionUrl}`,
+    requestId: 'req-enlace-cuerpo1',
+  }, db, messaging);
+  assert.equal(
+    db.get('notifications/custom_req-enlace-cuerpo1_cit1').actionUrl,
+    actionUrl,
+  );
+
+  const unsafe = world();
+  await call('admin1', {
+    audience: { type: 'user', uid: 'cit1' },
+    actionUrl: 'https://play.google.com.evil.example/app',
+    requestId: 'req-enlace-invalido1',
+  }, unsafe, fakeMessaging());
+  assert.equal(
+    unsafe.get('notifications/custom_req-enlace-invalido1_cit1').actionUrl,
+    undefined,
+  );
 });

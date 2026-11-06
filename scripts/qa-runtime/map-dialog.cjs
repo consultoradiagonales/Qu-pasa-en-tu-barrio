@@ -1,5 +1,7 @@
 const { chromium } = require('playwright');
+const fs = require('fs');
 (async () => {
+ fs.mkdirSync('ERRORES/CAPTURAS/QA', { recursive: true });
  const browser = await chromium.launch({executablePath:'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',headless:true});
  const context = await browser.newContext({permissions:[],geolocation:{latitude:-35.6384,longitude:-59.7779}});
  const page = await context.newPage();
@@ -16,9 +18,9 @@ const { chromium } = require('playwright');
   await fetch('https://firestore.googleapis.com/v1/projects/project-5fc9024a-e961-42b7-9ee/databases/(default)/documents/users/'+cred.user.uid,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({fields})});
  });
  await page.goto('https://project-5fc9024a-e961-42b7-9ee.web.app/#/map');
- await page.waitForTimeout(8000); await page.screenshot({path:'map-dialog-qa.png'}); await context.grantPermissions(['geolocation']); await page.mouse.click(775,440); await page.waitForTimeout(5000);
+ await page.waitForTimeout(8000); await page.screenshot({path:'ERRORES/CAPTURAS/QA/map-dialog-qa.png'}); await context.grantPermissions(['geolocation']); await page.mouse.click(775,440); await page.waitForTimeout(5000);
  console.log(await page.evaluate(()=>({maps:typeof google?.maps,tiles:document.querySelectorAll('.gm-style img').length,text:document.body.innerText.slice(0,500)})));
- await page.screenshot({path:'map-qa.png'});
+ await page.screenshot({path:'ERRORES/CAPTURAS/QA/map-qa.png'});
  await browser.close();
 })();
 

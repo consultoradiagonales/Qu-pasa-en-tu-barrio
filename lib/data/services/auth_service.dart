@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -197,14 +198,9 @@ class AuthService {
   }
 
   Future<void> activateOwnerAdmin() async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(_auth.currentUser!.uid)
-        .update({
-      'role': 'admin',
-      'disabled': false,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+        .httpsCallable('activateOwnerAdmin')
+        .call();
   }
 
   /// Cerrar sesión

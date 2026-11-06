@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -18,6 +17,7 @@ import '../../data/models/report_model.dart';
 import '../../data/repositories/reports_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/immutable_report_photo.dart';
 
 class ReportPreset {
   const ReportPreset(this.id, this.label, this.category);
@@ -33,7 +33,17 @@ const reportPresets = [
   ReportPreset('sidewalk', 'Vereda rota', ReportCategory.infrastructure),
   ReportPreset('tree', 'Árbol o espacio verde', ReportCategory.environment),
   ReportPreset('traffic', 'Semáforo o señal', ReportCategory.transport),
-  ReportPreset('other', 'Otro problema', ReportCategory.other),
+  ReportPreset('standing_water', 'Agua estancada', ReportCategory.environment),
+  ReportPreset('pests', 'Plagas', ReportCategory.health),
+  ReportPreset('noise', 'Ruidos molestos', ReportCategory.other),
+  ReportPreset('drug_dealing', 'Venta de droga', ReportCategory.security),
+  ReportPreset(
+      'street_racing', 'Picada motos o autos', ReportCategory.transport),
+  ReportPreset('repeated_theft', 'Robos reiterados', ReportCategory.security),
+  ReportPreset(
+      'flooded_street', 'Calle anegada', ReportCategory.infrastructure),
+  ReportPreset('disturbances', 'Disturbios', ReportCategory.security),
+  ReportPreset('other', 'Otro', ReportCategory.other),
 ];
 
 class ReportDraft {
@@ -60,6 +70,7 @@ class ReportDraft {
   /// y no en la pantalla porque iniciar sesión o elegir municipio destruye la
   /// pantalla, y la confirmación se perdía dejando Enviar bloqueado sin motivo.
   final bool photoConfirmed;
+
   /// Null until the person explicitly chooses a category.
   final String? presetId;
   final bool aiRequested;
@@ -71,10 +82,7 @@ class ReportDraft {
   bool get hasCategory =>
       presetId != null && reportPresets.any((preset) => preset.id == presetId);
   bool get canSend =>
-      hasPhoto &&
-      locationConfirmed &&
-      location != null &&
-      hasCategory;
+      hasPhoto && locationConfirmed && location != null && hasCategory;
   ReportPreset get preset => reportPresets.firstWhere((p) => p.id == presetId,
       orElse: () => reportPresets.last);
 
@@ -216,8 +224,9 @@ class ReportCaptureService {
       throw StateError('Activá la ubicación o marcá el punto en el mapa.');
     }
     var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied)
+    if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+    }
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       throw StateError('Podés ubicar el problema tocando el mapa.');
@@ -253,13 +262,10 @@ class ReportSubmitService {
     final municipality = profile?.municipalityId ?? '';
     if (municipality.isEmpty) throw MunicipalityRequired();
     final repo = ref.read(reportsRepositoryProvider);
-    if (await repo.countUserReportsToday(user.uid) >=
-        AppConstants.maxReportsPerDay) {
-      throw StateError('Alcanzaste el límite de 10 reportes por día.');
-    }
     Uint8List bytes = await XFile(draft.photoPath!).readAsBytes();
-    if (bytes.isEmpty)
+    if (bytes.isEmpty) {
       throw StateError('La foto no está disponible. Volvé a tomarla.');
+    }
     try {
       bytes = await FlutterImageCompress.compressWithList(bytes,
           quality: 80,
@@ -269,9 +275,15 @@ class ReportSubmitService {
     final isPng = bytes.length > 4 && bytes[0] == 137 && bytes[1] == 80;
     final photo = FirebaseStorage.instance
         .ref('reports/${draft.id}/citizen/photo.${isPng ? 'png' : 'jpg'}');
-    await photo.putData(bytes,
-        SettableMetadata(contentType: isPng ? 'image/png' : 'image/jpeg'));
-    final url = await photo.getDownloadURL();
+    final url = await uploadImmutableReportPhoto(
+      bytes: bytes,
+      read: () => photo.getData(8 * 1024 * 1024),
+      upload: () async {
+        await photo.putData(bytes,
+            SettableMetadata(contentType: isPng ? 'image/png' : 'image/jpeg'));
+      },
+      downloadUrl: photo.getDownloadURL,
+    );
     // Una dirección escrita complementa el punto elegido por la persona; no
     // se inventan coordenadas cuando falta geocodificación.
     final location = draft.location!;
@@ -304,7 +316,7 @@ class ReportSubmitService {
                 GeoFirePoint(GeoPoint(location.latitude, location.longitude))
                     .geohash,
             address: locationLabel.isEmpty ? null : locationLabel,
-            isManualAddress: false),
+            isManualAddress: draft.usesManualAddress),
         createdAt: now,
         updatedAt: now));
     return draft.id;

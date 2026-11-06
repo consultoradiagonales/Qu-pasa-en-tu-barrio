@@ -4,6 +4,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
@@ -17,6 +18,7 @@ import 'features/demo/investor_demo_app.dart';
 import 'core/services/app_update_service.dart';
 import 'core/services/device_profile_service.dart';
 import 'core/services/local_notification_service.dart';
+import 'core/services/notification_action_service.dart';
 import 'core/services/push_token_registrar.dart';
 
 /// Manejador de mensajes FCM en segundo plano (debe ser función de nivel superior)
@@ -28,14 +30,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 /// Apunta la app al emulador local en vez de a Firebase real.
 /// Se activa con: flutter run --dart-define=USE_EMULATOR=true
+/// Para un dispositivo físico se puede indicar su host con
+/// --dart-define=FIREBASE_EMULATOR_HOST=192.168.x.x.
 const _useEmulator = bool.fromEnvironment('USE_EMULATOR');
+const _emulatorHost = String.fromEnvironment(
+  'FIREBASE_EMULATOR_HOST',
+  defaultValue: 'localhost',
+);
 
 Future<void> _connectToEmulators() async {
-  const host = 'localhost';
-  await FirebaseAuth.instance.useAuthEmulator(host, 9099);
-  FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
-  await FirebaseStorage.instance.useStorageEmulator(host, 9199);
-  debugPrint('Conectado al emulador de Firebase en $host');
+  await FirebaseAuth.instance.useAuthEmulator(_emulatorHost, 9099);
+  FirebaseFirestore.instance.useFirestoreEmulator(_emulatorHost, 8080);
+  await FirebaseStorage.instance.useStorageEmulator(_emulatorHost, 9199);
+  FirebaseFunctions.instanceFor(region: 'southamerica-east1')
+      .useFunctionsEmulator(_emulatorHost, 5001);
+  debugPrint('Conectado al emulador de Firebase en $_emulatorHost');
 }
 
 /// Firebase App Check: demuestra ante Firebase que las peticiones vienen de la
@@ -91,11 +100,40 @@ Future<void> _registerPushForUser(User user) async {
   await _pushRegistrar.register(user.uid);
 }
 
-void main() async {
+Future<Map<String, dynamic>?> _notificationActionById(
+  String notificationId,
+) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return null;
+  final snapshot = await FirebaseFirestore.instance
+      .collection('notifications')
+      .doc(notificationId)
+      .get();
+  final data = snapshot.data();
+  if (data == null || data['userId'] != user.uid) return null;
+  return data;
+}
+
+Future<void> _handleNotificationAction(Map<String, dynamic> data) async {
+  final opened = await openNotificationAction(
+    data,
+    lookupById: _notificationActionById,
+  );
+  if (!opened && data.containsKey('actionUrl')) {
+    debugPrint('La acción de la notificación no se pudo abrir.');
+  }
+}
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (const bool.fromEnvironment('CONDI_DEMO')) {
+    runApp(const InvestorDemoApp());
+    return;
+  }
 
   var firebaseReady = false;
   RequiredAppUpdate? requiredUpdate;
+  final pendingNotificationActions = <Map<String, dynamic>>[];
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -115,7 +153,12 @@ void main() async {
     }
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     try {
-      await LocalNotificationService.initialize();
+      final initialLocalAction = await LocalNotificationService.initialize(
+        onNotificationTap: _handleNotificationAction,
+      );
+      if (initialLocalAction != null) {
+        pendingNotificationActions.add(initialLocalAction);
+      }
     } catch (error) {
       debugPrint('Notificaciones locales no disponibles: $error');
     }
@@ -131,8 +174,21 @@ void main() async {
       unawaited(LocalNotificationService.showRemote(
         title: notification.title ?? 'ConDi',
         body: notification.body ?? 'Tenés una actualización en tu reporte.',
+        data: message.data,
       ));
     });
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      unawaited(_handleNotificationAction(message.data));
+    });
+    try {
+      final initialMessage =
+          await FirebaseMessaging.instance.getInitialMessage();
+      if (initialMessage != null) {
+        pendingNotificationActions.add(initialMessage.data);
+      }
+    } catch (error) {
+      debugPrint('No se pudo leer la notificación inicial: $error');
+    }
     FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
@@ -154,9 +210,45 @@ void main() async {
     ProviderScope(
       child: firebaseReady
           ? QuePasaApp(requiredUpdate: requiredUpdate)
-          : const InvestorDemoApp(),
+          : StartupUnavailableApp(onRetry: () => unawaited(main())),
     ),
   );
+  if (pendingNotificationActions.isNotEmpty) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final data in pendingNotificationActions) {
+        unawaited(_handleNotificationAction(data));
+      }
+    });
+  }
+}
+
+class StartupUnavailableApp extends StatelessWidget {
+  const StartupUnavailableApp({super.key, required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+            body: SafeArea(
+                child: Center(
+                    child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.cloud_off_outlined, size: 56),
+            const SizedBox(height: 20),
+            const Text('No pudimos iniciar ConDi',
+                style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            const Text(
+                'Revisá la conexión y volvé a intentar. Todavía no se cargaron tus datos.',
+                textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            FilledButton(onPressed: onRetry, child: const Text('Reintentar')),
+          ]),
+        )))),
+      );
 }
 
 class QuePasaApp extends ConsumerWidget {
@@ -172,7 +264,7 @@ class QuePasaApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
-        themeMode: ThemeMode.system,
+        themeMode: ThemeMode.light,
         home: MandatoryUpdateScreen(update: requiredUpdate!),
       );
     }
@@ -183,7 +275,7 @@ class QuePasaApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       routerConfig: router,
     );
   }

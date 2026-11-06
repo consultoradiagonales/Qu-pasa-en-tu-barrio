@@ -5,7 +5,7 @@
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "environment.ps1")
-$PROJECT = "E:\condi"
+$PROJECT = $env:CONDI_PROJECT
 
 function Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function OK($msg)   { Write-Host "    OK: $msg" -ForegroundColor Green }
@@ -44,15 +44,14 @@ if (Get-Command java -ErrorAction SilentlyContinue) {
     $jdkUrl = "https://download.java.net/java/GA/jdk17.0.2/dfd4a8d0985749f896bed50d99f26a2/8/GPL/openjdk-17.0.2_windows-x64_bin.zip"
     $jdkZip = "$env:TEMP\jdk17.zip"
     Invoke-WebRequest $jdkUrl -OutFile $jdkZip
-    Expand-Archive $jdkZip "E:\condi\dev" -Force
-    Rename-Item "E:\condi\dev\jdk-17.0.2" "jdk17" -ErrorAction SilentlyContinue
+    Expand-Archive $jdkZip (Join-Path $PROJECT 'dev') -Force
+    Rename-Item (Join-Path $PROJECT 'dev\jdk-17.0.2') "jdk17" -ErrorAction SilentlyContinue
     Remove-Item $jdkZip
-    $javaPath = "E:\condi\dev\jdk17\bin"
+    $javaPath = Join-Path $env:JAVA_HOME 'bin'
     $current = [Environment]::GetEnvironmentVariable("PATH", "User")
     [Environment]::SetEnvironmentVariable("PATH", "$current;$javaPath", "User")
     $env:PATH = "$env:PATH;$javaPath"
-    [Environment]::SetEnvironmentVariable("JAVA_HOME", "E:\condi\dev\jdk17", "User")
-    $env:JAVA_HOME = "E:\condi\dev\jdk17"
+    [Environment]::SetEnvironmentVariable("JAVA_HOME", $env:JAVA_HOME, "User")
     OK "Java JDK 17 instalado"
 }
 

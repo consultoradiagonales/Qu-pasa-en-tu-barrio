@@ -1,5 +1,7 @@
 const { chromium } = require('playwright');
+const fs = require('fs');
 (async () => {
+ fs.mkdirSync('ERRORES/CAPTURAS/QA', { recursive: true });
  const browser = await chromium.launch({executablePath:'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',headless:true});
  const context = await browser.newContext({permissions:['geolocation'],geolocation:{latitude:-35.6384,longitude:-59.7779}});
  const page = await context.newPage();
@@ -18,6 +20,6 @@ const { chromium } = require('playwright');
  await page.goto('https://project-5fc9024a-e961-42b7-9ee.web.app/#/map');
  await page.waitForTimeout(15000);
  console.log(await page.evaluate(()=>({maps:typeof google?.maps,tiles:document.querySelectorAll('.gm-style img').length,text:document.body.innerText.slice(0,500)})));
- await page.screenshot({path:'map-qa.png'});
+ await page.screenshot({path:'ERRORES/CAPTURAS/QA/map-qa.png'});
  await browser.close();
 })();

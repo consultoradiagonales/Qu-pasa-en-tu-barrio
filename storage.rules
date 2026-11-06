@@ -34,6 +34,7 @@ service firebase.storage {
       allow read: if signedIn();
       allow create: if signedIn() &&
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.organizationId == 'diagonales' &&
         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.disabled != true &&
         request.resource.size < 5 * 1024 * 1024 &&
         request.resource.contentType.matches('image/(jpeg|png|webp)') && resource == null;

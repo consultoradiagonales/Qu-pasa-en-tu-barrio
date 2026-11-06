@@ -1,0 +1,4 @@
+NOMBRE                         PROVINCIA                              LATITUD          LONGITUD       ALTURA  NRO   NroOACI
+                                                                    [gr]    [min]    [gr]    [min]       [m]
+BASE BELGRANO II               ANTARTIDA                            -77      52       -34      37        256  89034 SAYB
+VILLA EJEMPLO AERO             BUENOS AIRES                         -36      30       -60      15         90  99999 XXXX

@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import '../../../data/models/report_model.dart';
 import '../../../data/repositories/reports_repository.dart';
 import '../../../data/services/auth_service.dart';
 import '../widgets/before_after_slider_widget.dart';
+import '../widgets/report_rating_sheet.dart';
 import '../../../core/utils/error_text.dart';
 import '../../report/report_insight.dart';
 
@@ -24,7 +26,8 @@ class ReportDetailScreen extends ConsumerStatefulWidget {
 class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   bool _voting = false;
   bool _flagging = false;
-  late final Future<ReportModel?> _reportFuture;
+  bool _rating = false;
+  late Future<ReportModel?> _reportFuture;
 
   @override
   void initState() {
@@ -77,29 +80,56 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   }
 
   Future<void> _rateReport(ReportModel report) async {
-    final uid = ref.read(authStateProvider).valueOrNull?.uid;
-    if (uid == null) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      if (mounted) context.go('/auth/login');
+      return;
+    }
     if (report.status != ReportStatus.resolved &&
-        report.status != ReportStatus.closed) return;
+        report.status != ReportStatus.closed) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Podés calificar cuando el reporte esté resuelto.'),
+        ));
+      }
+      return;
+    }
 
-    int? rating;
-    await showModalBottomSheet(
+    final result = await showModalBottomSheet<({int rating, String? comment})>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _RatingSheet(
-        onRate: (r) {
-          rating = r;
-          Navigator.pop(context);
+      builder: (sheetContext) => ReportRatingSheet(
+        onSubmit: (rating, comment) {
+          Navigator.pop(sheetContext, (rating: rating, comment: comment));
         },
       ),
     );
 
-    if (rating == null) return;
-    await ref.read(reportsRepositoryProvider).updateReport(report.id, {
-      'rating': rating,
-    });
+    if (result == null || !mounted) return;
+    setState(() => _rating = true);
+    try {
+      await ref.read(reportsRepositoryProvider).updateReport(report.id, {
+        'rating': result.rating,
+        'ratingComment': result.comment,
+      });
+      if (!mounted) return;
+      setState(() {
+        _reportFuture = ref.read(reportsRepositoryProvider).getReport(report.id);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Gracias por tu calificación.'),
+      ));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensajeDeError(error))),
+      );
+    } finally {
+      if (mounted) setState(() => _rating = false);
+    }
   }
 
   @override
@@ -407,8 +437,14 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.accent),
-                    onPressed: () => _rateReport(report),
-                    icon: const Icon(Icons.star_outline),
+                    onPressed: _rating ? null : () => _rateReport(report),
+                    icon: _rating
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.star_outline),
                     label: Text(report.rating != null
                         ? '${report.rating}/5'
                         : 'Calificar'),
@@ -511,58 +547,6 @@ class _FlagDialogState extends State<_FlagDialog> {
           child: const Text('Enviar'),
         ),
       ],
-    );
-  }
-}
-
-class _RatingSheet extends StatefulWidget {
-  final void Function(int) onRate;
-  const _RatingSheet({required this.onRate});
-
-  @override
-  State<_RatingSheet> createState() => _RatingSheetState();
-}
-
-class _RatingSheetState extends State<_RatingSheet> {
-  int _stars = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('¿Qué tan bien se resolvió el problema?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              5,
-              (i) => GestureDetector(
-                onTap: () => setState(() => _stars = i + 1),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Icon(
-                    i < _stars ? Icons.star : Icons.star_border,
-                    color: AppColors.accent,
-                    size: 36,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _stars > 0 ? () => widget.onRate(_stars) : null,
-            style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48)),
-            child: const Text('Enviar calificación'),
-          ),
-        ],
-      ),
     );
   }
 }

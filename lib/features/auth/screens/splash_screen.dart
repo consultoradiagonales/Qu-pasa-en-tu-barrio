@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/router/navigation_policy.dart';
+import '../../../core/theme/app_theme.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -42,7 +43,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1220),
+      backgroundColor: AppColors.background,
       body: FadeTransition(
         opacity: _fadeAnim,
         child: Center(
@@ -63,13 +64,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               Text(
                 'Reportá. Seguí. Resolvé.',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: AppColors.onSurface,
                   fontSize: 14,
                 ),
               ),
               const SizedBox(height: 48),
               const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 strokeWidth: 2,
               ),
             ],

@@ -23,12 +23,12 @@ abstract class AppConstants {
 
   // URLs
   static const String privacyPolicyUrl =
-      'https://consultoradiagonales.com.ar/app/privacidad.html';
+      'https://project-5fc9024a-e961-42b7-9ee.web.app/privacidad.html';
   static const String termsUrl =
-      'https://consultoradiagonales.com.ar/app/privacidad.html';
+      'https://project-5fc9024a-e961-42b7-9ee.web.app/privacidad.html';
   // Play Store y App Store piden una URL pública para solicitar la baja.
   static const String deleteAccountUrl =
-      'https://consultoradiagonales.com.ar/app/eliminar-cuenta.html';
+      'https://project-5fc9024a-e961-42b7-9ee.web.app/eliminar-cuenta.html';
 
   // Colecciones Firestore
   static const String usersCollection = 'users';
@@ -36,6 +36,7 @@ abstract class AppConstants {
   static const String commentsCollection = 'comments';
   static const String supportVotesCollection = 'supportVotes';
   static const String notificationsCollection = 'notifications';
+  static const String localAdsCollection = 'localAds';
   static const String contentFlagsCollection = 'contentFlags';
   static const String teamsCollection = 'teams';
   static const String municipalitiesCollection = 'municipalities';

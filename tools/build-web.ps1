@@ -1,7 +1,7 @@
 # Compila y publica la web desde una copia Git aislada; conserva el proyecto y sus SDK.
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'environment.ps1')
-$project='E:\condi'
+$project=$env:CONDI_PROJECT
 $flutter=Join-Path $env:FLUTTER_ROOT 'bin\flutter.bat'
 $deployment=$null
 $completed=$false
@@ -9,13 +9,16 @@ Push-Location $project
 try {
     & $flutter build web --release --base-href '/Qu-pasa-en-tu-barrio/' --no-tree-shake-icons
     if($LASTEXITCODE -ne 0){throw 'Falló la compilación web; no se publica'}
+    & (Join-Path $PSScriptRoot 'sincronizar-admin-web.ps1') -Proyecto $project
     $base=Join-Path $project 'dev\deploy-worktrees'
     New-Item -ItemType Directory -Force -Path $base | Out-Null
     $deployment=Join-Path $base ([guid]::NewGuid().ToString('N'))
     $resolvedBase=[IO.Path]::GetFullPath($base).TrimEnd('\')+'\'
     $resolvedDeployment=[IO.Path]::GetFullPath($deployment)
     if(-not $resolvedDeployment.StartsWith($resolvedBase,[StringComparison]::OrdinalIgnoreCase)){throw 'Destino de publicación fuera de alcance'}
-    & git worktree add --detach $deployment gh-pages
+    & git fetch origin gh-pages
+    if($LASTEXITCODE -ne 0){throw 'No se pudo actualizar la rama remota gh-pages'}
+    & git worktree add --detach $deployment origin/gh-pages
     if($LASTEXITCODE -ne 0){throw 'No se pudo crear la copia aislada de gh-pages'}
     foreach($item in Get-ChildItem -LiteralPath $deployment -Force){
         if($item.Name -eq '.git' -or $item.Name -like 'maqueta*' -or $item.Name -eq 'assets'){continue}

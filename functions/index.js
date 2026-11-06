@@ -8,8 +8,10 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 
 initializeApp();
 const db = getFirestore();
+const { isCentralAdmin } = require('./management-access');
 exports.interpretCitizenReport = require('./ai-trigger').interpretCitizenReport;
 exports.generateMunicipalityReport = require('./dashboard-ai').generateMunicipalityReport;
+exports.getManagementDashboard = require('./management-dashboard').getManagementDashboard;
 exports.reportLifecycleNotifications = require('./report-notifications').reportLifecycleNotifications;
 const adminNotifications = require('./admin-notifications');
 exports.setReportPriority = adminNotifications.setReportPriority;
@@ -27,7 +29,7 @@ exports.getAppRelease = appRelease.getAppRelease;
 exports.saveAppRelease = appRelease.saveAppRelease;
 
 const ROLES_GESTION = ['coordinator', 'admin', 'moderator'];
-const ESTADOS_ASIGNABLES = ['pending', 'assigned'];
+const { assignReportTeamHandler } = require('./report-assignment');
 const OWNER_EMAIL = 'info.consultoradiagonales@gmail.com';
 const REGION = 'southamerica-east1';
 
@@ -41,7 +43,7 @@ exports.activateOwnerAdmin = onCall({ region: REGION }, async (request) => {
   if (!uid) {
     throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
   }
-  if (email !== OWNER_EMAIL) {
+  if (email !== OWNER_EMAIL || request.auth.token.email_verified !== true) {
     throw new HttpsError('permission-denied', 'Solo el titular puede activar la administración.');
   }
 
@@ -51,6 +53,7 @@ exports.activateOwnerAdmin = onCall({ region: REGION }, async (request) => {
   }
   await owner.ref.update({
     role: 'admin',
+    organizationId: 'diagonales',
     disabled: false,
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -72,10 +75,10 @@ exports.assignReportTeam = onCall({ region: REGION }, async (request) => {
     throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
   }
 
-  const { reportId, teamId, activateOwnerAdmin } = request.data || {};
+  const { activateOwnerAdmin } = request.data || {};
   if (activateOwnerAdmin === true) {
     const email = request.auth?.token?.email?.toLowerCase();
-    if (email !== OWNER_EMAIL) {
+    if (email !== OWNER_EMAIL || request.auth.token.email_verified !== true) {
       throw new HttpsError('permission-denied', 'Solo el titular puede activar la administración.');
     }
     const owner = await db.collection('users').doc(uid).get();
@@ -84,72 +87,13 @@ exports.assignReportTeam = onCall({ region: REGION }, async (request) => {
     }
     await owner.ref.update({
       role: 'admin',
+      organizationId: 'diagonales',
       disabled: false,
       updatedAt: FieldValue.serverTimestamp(),
     });
     return { ok: true, role: 'admin' };
   }
-  if (typeof reportId !== 'string' || !reportId ||
-      typeof teamId !== 'string' || !teamId) {
-    throw new HttpsError('invalid-argument', 'Faltan el reporte o el equipo.');
-  }
-
-  const [perfilSnap, reporteSnap, equipoSnap] = await Promise.all([
-    db.collection('users').doc(uid).get(),
-    db.collection('reports').doc(reportId).get(),
-    db.collection('teams').doc(teamId).get(),
-  ]);
-
-  if (!perfilSnap.exists) {
-    throw new HttpsError('permission-denied', 'Tu usuario no tiene perfil.');
-  }
-  const perfil = perfilSnap.data();
-
-  if (perfil.disabled === true || !ROLES_GESTION.includes(perfil.role)) {
-    throw new HttpsError('permission-denied', 'No podés asignar reportes.');
-  }
-  if (!reporteSnap.exists) {
-    throw new HttpsError('not-found', 'El reporte no existe.');
-  }
-  if (!equipoSnap.exists) {
-    throw new HttpsError('not-found', 'El equipo no existe.');
-  }
-
-  const reporte = reporteSnap.data();
-  const equipo = equipoSnap.data();
-
-  // Un coordinador solo toca su municipio. El admin puede con todos.
-  const esAdmin = perfil.role === 'admin';
-  if (!esAdmin && perfil.municipalityId !== reporte.municipalityId) {
-    throw new HttpsError('permission-denied', 'Ese reporte es de otro municipio.');
-  }
-  if (equipo.municipalityId !== reporte.municipalityId) {
-    throw new HttpsError('failed-precondition', 'El equipo es de otro municipio.');
-  }
-  if (equipo.active === false) {
-    throw new HttpsError('failed-precondition', 'Ese equipo está dado de baja.');
-  }
-
-  // No se reasigna algo que ya está en la calle o cerrado: el operario podría
-  // estar trabajando sobre él en este momento.
-  if (!ESTADOS_ASIGNABLES.includes(reporte.status)) {
-    throw new HttpsError(
-      'failed-precondition',
-      'El reporte ya está en curso o cerrado, no se puede reasignar.',
-    );
-  }
-
-  const ahora = FieldValue.serverTimestamp();
-
-  await reporteSnap.ref.update({
-    assignedTeamId: teamId,
-    assignedWorkerId: null,
-    status: 'assigned',
-    assignedAt: ahora,
-    updatedAt: ahora,
-  });
-
-  return { ok: true, reportId, teamId };
+  return assignReportTeamHandler(request, db);
 });
 
 const TEAM_CATEGORIES = new Set([
@@ -277,7 +221,7 @@ async function managementProfile(request) {
 
 async function adminProfile(request) {
   const { profile } = await managementProfile(request);
-  if (profile.role !== 'admin') {
+  if (!isCentralAdmin(profile)) {
     throw new HttpsError('permission-denied', 'Sólo la administración puede gestionar publicidad.');
   }
   return profile;
@@ -307,7 +251,7 @@ exports.saveTeam = onCall({ region: REGION }, async (request) => {
     throw new HttpsError('not-found', 'La cuadrilla no existe.');
   }
   const existing = existingSnap?.data() || null;
-  const isAdmin = profile.role === 'admin';
+  const isAdmin = isCentralAdmin(profile);
   const municipalityId = isAdmin
     ? cleanTeamText(data.municipalityId, 120)
     : cleanTeamText(profile.municipalityId, 120);
