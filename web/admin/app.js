@@ -139,6 +139,8 @@ const elements = {
   googleLogin: $('google-login'),
   deniedCopy: $('denied-copy'),
   deniedSignout: $('denied-signout'),
+  deniedAccount: $('denied-account'),
+  deniedSwitch: $('denied-switch'),
   municipalityWrap: $('municipality-wrap'),
   municipalitySelect: $('municipality-select'),
   municipalityBrand: $('municipality-brand'),
@@ -591,6 +593,14 @@ function firebaseErrorMessage(error) {
   if (code.includes('failed-precondition')) return safeText(error?.message, 'La operación no se puede realizar en el estado actual del reporte.');
   if (code.includes('aborted')) return 'La asignación cambió. Revisá el reporte y volvé a intentar.';
   return safeText(error?.message, 'No se pudo completar la operación. Intentá nuevamente.');
+}
+
+// Siempre deja elegir la cuenta de Google: la app de vecinos comparte el
+// dominio y puede haber dejado iniciada otra sesión.
+function googleProvider() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
 }
 
 async function resolveProfile(user) {
@@ -2236,11 +2246,20 @@ function bindEvents() {
   });
   elements.googleLogin.addEventListener('click', async () => {
     setLoginMessage(''); setLoginBusy(true);
-    try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+    try { await signInWithPopup(auth, googleProvider()); }
     catch (error) { setLoginMessage(firebaseErrorMessage(error)); }
     finally { setLoginBusy(false); }
   });
   elements.deniedSignout.addEventListener('click', () => signOut(auth));
+  // Cambia de cuenta sin cerrar antes la sesión: la ventana de Google se abre
+  // con el clic (los navegadores bloquean ventanas abiertas después de esperar).
+  elements.deniedSwitch.addEventListener('click', async () => {
+    try { await signInWithPopup(auth, googleProvider()); }
+    catch (error) {
+      if (error?.code === 'auth/popup-closed-by-user' || error?.code === 'auth/cancelled-popup-request') return;
+      elements.deniedCopy.textContent = firebaseErrorMessage(error);
+    }
+  });
   elements.signout.addEventListener('click', () => signOut(auth));
   elements.profileMenu.addEventListener('click', () => {
     const hidden = elements.profilePopover.hidden;
@@ -2350,6 +2369,8 @@ onAuthStateChanged(auth, async (user) => {
         : profile.disabled === true
           ? 'Esta cuenta fue deshabilitada por la administración municipal.'
           : 'Tu cuenta no tiene un rol de gestión o un municipio asignado.';
+      elements.deniedAccount.textContent = `Ingresaste como ${safeText(user.email, 'una cuenta sin correo')}. La administración central es ${OWNER_EMAIL}.`;
+      elements.deniedAccount.hidden = false;
       showOnly('denied');
       return;
     }
@@ -2370,6 +2391,8 @@ onAuthStateChanged(auth, async (user) => {
   } catch (error) {
     if (version !== state.authVersion) return;
     elements.deniedCopy.textContent = firebaseErrorMessage(error);
+    elements.deniedAccount.textContent = `Ingresaste como ${safeText(user.email, 'una cuenta sin correo')}.`;
+    elements.deniedAccount.hidden = false;
     showOnly('denied');
   }
 });
