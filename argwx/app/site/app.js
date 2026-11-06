@@ -14,7 +14,7 @@
   const SEAS = {DJF: "DEF", JFM: "EFM", FMA: "FMA", MAM: "MAM", AMJ: "AMJ", MJJ: "MJJ", JJA: "JJA", JAS: "JAS", ASO: "ASO",
                 SON: "SON", OND: "OND", NDJ: "NDE"};
   const DARK = false; // Tema claro uniforme para todos los accesos, incluido el mapa.
-  const S = {region: "pba", hour: 0, layers: {storms: true, wind: true, wx: true, smn: true, sat: false, radar: true, obs: false, rios: true, costa: false, red: false, cuencas: false}, grids: {},
+  const S = {region: "pba", hour: 0, layers: {storms: true, wind: true, wx: true, smn: true, sat: false, radar: true, obs: false, rios: true, costa: false, red: true, cuencas: false}, grids: {},
              cur: null, st: {}, munis: [], provs: [], smnFilter: "storm", pwin: "24", oniRange: "30", play: null, me: null,
              crecF: "alerta", crecN: 40, r72: {}};
   const $ = id => document.getElementById(id);
@@ -374,10 +374,15 @@
       <div class="muted">Últimos 30 días. Naranja: alerta. Roja: evacuación (niveles oficiales de la escala).</div>`;
   }
 
+  // Cauces menores (arroyos y canales) se dibujan más finos en la vista
+  // provincial para que la red completa no tape el mapa.
+  const isMinor = c => !["río", "estuario"].includes(c.tipo);
+
   function drawCourse(c, group, hl) {
     const col = hydroHot(c) ? COLOR[c.nivel] : c.nivel ? "#1e88e5" : "#667788";
+    const thin = !hl && !hydroHot(c) && isMinor(c) && map.getZoom() < 8;
     if (hl || hydroHot(c)) L.polyline(c.trazo, {color: "#fff", weight: hl ? 10 : 7, opacity: 0.8, interactive: false}).addTo(group);
-    L.polyline(c.trazo, {color: col, weight: hl ? 6 : hydroHot(c) ? 4 : 2, opacity: hl ? 1 : 0.8,
+    L.polyline(c.trazo, {color: col, weight: hl ? 6 : hydroHot(c) ? 4 : thin ? 1 : 2, opacity: hl ? 1 : thin ? 0.55 : 0.8,
       dashArray: !c.nivel ? "5 4" : null, bubblingMouseEvents: false})
       .bindPopup(() => courseHTML(c), {maxWidth: 300}).addTo(group);
   }
@@ -386,7 +391,7 @@
     G.obs.clearLayers(); G.rios.clearLayers(); G.costa.clearLayers(); G.cauces.clearLayers(); G.cuencas.clearLayers();
     const visible = bb => map.getBounds().intersects([[bb[0], bb[1]], [bb[2], bb[3]]]);
     if ((S.layers.rios || S.layers.red) && S.st.crec) S.st.crec.cursos.filter(c => visible(c.bbox) &&
-      ((S.layers.rios && hydroHot(c)) || (S.layers.red && (map.getZoom() >= 8 || ["río", "estuario"].includes(c.tipo)))))
+      ((S.layers.rios && hydroHot(c)) || S.layers.red))
       .forEach(c => drawCourse(c, G.cauces, false));
     if (S.layers.cuencas && S.st.cuencas) L.geoJSON(S.st.cuencas, {
       style: {color: "#3c7f98", weight: 1.5, fillOpacity: 0.06},
@@ -708,7 +713,7 @@
     $("crec-sum").innerHTML = `<h2>💧 Crecidas: próximos 3 días</h2><p class="big">${lead}</p>
       ${refs.length ? `<p>Puntos de referencia GloFAS con caudal alto frente a su historia 1984-hoy: ${refs.map(r => `<b>${esc(r.rio)}</b> en ${esc(r.lugar)} ${lvlBadge(r.nivel_7d)}`).join(", ")}.</p>` : ""}
       <p class="muted">Inventario: ${R.cursos} tramos cartográficos (${R.por_tipo["río"]} de ríos, ${R.por_tipo.arroyo} de arroyos, ${R.por_tipo.canal} de canales y ${R.por_tipo.estuario || 0} estuario). Un curso puede tener varios registros, incluidos cauces sin nombre. ${R.evaluados ?? R.cursos} con evaluación orientativa; ${R.sin_evaluacion || 0} sin evaluación; ${R.con_caudal} con caudal GloFAS. Evaluación actualizada: ${fmtDT(cr.generated_at)}.</p>
-      ${cr.cobertura ? `<p class="muted">${cr.cobertura.cuencas} cuencas DPH · cartografía DPH descargada: ${esc(cr.cobertura.fecha_descarga)}. ${esc(cr.cobertura.nota)} Activá «Red hídrica» o «Cuencas DPH» en Capas; acercá el mapa para ver cauces menores.</p>` : ""}
+      ${cr.cobertura ? `<p class="muted">${cr.cobertura.cuencas} cuencas DPH · cartografía DPH descargada: ${esc(cr.cobertura.fecha_descarga)}. ${esc(cr.cobertura.nota)} La «Red hídrica» completa (ríos, arroyos y canales) se ve en el mapa; activá «Cuencas DPH» en Capas para ver las cuencas.</p>` : ""}
       <p class="muted">Fuentes: <a href="https://www.gba.gob.ar/hidraulica/cuencas_hidricas/mapa" target="_blank" rel="noopener">DPH Buenos Aires</a> · <a href="https://www.ign.gob.ar/NuestrasActividades/InformacionGeoespacial/CapasSIG" target="_blank" rel="noopener">IGN</a> · <a href="https://data.buenosaires.gob.ar/dataset/arroyos" target="_blank" rel="noopener">Arroyos GCBA</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>. <a href="data/red_hidrica.json" target="_blank" rel="noopener">Datos y procedencia</a>.</p>`;
     $("crec-method").innerHTML = `${esc(cr.metodo)} Las alturas observadas en escalas oficiales (Prefectura, Red Hidrológica Nacional) prevalecen: sobre el nivel de alerta el curso queda al menos en Naranja y sobre el de evacuación, en Roja.<br><br>${esc(cr.nota)}<br><br>${esc(cr.fuentes)}`;
     crecList();
