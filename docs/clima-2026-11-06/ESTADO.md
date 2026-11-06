@@ -28,3 +28,4 @@ Nota de compilación: `E:\condi` ya no es un alias del proyecto. Usar `tools/bui
 - Hallazgo: el workflow del motor corre cada 4-9 h en vez de cada hora (GitHub demora los `schedule`).
 - Commit 3a934e06 en master (no subido a GitHub).
 - No usar `tools/build-web.ps1`: borra todo gh-pages salvo maqueta/assets, incluido `argwx/`.
+- Recordatorio de actualización enviado el 6/11 (`recordatorio_v26_20261106`): 17 cuentas, 4 push, 13 bandeja. La app no registra la versión instalada por usuario, así que no se puede filtrar a quienes ya actualizaron.
