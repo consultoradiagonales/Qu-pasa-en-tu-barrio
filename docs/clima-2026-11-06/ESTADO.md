@@ -16,3 +16,15 @@
 Nota de compilación: `E:\condi` ya no es un alias del proyecto. Usar `tools/build-android.ps1 -bundle` lanzado con
 `cmd /c "cd /d E:\CODEXC~1\04-APP~1 && powershell -File tools\build-android.ps1 -bundle > log 2>&1"`
 (si se redirige la salida desde PowerShell, un aviso de Kotlin corta el script).
+
+## Capa "Clima y riesgos" en el panel (6/11/2026)
+
+- `web/admin/argwx-layer.js` + `argwx-municipalities.js`; interruptor en Mapa operativo, apagado al iniciar.
+- Municipio: sólo su partido. Diagonales (integral o provincia 06): los 135. Otra provincia: sin cobertura.
+- Pruebas: `node --test test/web/argwx-layer.test.mjs` (6). Verificado visualmente con datos reales en página de prueba
+  (no con el panel completo: los emuladores piden Java 21 y la máquina tiene 17).
+- Panel y web 1.0.25 publicados en Firebase Hosting el 6/11 (`firebase deploy --only hosting`).
+- Aviso a vecinos enviado el 6/11 (`release_clima_v26_20261106`): 17 cuentas, 4 push, 13 bandeja.
+- Hallazgo: el workflow del motor corre cada 4-9 h en vez de cada hora (GitHub demora los `schedule`).
+- Commit 3a934e06 en master (no subido a GitHub).
+- No usar `tools/build-web.ps1`: borra todo gh-pages salvo maqueta/assets, incluido `argwx/`.
