@@ -472,9 +472,12 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
     data, cache = out / "data", Path(cache_dir) if cache_dir else None
     parts, oni, smn_obs = {}, [], []
 
-    def run(name, fn, file=None, max_hours=0, reuse=True, force_ok=True, version=None):
-        if file and reuse and _fresh(cache, file, max_hours, force_ok, version):
-            shutil.copy(cache / file, data / file)
+    def run(name, fn, file=None, max_hours=0, reuse=True, force_ok=True, version=None, also=()):
+        # `also`: archivos que se generan junto con `file`; sin ellos en la copia anterior se recalcula.
+        if (file and reuse and _fresh(cache, file, max_hours, force_ok, version)
+                and all((cache / f).exists() for f in also)):
+            for f in (file, *also):
+                shutil.copy(cache / f, data / f)
             parts[name] = {"ok": True, "reutilizado": True}
             return
         try:
@@ -483,7 +486,9 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
             log.exception("Falló %s", name)
             parts[name] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
             if file and cache and (cache / file).exists():  # mejor una copia anterior que nada
-                shutil.copy(cache / file, data / file)
+                for f in (file, *also):
+                    if (cache / f).exists():
+                        shutil.copy(cache / f, data / f)
                 parts[name]["usando_copia_anterior"] = True
 
     with http_client(settings) as client:
@@ -561,7 +566,8 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
             run("caudales_red", lambda: write("caudales_red.json", hydro.export_discharge(client, net)),
                 "caudales_red.json", 12, reuse=not fresh_net)
     run("alertas_pba", lambda: export_pba_alerts(data, smn_obs, _load(hist / historico.CALIB_FILE),
-                                                 _load(hist / historico.WEIGHTED_FILE)), "alertas_pba.json", 6)
+                                                 _load(hist / historico.WEIGHTED_FILE)), "alertas_pba.json", 6,
+        also=("sesgos_pba.json",))
     run("historico_pronosticos", lambda: historico.append_forecasts(hist, _load(data / "alertas_pba.json")))
 
     def floods_part():
