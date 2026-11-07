@@ -331,6 +331,11 @@ service cloud.firestore {
       allow read: if staffFor(resource.data);
     }
 
+    // Zonas de reportes calculadas por la función reportZones; sólo lectura.
+    match /reportZones/{municipalityId} {
+      allow read: if staffFor(resource.data);
+    }
+
 
     match /notifications/{notificationId} {
       // Cloud Functions create all notifications after validating the complete
