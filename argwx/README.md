@@ -269,6 +269,19 @@ Además del consenso, el motor calcula para cada partido y ventana una **lluvia 
 - **Se muestra en paralelo y no define el nivel de alerta.** El registro diario (`pronosticos_condi_AAAA-MM.csv`) guarda `lluvia_ponderada_mm` y `nivel_ponderado` para medir su acierto antes de adoptarlo.
 - Sólo pondera la lluvia (la única variable con verificación histórica). La verdad es ERA5, que suaviza las tormentas locales.
 
+### Puntos ciegos por partido (`app/engine/blindspots.py`)
+
+Cada corrida publica `data/sesgos_pba.json`: para cada partido y ventana, el análisis de
+evidencia ausente de la skill "sesgo del superviviente" (v4) en 7 pasos: casos observados,
+ausentes probables, filtro, distorsión, dato faltante, riesgo analítico (Bajo / Medio / Alto)
+y conclusión reformulada, con el supuesto en una línea aparte. Sólo usa cifras del propio
+pronóstico (modelos con dato, dispersión de la lluvia, señales no confirmadas, estación SMN,
+modelo ponderado). No cambia el nivel de alerta.
+
+El tablero acepta `#partido=<id>` (por ejemplo `#partido=la-plata`): centra el mapa en ese
+partido y abre su ficha con las tres ventanas y los puntos ciegos. El panel de gestión lo usa
+para enfocar el análisis en un municipio.
+
 ## Qué está verificado y qué no
 
 **Verificado**

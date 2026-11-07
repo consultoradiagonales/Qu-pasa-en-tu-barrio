@@ -688,6 +688,7 @@
       <div class="row"><span>🌧️ Lluvia</span><b>${p == null ? "–" : p + " mm/h"}</b></div>
       ${argwx ? `<div class="row"><span>ARGWX 24 h</span>${lvlBadge(argwx.alert_level)}</div>` : ""}
       ${argwx ? weightedRow(argwx) : ""}
+      ${f ? sesgoBlock(f.properties.id, "24", false) : ""}
       ${f ? soilRows(f.properties.id) : ""}
       ${f ? probRows(f.properties.id) : ""}
       ${amb ? `<div class="row"><span>☀️ UV máx. hoy</span><b>${amb.uv_max ?? "–"} ${amb.uv_categoria ? "(" + amb.uv_categoria + ")" : ""}</b></div>
@@ -696,6 +697,61 @@
       ${smn.map(a => `<div class="row"><span>SMN</span><span>${lvlBadge(a.level)} ${esc(a.title)}</span></div>`).join("")}
       ${coming.map(x => `<div class="row"><span>⛈️ ${kindOf(x.tr)}</span><b>${eta(x.hit.t)}</b></div>`).join("")}</div>`).openOn(map);
   });
+
+  // ------------------------------------------------------------------ puntos ciegos (sesgo del superviviente)
+  // Análisis en 7 pasos que publica el motor por partido: qué se ve, qué falta y cuánto pesa lo que falta.
+  const SESGO_STEPS = [["observados", "Casos observados"], ["ausentes", "Casos ausentes probables"],
+    ["filtro", "Filtro que explica la ausencia"], ["distorsion", "Cómo distorsiona la conclusión"],
+    ["falta", "Qué dato falta para corregirlo"]];
+  function sesgoBlock(id, win, open) {
+    const a = S.st.sesgos && S.st.sesgos.windows[win] && S.st.sesgos.windows[win][id];
+    if (!a) return "";
+    return `<details class="sesgo"${open ? " open" : ""}><summary>🔎 Puntos ciegos · riesgo analítico <b class="r-${esc(a.riesgo.toLowerCase())}">${esc(a.riesgo)}</b></summary>
+      ${SESGO_STEPS.map(([k, t]) => `<h5>${t}</h5><p>${esc(a[k])}</p>`).join("")}
+      <h5>Riesgo analítico: ${esc(a.riesgo)}</h5><p>${esc(a.riesgo_motivo)}</p>
+      <h5>Conclusión reformulada</h5>${a.supuesto ? `<p class="muted">${esc(a.supuesto)}</p>` : ""}<p>${esc(a.conclusion)}</p></details>`;
+  }
+
+  // ------------------------------------------------------------------ enfoque en un partido (#partido=<id>)
+  // El panel de gestión abre el tablero con #partido=la-plata para centrar el análisis en esa zona.
+  const focusLayer = L.layerGroup().addTo(map);
+  function partidoFromHash() {
+    const q = new URLSearchParams(location.hash.replace(/^#/, "") || location.search);
+    return (q.get("partido") || "").trim().toLowerCase() || null;
+  }
+  function drawFocus(id) {
+    focusLayer.clearLayers();
+    const f = S.st.muniGeo && S.st.muniGeo.features.find(ft => ft.properties.id === id);
+    if (!f) return null;
+    L.geoJSON(f, {pane: "muniPane", interactive: false,
+      style: {color: DARK ? "#7fd3ff" : "#0b5cad", weight: 3, fill: true, fillOpacity: 0.06, opacity: 0.95}}).addTo(focusLayer);
+    return f;
+  }
+  function focusCard(id) {
+    const W = ["24", "48", "72"];
+    const rows = W.map(w => {
+      const win = S.st.pba && S.st.pba.windows[w];
+      const m = win && win.municipios.find(x => x.id === id);
+      if (!m) return `<div class="row"><span>${win ? esc(win.label) : w + " h"}</span><span class="muted">Sin dato</span></div>`;
+      return `<div class="row"><span>${esc(win.label)}</span><span>${lvlBadge(m.alert_level)}${m.hazard ? " " + esc(m.hazard) : ""}</span></div>
+        <div class="muted">Coinciden ${esc(m.consensus || "-")} modelos${m.lluvia_mm != null ? ` · lluvia ${m.lluvia_mm} mm` : ""}</div>${weightedLine(m)}`;
+    }).join("");
+    const win = S.pwin || "24";
+    return rows + sesgoBlock(id, win, true) + (S.st.sesgos ? "" : `<p class="muted">El análisis de puntos ciegos todavía no está publicado.</p>`);
+  }
+  function focusPartido(id) {
+    S.focus = id;
+    if (!id) { focusLayer.clearLayers(); return; }
+    if (S.region !== "pba") { document.querySelector('#region button[data-r="pba"]').click(); }
+    const f = drawFocus(id);
+    if (!f) return;
+    const b = L.geoJSON(f).getBounds();
+    map.fitBounds(b, {padding: [40, 40], maxZoom: 10});
+    const p = f.properties;
+    openSheet(`<div class="pop focus-card"><h3>📍 ${esc(p.name)}</h3>
+      <div class="muted">Análisis centrado en este partido · pronóstico ARGWX por ventana</div>${focusCard(id)}</div>`);
+  }
+  addEventListener("hashchange", () => focusPartido(partidoFromHash()));
 
   function soilRows(id) {
     const r72 = S.r72[id], su = S.st.suelo && S.st.suelo.municipios[id];
@@ -838,7 +894,8 @@
                    costa: "data/costa.json", ambiente: "data/ambiente.json", probs: "data/probabilidades.json",
                    crec: "data/crecidas.json", suelo: "data/suelo.json", clima: "data/historico/climatologia_lluvia.json",
                    calib: "data/historico/calibracion.json", catalogo: "data/historico/catalogo.json",
-                   obsRios: "data/rios_observados.json", cuencas: "data/cuencas_hidricas.json"};
+                   obsRios: "data/rios_observados.json", cuencas: "data/cuencas_hidricas.json",
+                   sesgos: "data/sesgos_pba.json"};
     const vals = await Promise.all(Object.values(files).map(u => getJSON(u).catch(() => null)));
     Object.keys(files).forEach((k, i) => { S.st[k] = vals[i]; });
     S.munis = S.st.munis || [];
@@ -856,6 +913,7 @@
       Object.entries(per).forEach(([id, v]) => { if (v.length === 3 && v.every(x => x != null)) S.r72[id] = Math.round(v.reduce((a, b) => a + b, 0) * 10) / 10; });
     }
     drawProvs(); drawSMN(); drawMunis(); drawExtras(); extrasCards(); alertsTab(); ensoTab(); crecTab(); histCards();
+    if (S.focus) drawFocus(S.focus);
   }
 
   function seg(id, fn) {
@@ -1091,6 +1149,7 @@
     Object.keys(S.regions).forEach(r => { S.grids[r] = T.makeGrid(S.regions[r]); });
     map.fitBounds(S.regions.pba.bounds, {padding: [10, 10]});
     await loadStatic();
+    if (partidoFromHash()) focusPartido(partidoFromHash());
     loadRadar();
     setInterval(loadRadar, 10 * 60e3);
     await refresh(false);
