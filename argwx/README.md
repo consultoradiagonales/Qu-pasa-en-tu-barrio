@@ -261,6 +261,14 @@ Las alertas oficiales siguen llegando por la API CAP del SMN (la que el SMN regi
 
 ---
 
+### Modelo ponderado ARGWX (en evaluación, `app/engine/weighting.py`)
+
+Además del consenso, el motor calcula para cada partido y ventana una **lluvia por mediana ponderada**: cada modelo pesa según su error en los días con lluvia del último año (pronóstico a 1, 2 y 3 días contra ERA5), con pesos propios por punto de referencia de cada sección y contraídos hacia pesos iguales cuando hay pocos casos. Se publica en `data/historico/modelo_ponderado.json` (pesos, sesgo de cada modelo y validación) y en `alertas_pba.json` como `ponderado` dentro de cada partido.
+
+- **Validación** (ajuste con el 70 % más antiguo, prueba con el 30 % más reciente, 396 días al 30/10/2026): RMSE 3,84 mm contra 4,01 mm de la mediana simple (4,2 % mejor) y menos sesgo. También se probó la media ponderada con corrección de sesgo: quedó peor que la mediana, por eso no se usa.
+- **Se muestra en paralelo y no define el nivel de alerta.** El registro diario (`pronosticos_condi_AAAA-MM.csv`) guarda `lluvia_ponderada_mm` y `nivel_ponderado` para medir su acierto antes de adoptarlo.
+- Sólo pondera la lluvia (la única variable con verificación histórica). La verdad es ERA5, que suaviza las tormentas locales.
+
 ## Qué está verificado y qué no
 
 **Verificado**
