@@ -39,6 +39,9 @@
   const kmTxt = c => c.km ? ` · ${c.km < 1 ? c.km.toFixed(2).replace(".", ",") : Math.round(c.km)} km de trazado` : "";
   const kindOf = tr => (tr.points.some(p => p.thunder) ? "Tormenta " : "Área de lluvia ") + INTENS[tr.level];
   const mobile = () => matchMedia("(max-width: 959px)").matches;
+  // Pantalla completa: el detalle se muestra en un panel lateral en lugar del globo de Leaflet.
+  const full = () => document.body.classList.contains("mapfull");
+  const useSheet = () => mobile() || full();
   function eta(unix) {
     const h = (unix * 1000 - Date.now()) / 3.6e6;
     return h <= 0.5 ? "ahora" : h < 1.5 ? "en ~1 h" : `en ~${Math.round(h)} h`;
@@ -525,7 +528,7 @@
     const win = S.st.pba && S.st.pba.windows[S.pwin];
     const alerted = win ? win.municipios.filter(m => m.alert_level !== "GREEN").sort((a, b) => LV.indexOf(b.alert_level) - LV.indexOf(a.alert_level)) : [];
     $("pba-info").textContent = win ? `${win.label} · ${135 - alerted.length} municipios en verde · consenso de ${(S.st.pba.models || []).length} modelos (${(S.st.pba.models || []).join(", ")}) + observaciones del SMN` : "Sin datos.";
-    $("pba-list").innerHTML = alerted.length ? alerted.map(m => `<li><div>${lvlBadge(m.alert_level)} <b>${esc(m.name)}</b> <span class="muted">${esc(m.hazard || "")} · confianza ${esc(m.confidence_label)}</span></div><div class="muted">${esc(m.drivers[0] || "")}</div>${probLine(m.prob_lluvia, "30")}</li>`).join("")
+    $("pba-list").innerHTML = alerted.length ? alerted.map(m => `<li><div>${lvlBadge(m.alert_level)} <b>${esc(m.name)}</b> <span class="muted">${esc(m.hazard || "")} · confianza ${esc(m.confidence_label)}</span></div><div class="muted">${esc(m.drivers[0] || "")}</div>${probLine(m.prob_lluvia, "30")}${weightedLine(m)}</li>`).join("")
       : `<li class="muted">Ningún municipio en alerta en esta ventana.</li>`;
     // Probabilidad calibrada: los partidos con más chance de lluvia importante en la ventana elegida
     const withP = win ? win.municipios.filter(m => m.prob_lluvia && m.prob_lluvia["10"] && m.prob_lluvia["10"].probabilidad != null) : [];
@@ -536,6 +539,20 @@
       : top.length ? `<p class="muted">Lluvia de ${t} mm o más en la ventana elegida: frecuencia con que ocurrió en el último año cuando una proporción parecida de modelos lo pronosticó.</p>
         <ul class="plain">${top.map(m => `<li class="row"><span><b>${esc(m.name)}</b> <span class="muted">· ${m.prob_lluvia[t].k} de ${m.prob_lluvia[t].n} modelos</span></span><b>${probTxt(m.prob_lluvia[t])}</b></li>`).join("")}</ul>`
       : `<p class="muted">Ningún modelo pronostica 10 mm o más en ningún partido para esta ventana.</p>`;
+  }
+
+  // Modelo ponderado ARGWX (en evaluación): pesa cada modelo según cuánto acertó la lluvia en el último año.
+  function weightedLine(m) {
+    const w = m && m.ponderado;
+    if (!w) return "";
+    return `<div class="muted">⚖️ ARGWX ponderado (en evaluación): ${w.lluvia_mm} mm · ${lvlBadge(w.nivel)}${w.difiere ? " · difiere del consenso" : ""}</div>`;
+  }
+  function weightedRow(m) {
+    const w = m && m.ponderado;
+    if (!w) return "";
+    const tops = (w.modelos_principales || []).map(x => `${esc(x.modelo)} ${Math.round(x.peso * 100)} %`).join(", ");
+    return `<div class="row"><span>⚖️ ARGWX ponderado 24 h <span class="muted">(en evaluación)</span></span><span>${w.lluvia_mm} mm ${lvlBadge(w.nivel)}</span></div>
+      ${tops ? `<div class="muted">Pesan más: ${tops}</div>` : ""}`;
   }
 
   function probTxt(p) {
@@ -646,7 +663,7 @@
 
   // ------------------------------------------------------------------ interacción
   map.on("click", e => {
-    if (mobile()) closeSheet();  // un toque en otro lugar reemplaza o cierra el detalle
+    if (useSheet()) closeSheet();  // un toque en otro lugar reemplaza o cierra el detalle
     const D = S.cur;
     if (!D) return;
     const h = Math.min(S.hour, D.H - 1), lat = e.latlng.lat, lon = e.latlng.lng;
@@ -670,6 +687,7 @@
       <div class="row"><span>Ráfagas</span><b>${g == null ? "–" : Math.round(g) + " km/h"}</b></div>
       <div class="row"><span>🌧️ Lluvia</span><b>${p == null ? "–" : p + " mm/h"}</b></div>
       ${argwx ? `<div class="row"><span>ARGWX 24 h</span>${lvlBadge(argwx.alert_level)}</div>` : ""}
+      ${argwx ? weightedRow(argwx) : ""}
       ${f ? soilRows(f.properties.id) : ""}
       ${f ? probRows(f.properties.id) : ""}
       ${amb ? `<div class="row"><span>☀️ UV máx. hoy</span><b>${amb.uv_max ?? "–"} ${amb.uv_categoria ? "(" + amb.uv_categoria + ")" : ""}</b></div>
@@ -843,8 +861,8 @@
   function seg(id, fn) {
     $(id).addEventListener("click", e => {
       const b = e.target.closest("button");
-      if (!b) return;
-      [...$(id).children].forEach(x => x.classList.toggle("on", x === b));
+      if (!b || b.classList.contains("hdr-toggle")) return;  // "Menú" no es una pestaña
+      [...$(id).children].forEach(x => { if (!x.classList.contains("hdr-toggle")) x.classList.toggle("on", x === b); });
       fn(b.dataset);
     });
   }
@@ -940,6 +958,79 @@
     setCompact(false);
   });
   $("mini").addEventListener("click", () => { refresh(true); loadStatic(); });
+
+  // ------------------------------------------------------------------ encabezado contraíble y pantalla completa
+  // "▴ Menú" fija el encabezado contraído (se recuerda en este navegador); el mapa gana ese alto.
+  function setPinned(on) {
+    document.body.classList.toggle("pinned", on);
+    $("hdr-toggle").textContent = on ? "▾ Menú" : "▴ Menú";
+    $("hdr-toggle").setAttribute("aria-pressed", String(on));
+    try { localStorage.setItem("argwx-hdr", on ? "1" : "0"); } catch (e) { /* sin almacenamiento */ }
+    if (on) setCompact(true); else if (scrollY <= 0) setCompact(false);
+    setTimeout(fitMap, 240);
+  }
+  $("hdr-toggle").addEventListener("click", () => setPinned(!document.body.classList.contains("pinned")));
+  try { if (localStorage.getItem("argwx-hdr") === "1") setPinned(true); } catch (e) { /* sin almacenamiento */ }
+
+  function setFull(on) {
+    if (full() === on) return;
+    document.body.classList.toggle("mapfull", on);
+    $("fs").textContent = on ? "✕" : "⛶";
+    $("fs").setAttribute("aria-label", on ? "Salir de pantalla completa" : "Ver el mapa en pantalla completa");
+    map.closePopup();
+    if (on) {
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => { /* el navegador lo negó: queda el modo dentro de la página */ });
+      }
+      if (!mobile()) showAlertsPanel();
+    } else {
+      closeSheet();
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    }
+    setTimeout(fitMap, 260);
+  }
+  $("fs").addEventListener("click", () => setFull(!full()));
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && full()) setFull(false); });
+
+  // Panel lateral con todas las alertas vigentes; cada una lleva al lugar en el mapa.
+  function showAlertsPanel() {
+    const smn = (S.st.smn ? S.st.smn.alerts : []).map((a, i) => ({a, i})).filter(x => x.a.partidos_pba.length || S.region !== "pba");
+    const win = S.st.pba && S.st.pba.windows[S.pwin || "24"];
+    const pba = win ? win.municipios.filter(m => m.alert_level !== "GREEN" || (m.ponderado && m.ponderado.difiere))
+      .sort((a, b) => LV.indexOf(b.alert_level) - LV.indexOf(a.alert_level)) : [];
+    openSheet(`<div class="pop side-alerts"><h3>⚠️ Alertas vigentes</h3>
+      <p class="muted">Tocá una alerta para verla en el mapa. ${win ? esc(win.label) : ""}</p>
+      <h4>SMN (oficiales)</h4>
+      ${smn.length ? smn.map(x => `<button class="side-item" data-smn="${x.i}">${lvlBadge(x.a.level)} <b>${esc(x.a.title)}</b>
+        <span class="muted">${esc((x.a.partidos_pba.length ? x.a.partidos_pba : x.a.provincias).slice(0, 6).join(", "))} · hasta ${fmtDT(x.a.valid_to)}</span></button>`).join("")
+        : `<p class="muted">${S.st.smn ? "Sin alertas del SMN para esta zona." : "No se pudieron leer las alertas del SMN."}</p>`}
+      <h4>ARGWX por partido</h4>
+      ${pba.length ? pba.map(m => `<button class="side-item" data-muni="${esc(m.id)}">${lvlBadge(m.alert_level)} <b>${esc(m.name)}</b>
+        <span class="muted">${esc(m.hazard || "")} ${m.consensus ? "· coinciden " + esc(m.consensus) : ""}</span>${weightedLine(m)}</button>`).join("")
+        : `<p class="muted">Ningún partido en alerta en esta ventana.</p>`}</div>`);
+  }
+  $("fs-alerts").addEventListener("click", showAlertsPanel);
+  $("sheet-c").addEventListener("click", e => {
+    const back = e.target.closest("[data-back]");
+    if (back) { showAlertsPanel(); return; }
+    const item = e.target.closest(".side-item");
+    if (!item) return;
+    if (item.dataset.smn != null) {
+      const a = S.st.smn.alerts[+item.dataset.smn];
+      if (!a) return;
+      const b = L.latLngBounds(a.polygons.flat());
+      if (b.isValid()) map.fitBounds(b, {padding: [30, 30], maxZoom: 9});
+      openSheet(`<div class="pop"><button class="side-back" data-back>← Alertas</button><h3>${lvlBadge(a.level)} ${esc(a.title)}</h3>
+        <div class="muted">SMN · ${esc(a.provincias.join(", "))}</div><div>Desde ${fmtDT(a.valid_from)} hasta ${fmtDT(a.valid_to)}</div>
+        ${a.partidos_pba.length ? `<div><b>Buenos Aires:</b> ${esc(a.partidos_pba.join(", "))}</div>` : ""}</div>`);
+      return;
+    }
+    const f = S.st.muniGeo && S.st.muniGeo.features.find(ft => ft.properties.id === item.dataset.muni);
+    if (!f) return;
+    const c = L.geoJSON(f).getBounds();
+    map.fitBounds(c, {padding: [40, 40], maxZoom: 10});
+    setTimeout(() => map.fire("click", {latlng: c.getCenter()}), 450);
+  });
   let resizeT;
   addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(fitMap, 150); });
 
@@ -956,10 +1047,17 @@
 
   // Detalle: en el celular, panel inferior legible en lugar del globo de Leaflet (que quedaba tapado).
   const pick = L.layerGroup().addTo(map);
-  function closeSheet() { $("sheet").hidden = true; pick.clearLayers(); }
+  function closeSheet() {
+    $("sheet").hidden = true;
+    document.body.classList.remove("sheet-open");
+    pick.clearLayers();
+    if (full()) setTimeout(() => map.invalidateSize({pan: false}), 30);
+  }
   function openSheet(html, ll) {
     $("sheet-c").innerHTML = html;
     $("sheet").hidden = false;
+    document.body.classList.add("sheet-open");
+    if (full()) setTimeout(() => map.invalidateSize({pan: false}), 30);
     $("sheet").scrollTop = 0;
     setTimeout(() => setCompact(true), 0);
     pick.clearLayers();
@@ -971,16 +1069,20 @@
     });
   }
   $("sheet-x").addEventListener("click", closeSheet);
-  addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+  addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if (!$("sheet").hidden) closeSheet(); else if (full()) setFull(false);
+  });
   if (mobile()) L.Popup.mergeOptions({autoPan: false});
   else L.Popup.mergeOptions({autoPanPaddingTopLeft: L.point(16, 120), autoPanPaddingBottomRight: L.point(16, 90)});
   map.on("popupopen", e => {
-    if (!mobile()) return;
+    if (!useSheet()) return;
     const pop = e.popup, c = pop.getContent();
     const html = typeof c === "function" ? c(pop._source) : c;
     const ll = pop.getLatLng();
     map.closePopup(pop);
-    openSheet(typeof html === "string" ? html : html.outerHTML, ll);
+    const back = full() ? `<button class="side-back" data-back>← Alertas</button>` : "";
+    openSheet(back + (typeof html === "string" ? html : html.outerHTML), ll);
   });
 
   (async () => {

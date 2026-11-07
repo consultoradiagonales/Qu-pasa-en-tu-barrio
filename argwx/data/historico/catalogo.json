@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-07T00:10:25Z",
+ "generated_at": "2026-11-07T01:55:39Z",
  "tablas": [
   {
    "tabla": "lluvia_era5_diaria.csv",
@@ -56,10 +56,10 @@
    ],
    "descripcion": "Lo que pronosticó ConDi para cada partido, una vez por día, para verificarlo después.",
    "fuente": "ConDi · ARGWX (consenso de 9 modelos)",
-   "registros": 1215,
+   "registros": 1620,
    "desde": "2026-11-04",
-   "hasta": "2026-11-06",
-   "bytes": 86283
+   "hasta": "2026-11-07",
+   "bytes": 121368
   },
   {
    "tabla": "rios_observados_*.csv",
@@ -69,10 +69,10 @@
    ],
    "descripcion": "Alturas de los ríos observadas en escalas de la provincia, con los niveles oficiales de alerta y evacuación.",
    "fuente": "Prefectura Naval Argentina y Red Hidrológica Nacional, vía API pública del INA",
-   "registros": 2342,
+   "registros": 2364,
    "desde": "2026-10-05",
-   "hasta": "2026-11-06",
-   "bytes": 190119
+   "hasta": "2026-11-07",
+   "bytes": 191950
   },
   {
    "tabla": "climatologia_lluvia.json",

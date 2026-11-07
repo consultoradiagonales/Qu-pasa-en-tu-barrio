@@ -1692,3 +1692,25 @@ fecha,estacion,rio,altura_m,alerta_m,evacuacion_m,red
 2026-11-06T22:45,Palmas,Paraná de las Palmas,2.18,,,na-sa
 2026-11-06T22:45,Puerto Belgrano,,2.86,,,Mareógrafos SHN
 2026-11-06T22:45,San Fernando,LUJAN,1.89,3,3.5,escalas Prefectura Nacional
+2026-11-06T23:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.16,,,red INA Delta y AMBA
+2026-11-06T23:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.31,2,2.2,RHN - SAT
+2026-11-06T23:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.16,,,red INA Delta y AMBA
+2026-11-06T23:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.16,,,red INA Delta y AMBA
+2026-11-06T23:45,Arroyo Carapachay,Arroyo Carapachay,2.68,,,red INA Delta y AMBA
+2026-11-06T23:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.16,,,red INA Delta y AMBA
+2026-11-06T23:45,Buenos Aires,RIODELAPLATA,1.8,3.3,3.9,escalas Prefectura Nacional
+2026-11-06T23:45,Canal Seoane,Canal Seoane,2.75,,,red INA Delta y AMBA
+2026-11-06T23:45,INTA Delta,Paraná de las Palmas,2.28,,,red INA Delta y AMBA
+2026-11-06T23:45,Palmas,Paraná de las Palmas,2.3,,,na-sa
+2026-11-06T23:45,Puerto Belgrano,,1.92,,,Mareógrafos SHN
+2026-11-06T23:45,San Fernando,LUJAN,1.95,3,3.5,escalas Prefectura Nacional
+2026-11-07T00:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.15,,,red INA Delta y AMBA
+2026-11-07T00:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.15,,,red INA Delta y AMBA
+2026-11-07T00:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.15,,,red INA Delta y AMBA
+2026-11-07T00:45,Arroyo Carapachay,Arroyo Carapachay,2.76,,,red INA Delta y AMBA
+2026-11-07T00:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.15,,,red INA Delta y AMBA
+2026-11-07T00:45,Buenos Aires,RIODELAPLATA,1.86,3.3,3.9,escalas Prefectura Nacional
+2026-11-07T00:45,Canal Seoane,Canal Seoane,2.84,,,red INA Delta y AMBA
+2026-11-07T00:45,INTA Delta,Paraná de las Palmas,2.37,,,red INA Delta y AMBA
+2026-11-07T00:45,Palmas,Paraná de las Palmas,2.32,,,na-sa
+2026-11-07T00:45,San Fernando,LUJAN,1.99,3,3.5,escalas Prefectura Nacional
