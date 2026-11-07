@@ -23,7 +23,8 @@ from statistics import mean, median
 from app.config import get_settings
 from app.engine.geo import point_in_polygon
 from app.engine.levels import COLOR, LABEL
-from app.engine import calibration
+from app.engine import calibration, weighting
+from app.engine.thresholds import evaluate
 from app.providers import enso, extras, historico, hydro, hydrography, ina, openmeteo, smn
 from app.services.municipalities import SECCION_NOMBRE, by_id, load_municipalities
 from app.services.sync import http_client
@@ -326,7 +327,27 @@ def rain_probabilities(entry: dict, window: int, calib: dict | None) -> dict:
     return out
 
 
-def export_pba_alerts(out: Path, smn_obs: list[dict] | None = None, calib: dict | None = None) -> dict:
+def weighted_view(entry: dict, window: int, model_file: dict | None, point_by_section: dict) -> dict | None:
+    """Modelo ponderado ARGWX para un partido: lluvia por mediana ponderada y el nivel que daría.
+
+    Se muestra en paralelo al consenso: NO cambia el nivel de alerta publicado.
+    """
+    if not model_file or not model_file.get("ajuste"):
+        return None
+    lead = {24: 1, 48: 2, 72: 3}.get(int(window), 1)
+    rain = {m: v.get("rain_mm") for m, v in (entry.get("models") or {}).items()}
+    point = point_by_section.get(entry.get("seccion"))
+    res = weighting.combine(rain, weighting.weights_for(model_file["ajuste"], lead, point))
+    if not res:
+        return None
+    values = {k: (entry.get("values", {}).get(k) or {}).get("median") for k in ("gust_kmh", "tmax_c", "tmin_c")}
+    level, hazard, _ = evaluate({**values, "rain_mm": res["lluvia_mm"]})
+    return {**res, "nivel": level, "nivel_label": LABEL[level], "color": COLOR[level], "fenomeno": hazard,
+            "difiere": level != entry.get("alert_level"), "punto_referencia": point}
+
+
+def export_pba_alerts(out: Path, smn_obs: list[dict] | None = None, calib: dict | None = None,
+                      model_file: dict | None = None) -> dict:
     from app.db import init_db, new_session
     from app.models import Observation
     from app.services.municipalities import seed
@@ -351,16 +372,21 @@ def export_pba_alerts(out: Path, smn_obs: list[dict] | None = None, calib: dict 
         raise RuntimeError("Sin datos de modelos (posible límite de consultas de Open-Meteo)")
     keep = ("id", "name", "seccion", "alert_level", "alert_label", "color", "hazard", "confidence_label",
             "consensus", "drivers")
+    point_by_section = {int(info["seccion"]): pid for pid, info in ((model_file or {}).get("puntos_info") or {}).items()}
     windows = {str(w): {"label": v["label"], "valid_from": v["valid_from"], "valid_to": v["valid_to"],
                         "summary": summary(v["municipalities"].values()),
                         "municipios": [{**{k: e[k] for k in keep if k != "drivers"},
                                         "lluvia_mm": (e["values"].get("rain_mm") or {}).get("median"),
                                         "prob_lluvia": rain_probabilities(e, w, calib),
+                                        "ponderado": weighted_view(e, w, model_file, point_by_section),
                                         "drivers": e["drivers"][:1] if e["alert_level"] != "GREEN" else []}
                                        for e in v["municipalities"].values()]}
                for w, v in st["windows"].items()}
     _write(out, "alertas_pba.json", {"generated_at": st["generated_at"], "data_mode": st["data_mode"],
-                                     "models": st["models"], "windows": windows})
+                                     "models": st["models"], "windows": windows,
+                                     "modelo_ponderado": {"estado": (model_file or {}).get("estado"),
+                                                          "validacion": ((model_file or {}).get("validacion") or {})
+                                                          .get("mejora_vs_mediana_pct")} if model_file else None})
     return {"modo": st["data_mode"], "en_alerta_24h": 135 - windows["24"]["summary"]["GREEN"]}
 
 
@@ -504,6 +530,7 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
         run("historico_climatologia", lambda: historico.climatology_file(hist, points))
         run("historico_verificacion", lambda: historico.update_verification(client, hist, points, models))
         run("historico_calibracion", lambda: historico.calibration_file(hist, models))
+        run("modelo_ponderado", lambda: historico.weighted_model_file(hist, models, points))
         run("historico_alertas_smn", lambda: historico.update_alert_registry(hist, _load(data / "smn_argentina.json")))
         run("historico_smn_horarios", lambda: historico.update_smn_hourly(client, hist,
                                                                            historico.pba_station_names(client)))
@@ -526,7 +553,8 @@ def build(out_dir: str, cache_dir: str | None = None) -> dict:
             fresh_net = not parts["red_hidrica"].get("reutilizado")  # puntos nuevos: pedir caudales otra vez
             run("caudales_red", lambda: write("caudales_red.json", hydro.export_discharge(client, net)),
                 "caudales_red.json", 12, reuse=not fresh_net)
-    run("alertas_pba", lambda: export_pba_alerts(data, smn_obs, _load(hist / historico.CALIB_FILE)), "alertas_pba.json", 6)
+    run("alertas_pba", lambda: export_pba_alerts(data, smn_obs, _load(hist / historico.CALIB_FILE),
+                                                 _load(hist / historico.WEIGHTED_FILE)), "alertas_pba.json", 6)
     run("historico_pronosticos", lambda: historico.append_forecasts(hist, _load(data / "alertas_pba.json")))
 
     def floods_part():

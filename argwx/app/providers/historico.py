@@ -39,6 +39,7 @@ VERIF_DAYS = 400           # profundidad disponible de las corridas anteriores (
 LEADS = (1, 2, 3)
 ERA5_FILE, VERIF_FILE, ALERTS_FILE = "lluvia_era5_diaria.csv", "verificacion_modelos.csv", "alertas_smn.csv"
 CLIMA_FILE, CALIB_FILE, CATALOG_FILE = "climatologia_lluvia.json", "calibracion.json", "catalogo.json"
+WEIGHTED_FILE = "modelo_ponderado.json"
 
 
 # ------------------------------------------------------------------ utilidades
@@ -195,7 +196,8 @@ def update_verification(client, folder: Path, points: list[dict], models: list[s
     return {"filas": len(ordered), "con_observacion": with_obs, "desde": ordered[0]["fecha"] if ordered else None}
 
 
-def calibration_file(folder: Path, models: list[str]) -> dict:
+def verification_rows(folder: Path, models: list[str]) -> list[dict]:
+    """Pares pronóstico-observación en formato largo, desde verificacion_modelos.csv."""
     labels = list(dict.fromkeys(label(m) for m in models))
     long = []
     for r in read_csv(folder / VERIF_FILE):
@@ -207,6 +209,26 @@ def calibration_file(folder: Path, models: list[str]) -> dict:
             if f is not None:
                 long.append({"punto": r["punto"], "fecha": r["fecha"], "modelo": lab, "plazo": int(r["plazo"]),
                              "pronostico": f, "observado": o})
+    return long
+
+
+def weighted_model_file(folder: Path, models: list[str], points: list[dict]) -> dict:
+    """Ajusta y valida el modelo ponderado ARGWX (ver app/engine/weighting.py)."""
+    from app.engine import weighting
+
+    long = verification_rows(folder, models)
+    if not long:
+        raise RuntimeError("Sin pares pronóstico-observación todavía")
+    info = {p["id"]: {"name": p["name"], "seccion": p["seccion"]} for p in points}
+    res = weighting.build_model_file(long, info)
+    (folder / WEIGHTED_FILE).write_text(json.dumps(res, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    val = res["validacion"]
+    return {"dias": res["dias"], "mejora_vs_mediana_pct": val.get("mejora_vs_mediana_pct")}
+
+
+def calibration_file(folder: Path, models: list[str]) -> dict:
+    labels = list(dict.fromkeys(label(m) for m in models))
+    long = verification_rows(folder, models)
     if not long:
         raise RuntimeError("Sin pares pronóstico-observación todavía")
     days = sorted({x["fecha"] for x in long})
@@ -304,9 +326,11 @@ def append_forecasts(folder: Path, alertas: dict | None) -> dict:
                         "nivel": m["alert_level"], "fenomeno": m.get("hazard") or "", "consenso": m.get("consensus"),
                         "lluvia_mediana_mm": m.get("lluvia_mm"),
                         **{f"modelos_{t}mm": (pr.get(t) or {}).get("k") for t in ("10", "30", "60")},
-                        "modelos": (pr.get("10") or {}).get("n")})
+                        "modelos": (pr.get("10") or {}).get("n"),
+                        "lluvia_ponderada_mm": (m.get("ponderado") or {}).get("lluvia_mm"),
+                        "nivel_ponderado": (m.get("ponderado") or {}).get("nivel")})
     fields = ["emitido", "ventana_h", "desde", "partido", "nivel", "fenomeno", "consenso", "lluvia_mediana_mm",
-              "modelos", "modelos_10mm", "modelos_30mm", "modelos_60mm"]
+              "modelos", "modelos_10mm", "modelos_30mm", "modelos_60mm", "lluvia_ponderada_mm", "nivel_ponderado"]
     write_csv(path, fields, rows + new)
     return {"archivo": path.name, "nuevas": len(new)}
 

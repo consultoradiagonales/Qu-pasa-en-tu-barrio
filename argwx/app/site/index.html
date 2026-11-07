@@ -52,6 +52,7 @@
   <span class="muted sb-title">· Tiempo en vivo</span><button class="sbbtn" id="refresh" aria-label="Actualizar datos">⟳ Actualizar</button></div>
 <nav class="tabs" id="tabs">
   <button data-t="live" class="on">🗺️ En vivo</button><button data-t="alerts">⚠️ Alertas</button><button data-t="enso">🌊 El Niño</button><button data-t="crec">💧 Crecidas</button>
+  <button class="hdr-toggle" id="hdr-toggle" aria-pressed="false" title="Contraer el encabezado para ver más mapa">▴ Menú</button>
 </nav>
 </div>
 <div id="warns"></div>
@@ -71,6 +72,8 @@
         </div>
       </div>
       <button id="locate" aria-label="Mi ubicación">📍</button>
+      <button id="fs" aria-label="Ver el mapa en pantalla completa" title="Pantalla completa">⛶</button>
+      <button id="fs-alerts" aria-label="Ver alertas en el panel lateral" title="Alertas">⚠️ Alertas</button>
       <div class="map-bottom">
         <button id="play" aria-label="Animar las próximas horas">▶</button>
         <input id="hour" type="range" min="0" max="11" value="0" step="1" aria-label="Hora del pronóstico">
