@@ -79,6 +79,7 @@ const getUsageSummary = httpsCallable(functions, 'getUsageSummary');
 const getAppRelease = httpsCallable(functions, 'getAppRelease');
 const saveAppRelease = httpsCallable(functions, 'saveAppRelease');
 const sendCustomMessage = httpsCallable(functions, 'sendCustomMessage');
+const residentDirectory = httpsCallable(functions, 'residentDirectory');
 const sendWeatherAlert = httpsCallable(functions, 'sendWeatherAlert');
 const correctWeatherAlert = httpsCallable(functions, 'correctWeatherAlert');
 
@@ -184,6 +185,10 @@ const elements = {
   reportsEmpty: $('reports-empty'),
   mapSummary: $('map-summary'),
   mapHotspots: $('map-hotspots'),
+  zonesToggle: $('zones-toggle'),
+  zonesPanel: $('zones-panel'),
+  zonesStatus: $('zones-status'),
+  zonesAnalysis: $('zones-analysis'),
   wxToggle: $('wx-toggle'),
   wxWindow: $('wx-window'),
   wxPanel: $('wx-panel'),
@@ -191,6 +196,8 @@ const elements = {
   wxList: $('wx-list'),
   wxDashboard: $('wx-dashboard'),
   messageForm: $('message-form'),
+  messageResidentSearch: $('message-resident-search'),
+  messageResidentClear: $('message-resident-clear'),
   messageAudience: $('message-audience'),
   messageAudienceAll: $('message-audience-all'),
   messageMunicipalityWrap: $('message-municipality-wrap'),
@@ -339,6 +346,16 @@ const state = {
   weatherWindow: '24',
   weatherLayer: null,
   weatherRequest: 0,
+  // Correo y nombre de vecinos completados desde Auth (función residentDirectory).
+  residentDirectory: new Map(),
+  residentDirectoryKey: null,
+  residentSearch: '',
+  // Capa "Calor de reportes" (colección reportZones).
+  zonesOn: false,
+  zonesLayer: null,
+  zonesDocs: [],
+  zonesError: '',
+  unsubZones: null,
   // Sección "Clima y alertas": edición de una alerta enviada y datos del motor.
   wxaEditingId: null,
   wxaWindow: '24',
@@ -667,7 +684,7 @@ async function resolveProfile(user) {
 
 function cleanUpSubscriptions() {
   [state.unsubReports, state.unsubTeams, state.unsubAds, state.unsubMunicipalities,
-    state.unsubResidents, state.unsubWeatherAlerts].forEach((unsubscribe) => {
+    state.unsubResidents, state.unsubWeatherAlerts, state.unsubZones].forEach((unsubscribe) => {
     if (typeof unsubscribe === 'function') unsubscribe();
   });
   state.unsubReports = null;
@@ -676,6 +693,7 @@ function cleanUpSubscriptions() {
   state.unsubMunicipalities = null;
   state.unsubResidents = null;
   state.unsubWeatherAlerts = null;
+  state.unsubZones = null;
 }
 
 function setupUserHeader() {
@@ -1039,9 +1057,50 @@ function subscribeWeatherAlerts() {
   );
 }
 
+function residentContact(resident) {
+  const extra = state.residentDirectory.get(resident.id) || {};
+  return {
+    name: safeText(resident.realName, safeText(resident.displayName, safeText(extra.name))),
+    email: safeText(resident.email, safeText(extra.email)),
+  };
+}
+
 function residentName(resident) {
-  return safeText(resident.realName,
-    safeText(resident.displayName, safeText(resident.email, `Vecino ${resident.id.slice(0, 8)}`)));
+  const contact = residentContact(resident);
+  return contact.name || contact.email || `Vecino sin nombre · ID ${resident.id.slice(0, 6)}`;
+}
+
+function residentDetails(resident) {
+  const contact = residentContact(resident);
+  const parts = [];
+  if (contact.name && contact.email) parts.push(contact.email);
+  if (!contact.email) parts.push('sin correo registrado');
+  const locality = safeText(resident.locality, safeText(resident.municipalityName));
+  if (locality) parts.push(locality);
+  parts.push(typeof resident.fcmToken === 'string' && resident.fcmToken ? 'notificaciones activas' : 'sin notificaciones');
+  parts.push(`ID ${resident.id.slice(0, 6)}`);
+  return parts.join(' · ');
+}
+
+function residentMatches(resident, term) {
+  if (!term) return true;
+  const contact = residentContact(resident);
+  return normalizedKey([contact.name, contact.email, resident.locality, resident.municipalityName, resident.id].filter(Boolean).join(' ')).includes(term);
+}
+
+/** Pide una vez por municipio el correo y nombre que falten en los perfiles. */
+async function loadResidentDirectory() {
+  const key = messageMunicipalityId() || '*';
+  if (state.residentDirectoryKey === key) return;
+  state.residentDirectoryKey = key;
+  try {
+    const response = await residentDirectory({ municipalityId: messageMunicipalityId() });
+    if (state.residentDirectoryKey !== key) return;
+    state.residentDirectory = new Map((response.data?.residents || []).map((r) => [r.uid, r]));
+    renderMessages();
+  } catch (_) {
+    // Sin el directorio se muestra lo que hay en los perfiles.
+  }
 }
 
 function deliveryText(result) {
@@ -1363,6 +1422,122 @@ async function renderWxaEngine() {
     : [emptyInline(`Sin avisos del motor para este período (${view.features.length} partidos revisados${view.missing ? `, ${view.missing} sin dato` : ''}).`)]);
 }
 
+// ---------------------------------------------------------------------------
+// Capa "Calor de reportes": celdas de ~500 m calculadas por la función
+// reportZones, con el análisis de evidencia ausente (sesgo del superviviente).
+// ---------------------------------------------------------------------------
+const ZONE_COLORS = { GREEN: '#2e9d4f', YELLOW: '#f2c200', ORANGE: '#f07c00', RED: '#d62828' };
+const ZONE_LABELS = { GREEN: 'Verde', YELLOW: 'Amarilla', ORANGE: 'Naranja', RED: 'Roja' };
+const ZONE_STEPS = [
+  ['observed', 'Casos observados'],
+  ['absent', 'Casos ausentes probables'],
+  ['filter', 'Filtro que explica la ausencia'],
+  ['distortion', 'Cómo distorsiona la conclusión'],
+  ['missing', 'Qué dato falta para corregirlo'],
+];
+
+function zonesMunicipalityId() {
+  if (!isCentralAdmin(state.profile)) return safeText(state.profile?.municipalityId);
+  const scope = scopeParts();
+  return ['municipality', 'locality'].includes(scope.type) ? scope.municipalityId : '';
+}
+
+function subscribeReportZones() {
+  if (state.unsubZones) state.unsubZones();
+  state.unsubZones = null;
+  state.zonesDocs = [];
+  if (!state.zonesOn || !state.profile) { renderZones(); return; }
+  const municipalityId = zonesMunicipalityId();
+  const onError = (error) => {
+    state.zonesDocs = [];
+    state.zonesError = firebaseErrorMessage(error);
+    renderZones();
+  };
+  state.zonesError = '';
+  if (municipalityId) {
+    state.unsubZones = onSnapshot(doc(db, 'reportZones', municipalityId), (snap) => {
+      state.zonesDocs = snap.exists() ? [{ id: snap.id, ...snap.data() }] : [];
+      renderZones();
+    }, onError);
+  } else {
+    state.unsubZones = onSnapshot(collection(db, 'reportZones'), (snapshot) => {
+      state.zonesDocs = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      renderZones();
+    }, onError);
+  }
+  renderZones();
+}
+
+function zonePopup(cell) {
+  const box = element('div', { className: 'wx-popup' });
+  const top = cell.topCategory ? ` · más reportado: ${categoryLabel(cell.topCategory).toLowerCase()}` : '';
+  box.append(
+    element('b', { text: `Prioridad ${ZONE_LABELS[cell.level] || 'sin dato'}` }),
+    element('small', { text: `${number(cell.open)} abiertos (${number(cell.high)} urgentes) · ${number(cell.resolved)} resueltos${top}` }),
+    element('small', { text: `${number(cell.reporters)} vecino${number(cell.reporters) === 1 ? '' : 's'} distinto${number(cell.reporters) === 1 ? '' : 's'} reportaron aquí.` }),
+  );
+  if (cell.singleSource) box.append(element('small', { className: 'wx-warn', text: 'Todos los reportes de esta zona vienen de una sola persona.' }));
+  return box;
+}
+
+function renderZones() {
+  if (!elements.zonesPanel) return;
+  elements.zonesPanel.hidden = !state.zonesOn;
+  if (state.zonesLayer) state.zonesLayer.clearLayers();
+  if (!state.zonesOn) return;
+  if (state.zonesError) {
+    elements.zonesStatus.textContent = `No se pudieron leer las zonas: ${state.zonesError}`;
+    resetContainer(elements.zonesAnalysis, []);
+    return;
+  }
+  const docs = state.zonesDocs;
+  if (!docs.length) {
+    elements.zonesStatus.textContent = 'Todavía no hay zonas calculadas para este ámbito. Se recalculan cada 30 minutos.';
+    resetContainer(elements.zonesAnalysis, []);
+    return;
+  }
+  const totals = { GREEN: 0, YELLOW: 0, ORANGE: 0, RED: 0 };
+  docs.forEach((zoneDoc) => (zoneDoc.cells || []).forEach((cell) => {
+    if (!Array.isArray(cell.bounds) || cell.bounds.length !== 4) return;
+    totals[cell.level] = (totals[cell.level] || 0) + 1;
+    if (!state.zonesLayer) return;
+    const [s, w, n, e] = cell.bounds;
+    const color = ZONE_COLORS[cell.level] || '#6b7280';
+    window.L.rectangle([[s, w], [n, e]], {
+      pane: 'zones', stroke: true, color, weight: 0.5, opacity: 0.35, fillColor: color, fillOpacity: 0.26,
+    }).bindPopup(zonePopup(cell)).addTo(state.zonesLayer);
+  }));
+  const generated = Math.max(...docs.map((d) => number(d.generatedAtMs, 0)));
+  elements.zonesStatus.textContent = `${totals.RED} rojas · ${totals.ORANGE} naranjas · ${totals.YELLOW} amarillas · ${totals.GREEN} verdes. Últimos ${number(docs[0].windowDays, 90)} días · actualizado ${generated ? formatDate(generated, { hour: '2-digit', minute: '2-digit' }) : 'sin fecha'} · sin color = sin reportes, no = sin problemas.`;
+
+  if (docs.length !== 1) {
+    resetContainer(elements.zonesAnalysis, [emptyInline('Elegí un municipio arriba para ver sus prioridades y el análisis de evidencia ausente.')]);
+    return;
+  }
+  const zoneDoc = docs[0];
+  const nodes = [];
+  const priorities = (zoneDoc.priorities || []).slice(0, 5);
+  if (priorities.length) {
+    const list = element('div', { className: 'zones-priorities' });
+    priorities.forEach((p, index) => list.append(element('div', { text: `${index + 1}. ${categoryLabel(p.category)}: ${number(p.open)} abiertos de ${number(p.total)} · peso ${number(p.score)}` })));
+    nodes.push(element('b', { className: 'zones-subtitle', text: 'Prioridades por problema' }), list);
+  }
+  const analysis = zoneDoc.analysis || {};
+  const block = element('div', { className: 'zones-analysis-steps' });
+  ZONE_STEPS.forEach(([key, label]) => {
+    if (!analysis[key]) return;
+    block.append(element('h4', { text: label.toUpperCase() }), element('p', { text: analysis[key] }));
+  });
+  block.append(
+    element('h4', { text: `RIESGO ANALÍTICO: ${safeText(analysis.risk, 'Sin dato').toUpperCase()}` }),
+    element('p', { text: safeText(analysis.riskReason) }),
+    element('h4', { text: 'CONCLUSIÓN REFORMULADA' }),
+    element('p', { text: safeText(analysis.conclusion) }),
+  );
+  nodes.push(element('b', { className: 'zones-subtitle', text: 'Sesgo del superviviente: qué no muestra el mapa' }), block);
+  resetContainer(elements.zonesAnalysis, nodes);
+}
+
 function renderMessages() {
   if (!elements.messageForm || !state.profile) return;
   const isAdmin = isCentralAdmin(state.profile);
@@ -1378,7 +1553,10 @@ function renderMessages() {
   const residents = state.residents.slice().sort((a, b) => residentName(a).localeCompare(residentName(b), 'es'));
   const validIds = new Set(residents.map((resident) => resident.id));
   state.selectedResidentIds = new Set([...state.selectedResidentIds].filter((id) => validIds.has(id)));
-  const rows = residents.map((resident) => {
+  if (selecting) loadResidentDirectory();
+  const term = normalizedKey(state.residentSearch);
+  const visible = residents.filter((resident) => state.selectedResidentIds.has(resident.id) || residentMatches(resident, term));
+  const rows = visible.map((resident) => {
     const row = element('label', { className: 'recipient-row' });
     const checkbox = element('input', {
       type: 'checkbox',
@@ -1391,13 +1569,11 @@ function renderMessages() {
       },
     });
     const copy = element('span');
-    copy.append(element('b', { text: residentName(resident) }));
-    const locality = safeText(resident.locality, safeText(resident.municipalityName));
-    if (locality) copy.append(element('small', { text: locality }));
+    copy.append(element('b', { text: residentName(resident) }), element('small', { text: residentDetails(resident) }));
     row.append(checkbox, copy);
     return row;
   });
-  resetContainer(elements.messageResidents, rows.length ? rows : [emptyInline('No hay vecinos activos en el municipio seleccionado.')]);
+  resetContainer(elements.messageResidents, rows.length ? rows : [emptyInline(term ? 'Ningún vecino coincide con la búsqueda.' : 'No hay vecinos activos en el municipio seleccionado.')]);
   elements.messageSelectedCount.textContent = `${state.selectedResidentIds.size} seleccionado${state.selectedResidentIds.size === 1 ? '' : 's'}`;
 
   const targets = selecting
@@ -1724,6 +1900,9 @@ function ensureMap() {
   // Los partidos van en un panel debajo de los marcadores de reportes.
   state.map.createPane('weather');
   state.map.getPane('weather').style.zIndex = 350;
+  state.map.createPane('zones');
+  state.map.getPane('zones').style.zIndex = 360;
+  state.zonesLayer = window.L.layerGroup().addTo(state.map);
   state.weatherLayer = window.L.layerGroup().addTo(state.map);
   state.mapLayer = window.L.layerGroup().addTo(state.map);
 }
@@ -2564,6 +2743,10 @@ function bindEvents() {
   elements.wxaMunicipality.addEventListener('change', () => { state.wxaMunicipalityId = elements.wxaMunicipality.value; renderWeatherAdmin(); });
   elements.wxaForm.addEventListener('submit', submitWeatherAlert);
   elements.wxaFormReset.addEventListener('click', wxaResetForm);
+  elements.zonesToggle.addEventListener('change', () => {
+    state.zonesOn = elements.zonesToggle.checked;
+    subscribeReportZones();
+  });
   elements.wxToggle.addEventListener('change', () => {
     state.weatherOn = elements.wxToggle.checked;
     renderWeather({ fit: state.weatherOn });
@@ -2622,6 +2805,7 @@ function bindEvents() {
     renderAll();
     if (state.weatherOn) renderWeather();
     if (state.currentView === 'weather') renderWxaEngine();
+    if (state.zonesOn) subscribeReportZones();
     subscribeOperationalData();
     loadManagementDashboard();
     loadUsageSummary();
@@ -2642,6 +2826,8 @@ function bindEvents() {
     renderMessages();
   });
   elements.messageForm.addEventListener('submit', submitCustomMessage);
+  elements.messageResidentSearch.addEventListener('input', () => { state.residentSearch = elements.messageResidentSearch.value; renderMessages(); });
+  elements.messageResidentClear.addEventListener('click', () => { state.selectedResidentIds = new Set(); renderMessages(); });
   elements.reportSearch.addEventListener('input', () => { state.search = elements.reportSearch.value; renderReports(); if (state.currentView === 'map') renderMap(); });
   elements.statusFilter.addEventListener('change', () => { state.status = elements.statusFilter.value; renderReports(); if (state.currentView === 'map') renderMap(); });
   elements.priorityFilter.addEventListener('change', () => { state.priority = elements.priorityFilter.value; renderReports(); if (state.currentView === 'map') renderMap(); });

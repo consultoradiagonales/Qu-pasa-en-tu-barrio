@@ -188,3 +188,16 @@ input:focus, select:focus, textarea:focus { border-color: #478ce6; box-shadow: 0
 .wxa-reason { display: block; margin-top: 4px; }
 @media (max-width: 1180px) { .wxa-grid { grid-template-columns: 1fr; } }
 @media (max-width: 650px) { .wxa-engine, .wxa-compose, .wxa-sent { padding: 17px; } .wxa-sent-list { grid-template-columns: 1fr; } .wxa-embed iframe { height: 70vh; } .wx-heading-tools .button { width: 100%; } }
+/* Calor de reportes (reportZones) */
+.zones-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; color: var(--muted); font-size: 11px; }
+.zones-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.zones-legend i { width: 12px; height: 12px; border-radius: 3px; opacity: .6; }
+.zones-subtitle { display: block; margin: 14px 0 6px; color: var(--ink); font-size: 12px; }
+.zones-priorities { display: grid; gap: 4px; color: #465971; font-size: 11px; }
+.zones-analysis-steps h4 { margin: 10px 0 3px; color: #26405f; font-size: 10px; letter-spacing: .06em; }
+.zones-analysis-steps p { margin: 0; color: #465971; font-size: 11px; line-height: 1.5; }
+/* Mensajería: búsqueda de vecinos */
+.recipient-search { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-bottom: 1px solid #e6edf5; }
+.recipient-search input { flex: 1; min-width: 0; height: 34px; padding: 0 10px; font-size: 12px; }
+.recipient-search .text-button { white-space: nowrap; cursor: pointer; }
+.recipient-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
