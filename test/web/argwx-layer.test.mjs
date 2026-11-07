@@ -3,7 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ARGWX_ID_BY_GEOREF } from '../../web/admin/argwx-municipalities.js';
 import {
-  argwxIdFor, buildWeatherView, coverageFor, describe, loadArgwxData, resetArgwxCache,
+  argwxIdFor, argwxPartidos, buildWeatherView, coverageFor, dashboardUrlFor, describe, loadArgwxBlindspots,
+  loadArgwxData, partidoWindows, resetArgwxCache,
 } from '../../web/admin/argwx-layer.js';
 
 const NOW = Date.parse('2026-11-06T13:00:00Z');
@@ -78,4 +79,23 @@ test('la descarga se reutiliza y un error del motor se informa', async () => {
   assert.equal(calls, 2); // avisos + límites, una sola vez
   resetArgwxCache();
   await assert.rejects(loadArgwxData({ fetchImpl: async () => ({ ok: false }), now: () => NOW }), /no disponibles/);
+});
+
+test('enfoque por partido: lista ordenada, tres ventanas y enlace al tablero', () => {
+  assert.deepEqual(argwxPartidos({ geo }).map((p) => p.id), ['escobar', 'la-plata', 'saladillo']);
+  const w = partidoWindows({ alerts: alerts() }, 'la-plata');
+  assert.deepEqual(w.map((x) => x.key), ['24', '48', '72']);
+  assert.equal(w[0].level, 'YELLOW');
+  assert.equal(w[1].level, 'UNKNOWN'); // ventana sin datos: nunca verde
+  assert.equal(dashboardUrlFor('la-plata'), 'https://consultoradiagonales.github.io/Qu-pasa-en-tu-barrio/argwx/#partido=la-plata');
+  assert.equal(dashboardUrlFor(''), 'https://consultoradiagonales.github.io/Qu-pasa-en-tu-barrio/argwx/');
+});
+
+test('puntos ciegos: sin archivo publicado devuelve null, no un error', async () => {
+  resetArgwxCache();
+  assert.equal(await loadArgwxBlindspots({ fetchImpl: async () => ({ ok: false }), now: () => NOW }), null);
+  resetArgwxCache();
+  const data = { windows: { 24: { 'la-plata': { riesgo: 'Medio' } } } };
+  const got = await loadArgwxBlindspots({ fetchImpl: async () => ({ ok: true, json: async () => data }), now: () => NOW });
+  assert.equal(got.windows[24]['la-plata'].riesgo, 'Medio');
 });

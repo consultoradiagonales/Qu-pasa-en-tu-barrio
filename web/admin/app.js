@@ -1,6 +1,6 @@
 import { isCentralAdmin } from './management-access.js';
 import { findMunicipalityIdentity } from './municipality-branding.js';
-import { ARGWX_DASHBOARD, argwxIdFor, buildWeatherView, coverageFor, describe as describeWeather, levelInfo, loadArgwxData } from './argwx-layer.js';
+import { ARGWX_DASHBOARD, argwxIdFor, argwxPartidos, buildWeatherView, coverageFor, dashboardUrlFor, describe as describeWeather, levelInfo, loadArgwxBlindspots, loadArgwxData, partidoWindows } from './argwx-layer.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import {
   GoogleAuthProvider,
@@ -216,6 +216,12 @@ const elements = {
   wxaEmbed: $('wxa-embed'),
   wxaFrame: $('wxa-frame'),
   wxaWindow: $('wxa-window'),
+  wxaFocus: $('wxa-focus'),
+  wxaFocusCard: $('wxa-focus-card'),
+  wxaFocusTitle: $('wxa-focus-title'),
+  wxaFocusWindows: $('wxa-focus-windows'),
+  wxaFocusBias: $('wxa-focus-bias'),
+  wxaFocusPrepare: $('wxa-focus-prepare'),
   wxaEngineStatus: $('wxa-engine-status'),
   wxaEngineList: $('wxa-engine-list'),
   wxaForm: $('wxa-form'),
@@ -359,6 +365,7 @@ const state = {
   // Sección "Clima y alertas": edición de una alerta enviada y datos del motor.
   wxaEditingId: null,
   wxaWindow: '24',
+  wxaFocusId: readStoredFocus(),
   wxaRequest: 0,
   wxaArgwx: null,
   wxaMunicipalityId: '',
@@ -1383,6 +1390,7 @@ async function renderWxaEngine() {
   if (coverage.mode === 'none') {
     elements.wxaEngineStatus.textContent = coverage.reason;
     resetContainer(elements.wxaEngineList, []);
+    renderWxaFocus(null, request);
     return;
   }
   elements.wxaEngineStatus.textContent = 'Cargando datos del motor…';
@@ -1396,6 +1404,7 @@ async function renderWxaEngine() {
     return;
   }
   if (request !== state.wxaRequest) return;
+  renderWxaFocus(data, request);
   const view = buildWeatherView(data, coverage, state.wxaWindow);
   const parts = [
     `${view.windowLabel}${view.validTo ? ` · hasta ${formatWeatherDate(view.validTo)}` : ''}.`,
@@ -1420,6 +1429,134 @@ async function renderWxaEngine() {
   resetContainer(elements.wxaEngineList, rows.length
     ? rows
     : [emptyInline(`Sin avisos del motor para este período (${view.features.length} partidos revisados${view.missing ? `, ${view.missing} sin dato` : ''}).`)]);
+}
+
+// ---------------------------------------------------------------------------
+// Análisis centrado en un partido: el tablero ARGWX se enfoca en esa zona y se
+// muestran sus tres ventanas con los puntos ciegos del pronóstico.
+// ---------------------------------------------------------------------------
+const FOCUS_KEY = 'panel-argwx-partido';
+
+function readStoredFocus() {
+  try { return localStorage.getItem(FOCUS_KEY) || ''; } catch (_) { return ''; }
+}
+
+/** Partido que corresponde al ámbito: el municipio propio o el elegido arriba. */
+function wxaScopePartido() {
+  if (!isCentralAdmin(state.profile)) return argwxIdFor(state.profile?.municipalityId) || '';
+  const scope = scopeParts();
+  return ['municipality', 'locality'].includes(scope.type) ? argwxIdFor(scope.municipalityId) || '' : '';
+}
+
+function wxaFocusPartido() {
+  return isCentralAdmin(state.profile) ? (state.wxaFocusId || wxaScopePartido()) : wxaScopePartido();
+}
+
+function setWxaFocus(id) {
+  state.wxaFocusId = id || '';
+  try { localStorage.setItem(FOCUS_KEY, state.wxaFocusId); } catch (_) { /* sin almacenamiento */ }
+  const url = dashboardUrlFor(wxaFocusPartido());
+  elements.wxaDashboardLink.href = url;
+  if (elements.wxaFrame.src || state.wxaFocusId) {
+    elements.wxaEmbed.open = true;
+    if (elements.wxaFrame.src !== url) elements.wxaFrame.src = url;
+  }
+  renderWxaEngine();
+}
+
+const BIAS_STEPS = [
+  ['observados', 'Casos observados'],
+  ['ausentes', 'Casos ausentes probables'],
+  ['filtro', 'Filtro que explica la ausencia'],
+  ['distorsion', 'Cómo distorsiona la conclusión'],
+  ['falta', 'Qué dato falta para corregirlo'],
+];
+
+/** Bloque de 7 pasos (skill sesgo del superviviente v4); el supuesto va en su propia línea. */
+function biasStepsBlock(steps, analysis) {
+  const block = element('div', { className: 'zones-analysis-steps' });
+  steps.forEach(([key, label]) => {
+    if (!analysis[key]) return;
+    block.append(element('h4', { text: label.toUpperCase() }), element('p', { text: analysis[key] }));
+  });
+  block.append(
+    element('h4', { text: `RIESGO ANALÍTICO: ${safeText(analysis.risk, 'Sin dato').toUpperCase()}` }),
+    element('p', { text: safeText(analysis.riskReason, 'No hay datos para estimarlo.') }),
+    element('h4', { text: 'CONCLUSIÓN REFORMULADA' }),
+  );
+  if (analysis.assumption) block.append(element('p', { className: 'bias-assumption', text: analysis.assumption }));
+  block.append(element('p', { text: safeText(analysis.conclusion, 'No hay datos para estimarlo.') }));
+  return block;
+}
+
+function renderWxaFocusOptions(data) {
+  const select = elements.wxaFocus;
+  if (!select) return;
+  const isAdmin = isCentralAdmin(state.profile);
+  const own = wxaScopePartido();
+  const partidos = argwxPartidos(data || {});
+  select.replaceChildren();
+  if (isAdmin) select.append(element('option', { value: '', text: own ? 'El del ámbito elegido' : 'Toda la provincia' }));
+  partidos
+    .filter((p) => isAdmin || p.id === own)
+    .forEach((p) => select.append(element('option', { value: p.id, text: p.name })));
+  const wanted = isAdmin ? state.wxaFocusId : own;
+  select.value = wanted;
+  if (select.value !== wanted && isAdmin) select.value = '';
+  select.disabled = !isAdmin || partidos.length === 0;
+}
+
+async function renderWxaFocus(data, request) {
+  const card = elements.wxaFocusCard;
+  if (!card) return;
+  renderWxaFocusOptions(data);
+  const id = wxaFocusPartido();
+  if (!id || !data) {
+    card.hidden = true;
+    return;
+  }
+  const windows = partidoWindows(data, id);
+  const name = argwxPartidos(data).find((p) => p.id === id)?.name || id;
+  card.hidden = false;
+  elements.wxaFocusTitle.textContent = name;
+  resetContainer(elements.wxaFocusWindows, windows.map((w) => {
+    const row = element('div', { className: `wxa-focus-window${w.key === state.wxaWindow ? ' active' : ''}` });
+    const swatch = element('i', { className: 'wx-swatch' });
+    swatch.style.background = w.info.color;
+    const extra = [
+      w.hazard ? `por ${w.hazard}` : '',
+      w.consensus ? `coinciden ${w.consensus} modelos` : '',
+      w.rainMm === null ? '' : `lluvia ${w.rainMm.toFixed(1)} mm`,
+      w.weighted ? `ponderado ${w.weighted.lluvia_mm} mm${w.weighted.difiere ? ' (difiere)' : ''}` : '',
+    ].filter(Boolean).join(' · ');
+    const copy = element('div');
+    copy.append(element('b', { text: `${w.label}: ${w.info.label}` }), element('small', { text: extra || w.info.meaning }));
+    row.append(swatch, copy);
+    return row;
+  }));
+  const view = buildWeatherView(data, { mode: 'municipality', ids: new Set([id]) }, state.wxaWindow);
+  const item = view.features[0];
+  const municipality = wxaMunicipalityForArgwx(id);
+  elements.wxaFocusPrepare.hidden = !(wxaCanSend() && municipality && item && levelInfo(item.level).rank >= 1);
+  elements.wxaFocusPrepare.onclick = () => { if (item) wxaPrepareFromEngine(item, view); };
+  if (municipality && !state.wxaEditingId && isCentralAdmin(state.profile) && state.wxaFocusId
+      && state.wxaMunicipalityId !== municipality.id) {
+    state.wxaMunicipalityId = municipality.id;
+    renderWeatherAdmin();
+  }
+
+  resetContainer(elements.wxaFocusBias, [emptyInline('Cargando puntos ciegos del pronóstico…')]);
+  const blind = await loadArgwxBlindspots();
+  if (request !== state.wxaRequest) return;
+  const a = blind?.windows?.[state.wxaWindow]?.[id];
+  if (!a) {
+    resetContainer(elements.wxaFocusBias, [emptyInline('El motor todavía no publicó el análisis de puntos ciegos para este partido.')]);
+    return;
+  }
+  resetContainer(elements.wxaFocusBias, [
+    element('b', { className: 'zones-subtitle', text: 'Sesgo del superviviente: qué no ve el pronóstico' }),
+    biasStepsBlock(BIAS_STEPS, { ...a, risk: a.riesgo, riskReason: a.riesgo_motivo, assumption: a.supuesto }),
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -1522,18 +1659,7 @@ function renderZones() {
     priorities.forEach((p, index) => list.append(element('div', { text: `${index + 1}. ${categoryLabel(p.category)}: ${number(p.open)} abiertos de ${number(p.total)} · peso ${number(p.score)}` })));
     nodes.push(element('b', { className: 'zones-subtitle', text: 'Prioridades por problema' }), list);
   }
-  const analysis = zoneDoc.analysis || {};
-  const block = element('div', { className: 'zones-analysis-steps' });
-  ZONE_STEPS.forEach(([key, label]) => {
-    if (!analysis[key]) return;
-    block.append(element('h4', { text: label.toUpperCase() }), element('p', { text: analysis[key] }));
-  });
-  block.append(
-    element('h4', { text: `RIESGO ANALÍTICO: ${safeText(analysis.risk, 'Sin dato').toUpperCase()}` }),
-    element('p', { text: safeText(analysis.riskReason) }),
-    element('h4', { text: 'CONCLUSIÓN REFORMULADA' }),
-    element('p', { text: safeText(analysis.conclusion) }),
-  );
+  const block = biasStepsBlock(ZONE_STEPS, zoneDoc.analysis || {});
   nodes.push(element('b', { className: 'zones-subtitle', text: 'Sesgo del superviviente: qué no muestra el mapa' }), block);
   resetContainer(elements.zonesAnalysis, nodes);
 }
@@ -2737,8 +2863,9 @@ function bindEvents() {
   elements.wxDashboard.href = ARGWX_DASHBOARD;
   elements.wxaDashboardLink.href = ARGWX_DASHBOARD;
   elements.wxaEmbed.addEventListener('toggle', () => {
-    if (elements.wxaEmbed.open && !elements.wxaFrame.src) elements.wxaFrame.src = ARGWX_DASHBOARD;
+    if (elements.wxaEmbed.open && !elements.wxaFrame.src) elements.wxaFrame.src = dashboardUrlFor(wxaFocusPartido());
   });
+  elements.wxaFocus.addEventListener('change', () => setWxaFocus(elements.wxaFocus.value));
   elements.wxaWindow.addEventListener('change', () => { state.wxaWindow = elements.wxaWindow.value; renderWxaEngine(); });
   elements.wxaMunicipality.addEventListener('change', () => { state.wxaMunicipalityId = elements.wxaMunicipality.value; renderWeatherAdmin(); });
   elements.wxaForm.addEventListener('submit', submitWeatherAlert);
