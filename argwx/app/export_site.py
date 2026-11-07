@@ -23,7 +23,7 @@ from statistics import mean, median
 from app.config import get_settings
 from app.engine.geo import point_in_polygon
 from app.engine.levels import COLOR, LABEL
-from app.engine import calibration, weighting
+from app.engine import blindspots, calibration, weighting
 from app.engine.thresholds import evaluate
 from app.providers import enso, extras, historico, hydro, hydrography, ina, openmeteo, smn
 from app.services.municipalities import SECCION_NOMBRE, by_id, load_municipalities
@@ -373,15 +373,22 @@ def export_pba_alerts(out: Path, smn_obs: list[dict] | None = None, calib: dict 
     keep = ("id", "name", "seccion", "alert_level", "alert_label", "color", "hazard", "confidence_label",
             "consensus", "drivers")
     point_by_section = {int(info["seccion"]): pid for pid, info in ((model_file or {}).get("puntos_info") or {}).items()}
+    weighted = {(w, e["id"]): weighted_view(e, w, model_file, point_by_section)
+                for w, v in st["windows"].items() for e in v["municipalities"].values()}
     windows = {str(w): {"label": v["label"], "valid_from": v["valid_from"], "valid_to": v["valid_to"],
                         "summary": summary(v["municipalities"].values()),
                         "municipios": [{**{k: e[k] for k in keep if k != "drivers"},
                                         "lluvia_mm": (e["values"].get("rain_mm") or {}).get("median"),
                                         "prob_lluvia": rain_probabilities(e, w, calib),
-                                        "ponderado": weighted_view(e, w, model_file, point_by_section),
+                                        "ponderado": weighted[(w, e["id"])],
                                         "drivers": e["drivers"][:1] if e["alert_level"] != "GREEN" else []}
                                        for e in v["municipalities"].values()]}
                for w, v in st["windows"].items()}
+    # Puntos ciegos por partido (sesgo del superviviente): archivo aparte para no agrandar alertas_pba.json.
+    _write(out, "sesgos_pba.json", {
+        "generated_at": st["generated_at"], "metodo": "sesgo-del-superviviente v4 (7 pasos)",
+        "windows": {str(w): {e["id"]: blindspots.analyze(e, st["models"], weighted[(w, e["id"])])
+                             for e in v["municipalities"].values()} for w, v in st["windows"].items()}})
     _write(out, "alertas_pba.json", {"generated_at": st["generated_at"], "data_mode": st["data_mode"],
                                      "models": st["models"], "windows": windows,
                                      "modelo_ponderado": {"estado": (model_file or {}).get("estado"),
