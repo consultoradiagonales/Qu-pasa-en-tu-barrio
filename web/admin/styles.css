@@ -213,3 +213,18 @@ input:focus, select:focus, textarea:focus { border-color: #478ce6; box-shadow: 0
 .wxa-focus-window small { display: block; margin-top: 3px; color: #465971; font-size: 10.5px; line-height: 1.4; }
 .bias-assumption { font-style: italic; color: #6b7280; }
 @media (max-width: 900px) { .wxa-focus-grid { grid-template-columns: 1fr; } .wx-heading-tools { flex-wrap: wrap; } .wxa-focus-select { width: 100%; } .wxa-focus-select select { flex: 1; } }
+
+/* Resumen: clima y riesgo en la zona elegida */
+.zone-focus-panel { margin: 0 0 18px; }
+.zone-focus-panel .panel-heading { flex-wrap: wrap; gap: 10px; }
+.overview-zone-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px; }
+.overview-zone-bias p { margin: 6px 0 0; color: #465971; font-size: 12px; line-height: 1.5; }
+.zone-risk { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; background: #eef2f7; color: #263b57; }
+.zone-risk.risk-alto { background: #fde7e7; color: #a61b1b; }
+.zone-risk.risk-medio { background: #fff3dc; color: #8a5300; }
+.zone-risk.risk-bajo { background: #e5f5ea; color: #1f6d37; }
+.zone-focus-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.wx-controls { flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.map-heading-tools { min-width: 0; max-width: 100%; }
+.wx-controls .wxa-focus-select select { min-width: 150px; max-width: 220px; }
+@media (max-width: 900px) { .overview-zone-body { grid-template-columns: 1fr; } .zone-focus-actions .button { flex: 1; } }
