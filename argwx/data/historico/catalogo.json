@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-06T19:30:56Z",
+ "generated_at": "2026-11-07T00:10:25Z",
  "tablas": [
   {
    "tabla": "lluvia_era5_diaria.csv",
@@ -32,10 +32,10 @@
    ],
    "descripcion": "Alertas oficiales del SMN leídas en cada actualización (fenómeno, nivel, vigencia, zonas).",
    "fuente": "Servicio Meteorológico Nacional, API CAP oficial",
-   "registros": 115,
+   "registros": 136,
    "desde": "2026-11-04",
    "hasta": "2026-11-08",
-   "bytes": 12946
+   "bytes": 15191
   },
   {
    "tabla": "smn_horarios_*.csv",
@@ -69,10 +69,10 @@
    ],
    "descripcion": "Alturas de los ríos observadas en escalas de la provincia, con los niveles oficiales de alerta y evacuación.",
    "fuente": "Prefectura Naval Argentina y Red Hidrológica Nacional, vía API pública del INA",
-   "registros": 2285,
+   "registros": 2342,
    "desde": "2026-10-05",
    "hasta": "2026-11-06",
-   "bytes": 185550
+   "bytes": 190119
   },
   {
    "tabla": "climatologia_lluvia.json",
