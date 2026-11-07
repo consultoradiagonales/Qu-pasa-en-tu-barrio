@@ -104,6 +104,7 @@
           <button class="nav-item" data-view="reports" type="button"><span class="nav-icon">▣</span> Reportes <b id="nav-open-count">0</b></button>
           <button class="nav-item" data-view="messages" type="button"><span class="nav-icon">✉</span> Comunicaciones</button>
           <button class="nav-item" data-view="map" type="button"><span class="nav-icon">⌖</span> Mapa operativo</button>
+          <button class="nav-item" data-view="weather" type="button"><span class="nav-icon">☂</span> Clima y alertas <b id="nav-weather-count" hidden>0</b></button>
           <button class="nav-item" data-view="teams" type="button"><span class="nav-icon">♟</span> Cuadrillas</button>
           <button class="nav-item" data-view="ads" id="ads-nav" type="button" hidden><span class="nav-icon">▤</span> Publicidad</button>
           <button class="nav-item" data-view="usage" type="button"><span class="nav-icon">◔</span> Uso de la app</button>
@@ -225,6 +226,40 @@
               <div class="map-shell"><div id="operations-map" aria-label="Mapa de reportes geolocalizados"></div><div class="map-overlay" id="map-summary">Cargando ubicación de reportes…</div></div>
               <aside class="map-side panel"><div class="panel-heading"><div><p class="eyebrow">FOCOS DE ATENCIÓN</p><h3>Concentraciones activas</h3></div></div><div id="map-hotspots" class="hotspot-list"></div><div id="wx-panel" class="wx-panel" hidden><div class="panel-heading"><div><p class="eyebrow">CLIMA Y RIESGOS · CONSULTA</p><h3>Avisos por partido</h3></div></div><div id="wx-status" class="wx-status" aria-live="polite"></div><div id="wx-list" class="wx-list"></div><p class="wx-note">Sólo de consulta: no modifica reportes ni envía avisos. El porcentaje de modelos que coinciden no es una probabilidad. Las alertas oficiales son las del <a href="https://www.smn.gob.ar/" target="_blank" rel="noopener">SMN</a>. <a id="wx-dashboard" href="#" target="_blank" rel="noopener">Tablero completo</a>.</p></div></aside>
             </div>
+          </section>
+
+          <section class="view" id="view-weather" data-view-panel="weather" hidden>
+            <div class="view-heading"><div><p class="eyebrow">MOTOR METEOROLÓGICO ARGWX</p><h2>Clima y alertas a vecinos</h2><p class="muted">Consultá el motor, emití una alerta cuando haga falta y corregí o dejá sin efecto las ya enviadas. Las automáticas del SMN siguen saliendo solas.</p></div><div class="wx-heading-tools"><a class="button secondary" id="wxa-dashboard-link" href="#" target="_blank" rel="noopener">Abrir tablero en otra pestaña ↗</a></div></div>
+            <details class="panel wxa-embed" id="wxa-embed"><summary><span><b>Tablero completo del motor</b><small>Mapa, cuencas, histórico y consenso de modelos</small></span><span class="text-button">Mostrar / ocultar</span></summary><iframe id="wxa-frame" title="Tablero del motor meteorológico ARGWX" loading="lazy" referrerpolicy="no-referrer"></iframe></details>
+            <div class="wxa-grid">
+              <article class="panel wxa-engine">
+                <div class="panel-heading"><div><p class="eyebrow">QUÉ DICE EL MOTOR</p><h3>Partidos con aviso</h3></div><select id="wxa-window" aria-label="Período del pronóstico"><option value="24">Próximas 24 h</option><option value="48">De 24 a 48 h</option><option value="72">De 48 a 72 h</option></select></div>
+                <div id="wxa-engine-status" class="wx-status" aria-live="polite"></div>
+                <div id="wxa-engine-list" class="wxa-engine-list"></div>
+                <p class="wx-note">El motor no envía nada por sí solo: “Preparar alerta” sólo completa el formulario. El porcentaje de modelos que coinciden no es una probabilidad.</p>
+              </article>
+              <article class="panel wxa-compose">
+                <div class="panel-heading"><div><p class="eyebrow" id="wxa-form-kicker">NUEVA ALERTA</p><h3 id="wxa-form-title">Enviar alerta a vecinos</h3></div><button class="text-button" id="wxa-form-reset" type="button" hidden>Cancelar corrección</button></div>
+                <form class="message-form" id="wxa-form" novalidate>
+                  <label>Municipio<select id="wxa-municipality" required></select></label>
+                  <label>Nivel<select id="wxa-level" required><option value="1">Amarilla</option><option value="2">Naranja</option><option value="3">Roja</option></select></label>
+                  <label>Fenómeno<select id="wxa-hazard" required><option value="tormenta">Tormentas</option><option value="lluvia">Lluvias intensas</option><option value="viento">Vientos fuertes</option><option value="calor">Calor extremo</option><option value="frio">Frío extremo</option><option value="crecida">Crecida de ríos y arroyos</option><option value="nieve">Nevadas</option><option value="niebla">Niebla</option><option value="otro">Otro</option></select></label>
+                  <span></span>
+                  <label>Desde (opcional)<input id="wxa-onset" type="datetime-local"></label>
+                  <label>Hasta (opcional)<input id="wxa-expires" type="datetime-local"></label>
+                  <label class="message-form-full">Título<input id="wxa-title" type="text" maxlength="120" required placeholder="Ej.: Alerta amarilla por tormentas"></label>
+                  <label class="message-form-full">Mensaje<textarea id="wxa-message" maxlength="3500" required placeholder="Qué se espera, dónde y qué recomendaciones seguir."></textarea></label>
+                  <label class="message-form-full" id="wxa-reason-wrap" hidden>Motivo de la corrección (se muestra a los vecinos)<input id="wxa-reason" type="text" maxlength="300" placeholder="Ej.: bajó la intensidad prevista"></label>
+                  <label class="wxa-check message-form-full" id="wxa-notify-wrap" hidden><input id="wxa-notify" type="checkbox" checked> Avisar a los vecinos con una notificación nueva</label>
+                  <p class="message-reach" id="wxa-reach">Elegí un municipio.</p>
+                  <div class="team-form-actions"><button class="button primary" id="wxa-submit" type="submit">Enviar alerta</button></div>
+                </form>
+              </article>
+            </div>
+            <article class="panel wxa-sent">
+              <div class="panel-heading"><div><p class="eyebrow">HISTORIAL</p><h3>Alertas enviadas</h3></div><span class="panel-badge">Últimas 100</span></div>
+              <div id="wxa-sent-list" class="wxa-sent-list"></div>
+            </article>
           </section>
 
           <section class="view" id="view-teams" data-view-panel="teams" hidden>

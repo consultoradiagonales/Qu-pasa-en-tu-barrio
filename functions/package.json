@@ -12,7 +12,7 @@
   },
   "private": true,
   "scripts": {
-    "test": "node --test report-ai.test.js report-notifications.test.js dashboard-ai.test.js admin-notifications.test.js team-management.test.js ads-management.test.js weather-alerts.test.js push-delivery.test.js user-messaging.test.js usage-analytics.test.js app-release.test.js management-access.test.js",
-    "check": "node --check index.js && node --check report-assignment.js && node --check ai-trigger.js && node --check report-ai.js && node --check report-notifications.js && node --check dashboard-ai.js && node --check admin-notifications.js && node --check user-messaging.js && node --check usage-analytics.js && node --check app-release.js && node --check push-delivery.js && node --check push-delivery.test.js && node --check user-messaging.test.js && node --check test-helpers/fake-firestore.js"
+    "test": "node --test report-ai.test.js report-notifications.test.js dashboard-ai.test.js admin-notifications.test.js team-management.test.js ads-management.test.js weather-alerts.test.js weather-admin.test.js push-delivery.test.js user-messaging.test.js usage-analytics.test.js app-release.test.js management-access.test.js",
+    "check": "node --check index.js && node --check report-assignment.js && node --check ai-trigger.js && node --check report-ai.js && node --check report-notifications.js && node --check dashboard-ai.js && node --check admin-notifications.js && node --check user-messaging.js && node --check weather-admin.js && node --check usage-analytics.js && node --check app-release.js && node --check push-delivery.js && node --check push-delivery.test.js && node --check user-messaging.test.js && node --check test-helpers/fake-firestore.js"
   }
 }

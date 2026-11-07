@@ -1,6 +1,6 @@
 import { isCentralAdmin } from './management-access.js';
 import { findMunicipalityIdentity } from './municipality-branding.js';
-import { ARGWX_DASHBOARD, buildWeatherView, coverageFor, describe as describeWeather, loadArgwxData } from './argwx-layer.js';
+import { ARGWX_DASHBOARD, argwxIdFor, buildWeatherView, coverageFor, describe as describeWeather, levelInfo, loadArgwxData } from './argwx-layer.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import {
   GoogleAuthProvider,
@@ -79,6 +79,8 @@ const getUsageSummary = httpsCallable(functions, 'getUsageSummary');
 const getAppRelease = httpsCallable(functions, 'getAppRelease');
 const saveAppRelease = httpsCallable(functions, 'saveAppRelease');
 const sendCustomMessage = httpsCallable(functions, 'sendCustomMessage');
+const sendWeatherAlert = httpsCallable(functions, 'sendWeatherAlert');
+const correctWeatherAlert = httpsCallable(functions, 'correctWeatherAlert');
 
 const OWNER_EMAIL = 'info.consultoradiagonales@gmail.com';
 const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator']);
@@ -106,6 +108,7 @@ const VIEW_TITLES = {
   overview: ['OPERACIÓN MUNICIPAL', 'Resumen operativo'],
   reports: ['SEGUIMIENTO DE SOLUCIONES', 'Reportes y evidencia'],
   messages: ['COMUNICACIÓN CON VECINOS', 'Mensajes y alertas por zona'],
+  weather: ['MOTOR METEOROLÓGICO', 'Clima y alertas'],
   map: ['COBERTURA TERRITORIAL', 'Mapa operativo'],
   teams: ['CAPACIDAD OPERATIVA', 'Cuadrillas'],
   ads: ['PUBLICIDAD LOCAL', 'Banners para vecinos'],
@@ -201,6 +204,31 @@ const elements = {
   messageResult: $('message-result'),
   sendCustomMessage: $('send-custom-message'),
   weatherAlertList: $('weather-alert-list'),
+  navWeatherCount: $('nav-weather-count'),
+  wxaDashboardLink: $('wxa-dashboard-link'),
+  wxaEmbed: $('wxa-embed'),
+  wxaFrame: $('wxa-frame'),
+  wxaWindow: $('wxa-window'),
+  wxaEngineStatus: $('wxa-engine-status'),
+  wxaEngineList: $('wxa-engine-list'),
+  wxaForm: $('wxa-form'),
+  wxaFormKicker: $('wxa-form-kicker'),
+  wxaFormTitle: $('wxa-form-title'),
+  wxaFormReset: $('wxa-form-reset'),
+  wxaMunicipality: $('wxa-municipality'),
+  wxaLevel: $('wxa-level'),
+  wxaHazard: $('wxa-hazard'),
+  wxaOnset: $('wxa-onset'),
+  wxaExpires: $('wxa-expires'),
+  wxaTitle: $('wxa-title'),
+  wxaMessage: $('wxa-message'),
+  wxaReasonWrap: $('wxa-reason-wrap'),
+  wxaReason: $('wxa-reason'),
+  wxaNotifyWrap: $('wxa-notify-wrap'),
+  wxaNotify: $('wxa-notify'),
+  wxaReach: $('wxa-reach'),
+  wxaSubmit: $('wxa-submit'),
+  wxaSentList: $('wxa-sent-list'),
   adsNav: $('ads-nav'),
   releaseNav: $('release-nav'),
   teamsSummary: $('teams-summary'),
@@ -311,6 +339,12 @@ const state = {
   weatherWindow: '24',
   weatherLayer: null,
   weatherRequest: 0,
+  // Sección "Clima y alertas": edición de una alerta enviada y datos del motor.
+  wxaEditingId: null,
+  wxaWindow: '24',
+  wxaRequest: 0,
+  wxaArgwx: null,
+  wxaMunicipalityId: '',
   photoTrigger: null,
   editingTeamId: null,
   editingAdId: null,
@@ -995,6 +1029,7 @@ function subscribeWeatherAlerts() {
     (snapshot) => {
       state.weatherAlerts = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
       renderMessages();
+      renderWeatherAdmin();
     },
     (error) => {
       state.weatherAlerts = [];
@@ -1034,6 +1069,298 @@ function renderWeatherAlerts() {
   resetContainer(elements.weatherAlertList, nodes.length
     ? nodes
     : [emptyInline('Sin alertas vigentes para este ámbito. El SMN se consulta automáticamente cada tres horas.')]);
+}
+
+// ---------------------------------------------------------------------------
+// Sección "Clima y alertas": motor ARGWX + envío y corrección de alertas.
+// ---------------------------------------------------------------------------
+const WXA_LEVELS = { 1: 'Amarilla', 2: 'Naranja', 3: 'Roja' };
+const WXA_HAZARD_BY_ARGWX = { tormenta: 'tormenta', tormentas: 'tormenta', lluvia: 'lluvia', lluvias: 'lluvia', viento: 'viento', vientos: 'viento', calor: 'calor', frio: 'frio', 'frío': 'frio', nieve: 'nieve', nevadas: 'nieve', niebla: 'niebla', rain: 'lluvia', wind: 'viento', heat: 'calor', cold: 'frio' };
+const WXA_HAZARD_TEXT = { tormenta: 'tormentas', lluvia: 'lluvias intensas', viento: 'vientos fuertes', calor: 'calor extremo', frio: 'frío extremo', crecida: 'crecida de ríos y arroyos', nieve: 'nevadas', niebla: 'niebla', otro: 'fenómenos meteorológicos' };
+const WXA_ARGWX_LEVEL = { YELLOW: 1, ORANGE: 2, RED: 3, PURPLE: 3 };
+
+function wxaCanSend() {
+  return ['admin', 'coordinator'].includes(state.profile?.role);
+}
+
+function wxaMunicipalityChoices() {
+  const isAdmin = isCentralAdmin(state.profile);
+  return municipalityChoices()
+    .filter((m) => isAdmin || m.id === state.profile?.municipalityId)
+    .sort((a, b) => safeText(a.name).localeCompare(safeText(b.name), 'es'));
+}
+
+/** Municipio del panel que corresponde a un partido de ARGWX. */
+function wxaMunicipalityForArgwx(argwxId) {
+  return wxaMunicipalityChoices().find((m) => argwxIdFor(m.id) === argwxId) || null;
+}
+
+function toLocalInput(ms) {
+  if (!Number.isFinite(ms)) return '';
+  const date = new Date(ms);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function fromLocalInput(value) {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** Tipo de fenómeno de una alerta guardada (manual o automática). */
+function wxaHazardKind(alert) {
+  if (WXA_HAZARD_TEXT[alert.hazardKind]) return alert.hazardKind;
+  const raw = String(alert.hazard || '').replace(/^(smn|manual)_/, '').toLowerCase();
+  return WXA_HAZARD_BY_ARGWX[raw] || 'otro';
+}
+
+function wxaStatusInfo(alert) {
+  if (alert.status === 'cancelled') return { text: 'Sin efecto', className: 'status-rejected' };
+  if (alert.status === 'corrected') return { text: `Corregida · v${number(alert.revision, 2)}`, className: 'status-assigned' };
+  return { text: 'Enviada', className: 'status-resolved' };
+}
+
+function renderWxaMunicipalityOptions() {
+  if (!elements.wxaMunicipality) return;
+  const choices = wxaMunicipalityChoices();
+  const isAdmin = isCentralAdmin(state.profile);
+  if (!isAdmin && !state.wxaEditingId) state.wxaMunicipalityId = safeText(state.profile?.municipalityId);
+  elements.wxaMunicipality.replaceChildren();
+  if (isAdmin) elements.wxaMunicipality.append(element('option', { value: '', text: 'Seleccionar municipio' }));
+  choices.forEach((m) => elements.wxaMunicipality.append(element('option', { value: m.id, text: m.name })));
+  if (state.wxaMunicipalityId && !choices.some((m) => m.id === state.wxaMunicipalityId)) {
+    const editing = state.weatherAlerts.find((a) => a.id === state.wxaEditingId);
+    elements.wxaMunicipality.append(element('option', { value: state.wxaMunicipalityId, text: safeText(editing?.municipalityName, state.wxaMunicipalityId) }));
+  }
+  elements.wxaMunicipality.value = state.wxaMunicipalityId;
+  elements.wxaMunicipality.disabled = !isAdmin || Boolean(state.wxaEditingId);
+}
+
+function renderWeatherAdmin() {
+  if (!elements.wxaForm || !state.profile) return;
+  const now = Date.now();
+  const active = state.weatherAlerts.filter((a) => a.status !== 'cancelled' &&
+    (Number.isFinite(a.expires) ? a.expires > now : a.day === new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date(now))));
+  elements.navWeatherCount.hidden = active.length === 0;
+  elements.navWeatherCount.textContent = String(active.length);
+  renderWxaMunicipalityOptions();
+  const editing = Boolean(state.wxaEditingId);
+  elements.wxaFormKicker.textContent = editing ? 'CORREGIR ALERTA ENVIADA' : 'NUEVA ALERTA';
+  elements.wxaFormTitle.textContent = editing ? 'Corregir alerta' : 'Enviar alerta a vecinos';
+  elements.wxaFormReset.hidden = !editing;
+  elements.wxaReasonWrap.hidden = !editing;
+  elements.wxaNotifyWrap.hidden = !editing;
+  elements.wxaSubmit.textContent = editing ? 'Guardar corrección' : 'Enviar alerta';
+  const allowed = wxaCanSend();
+  elements.wxaSubmit.disabled = !allowed;
+  const name = wxaMunicipalityChoices().find((m) => m.id === state.wxaMunicipalityId)?.name;
+  elements.wxaReach.textContent = !allowed
+    ? 'Sólo administración o coordinación pueden emitir y corregir alertas.'
+    : editing
+      ? 'La corrección reemplaza el texto en la bandeja de quienes la recibieron. Si marcás “Avisar”, además les llega una notificación nueva.'
+      : name
+        ? `Se envía a todos los vecinos activos de ${name}: queda en Alertas y llega como notificación a los celulares habilitados.`
+        : 'Elegí un municipio.';
+  renderWxaSent();
+}
+
+function renderWxaSent() {
+  const isAdmin = isCentralAdmin(state.profile);
+  const scope = scopeParts();
+  const filterId = isAdmin && ['municipality', 'locality'].includes(scope.type) ? scope.municipalityId : '';
+  const alerts = state.weatherAlerts.filter((a) => !filterId || a.municipalityId === filterId);
+  const rows = alerts.map((alert) => {
+    const level = number(alert.level, 1);
+    const status = wxaStatusInfo(alert);
+    const classes = ['weather-alert-card', `level-${level}`];
+    if (alert.status === 'cancelled') classes.push('cancelled');
+    if (alert.id === state.wxaEditingId) classes.push('editing');
+    const node = element('article', { className: classes.join(' ') });
+    const head = element('div', { className: 'wxa-card-head' });
+    head.append(
+      element('b', { text: safeText(alert.title, 'Alerta meteorológica') }),
+      element('span', { className: `status-pill ${status.className}`, text: status.text }),
+    );
+    const origin = alert.source === 'manual'
+      ? 'Manual'
+      : String(alert.hazard || '').startsWith('smn_') ? 'Automática · SMN' : 'Automática · modelos';
+    const meta = [
+      safeText(alert.municipalityName, alert.municipalityId),
+      `Nivel ${(WXA_LEVELS[level] || String(level)).toLowerCase()}`,
+      origin,
+      formatDate(alert.createdAt, { hour: '2-digit', minute: '2-digit' }),
+    ];
+    if (alert.delivered) meta.push(`${number(alert.delivered.total)} vecinos`);
+    node.append(head, element('p', { text: safeText(alert.body, '') }), element('small', { text: meta.join(' · ') }));
+    if (alert.status === 'cancelled' && alert.cancelReason) node.append(element('small', { className: 'wxa-reason', text: `Motivo: ${alert.cancelReason}` }));
+    if (wxaCanSend() && alert.status !== 'cancelled') {
+      const actions = element('div', { className: 'wxa-card-actions' });
+      actions.append(
+        element('button', { className: 'row-action', type: 'button', text: 'Corregir', onClick: () => wxaStartEdit(alert) }),
+        element('button', { className: 'row-action danger-text', type: 'button', text: 'Dejar sin efecto', onClick: () => wxaCancel(alert) }),
+      );
+      node.append(actions);
+    }
+    return node;
+  });
+  resetContainer(elements.wxaSentList, rows.length ? rows : [emptyInline('Todavía no hay alertas enviadas en este ámbito.')]);
+}
+
+function wxaResetForm() {
+  state.wxaEditingId = null;
+  state.wxaArgwx = null;
+  elements.wxaForm.reset();
+  elements.wxaNotify.checked = true;
+  renderWeatherAdmin();
+}
+
+function wxaStartEdit(alert) {
+  state.wxaEditingId = alert.id;
+  state.wxaArgwx = null;
+  state.wxaMunicipalityId = safeText(alert.municipalityId);
+  elements.wxaLevel.value = String(Math.min(3, Math.max(1, number(alert.level, 1))));
+  elements.wxaHazard.value = wxaHazardKind(alert);
+  elements.wxaTitle.value = safeText(alert.title);
+  elements.wxaMessage.value = safeText(alert.message, safeText(alert.body));
+  // Una vigencia vacía (null) no debe convertirse en 1970.
+  const millis = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : NaN);
+  elements.wxaOnset.value = toLocalInput(millis(alert.onset));
+  elements.wxaExpires.value = toLocalInput(millis(alert.expires));
+  elements.wxaReason.value = '';
+  elements.wxaNotify.checked = true;
+  renderWeatherAdmin();
+  elements.wxaForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  elements.wxaTitle.focus();
+}
+
+async function wxaCancel(alert) {
+  const reason = window.prompt(`Dejar sin efecto “${safeText(alert.title, 'alerta')}”.\nMotivo (lo verán los vecinos):`, '');
+  if (reason === null) return;
+  const notify = window.confirm('¿Enviar una notificación nueva avisando que la alerta quedó sin efecto?\n\nAceptar: sí, notificar.\nCancelar: sólo actualizar el aviso en la bandeja.');
+  try {
+    const response = await correctWeatherAlert({ alertId: alert.id, action: 'cancel', reason, notify, requestId: messageRequestId() });
+    const data = response.data || {};
+    const count = number(data.rewritten);
+    toast(`Alerta sin efecto. Actualizada en ${count} bandeja${count === 1 ? '' : 's'}.${notify ? ` ${deliveryText(data)}` : ''}`, 'success');
+    if (state.wxaEditingId === alert.id) wxaResetForm();
+  } catch (error) {
+    toast(firebaseErrorMessage(error), 'error');
+  }
+}
+
+async function submitWeatherAlert(event) {
+  event.preventDefault();
+  if (!elements.wxaForm.reportValidity()) return;
+  const editing = state.wxaEditingId;
+  const municipalityId = editing ? state.wxaMunicipalityId : elements.wxaMunicipality.value;
+  if (!municipalityId) { toast('Elegí el municipio.', 'error'); return; }
+  const payload = {
+    level: Number(elements.wxaLevel.value),
+    hazard: elements.wxaHazard.value,
+    title: elements.wxaTitle.value.trim(),
+    message: elements.wxaMessage.value.trim(),
+    onset: fromLocalInput(elements.wxaOnset.value),
+    expires: fromLocalInput(elements.wxaExpires.value),
+    requestId: messageRequestId(),
+  };
+  const name = wxaMunicipalityChoices().find((m) => m.id === municipalityId)?.name || municipalityId;
+  const question = editing
+    ? `¿Guardar la corrección de la alerta para ${name}?`
+    : `¿Enviar alerta ${WXA_LEVELS[payload.level].toLowerCase()} a todos los vecinos de ${name}?`;
+  if (!window.confirm(question)) return;
+  elements.wxaSubmit.disabled = true;
+  try {
+    if (editing) {
+      const notify = elements.wxaNotify.checked;
+      const response = await correctWeatherAlert({
+        ...payload,
+        alertId: editing,
+        action: 'correct',
+        reason: elements.wxaReason.value.trim(),
+        notify,
+      });
+      const data = response.data || {};
+      const count = number(data.rewritten);
+      toast(`Corrección guardada en ${count} bandeja${count === 1 ? '' : 's'}.${notify ? ` ${deliveryText(data)}` : ''}`, 'success');
+    } else {
+      const response = await sendWeatherAlert({ ...payload, municipalityId, municipalityName: name, argwx: state.wxaArgwx });
+      toast(deliveryText(response.data || {}), 'success');
+    }
+    wxaResetForm();
+  } catch (error) {
+    toast(firebaseErrorMessage(error), 'error');
+  } finally {
+    elements.wxaSubmit.disabled = !wxaCanSend();
+  }
+}
+
+/** Completa el formulario con lo que propone el motor para un partido. */
+function wxaPrepareFromEngine(item, view) {
+  const municipality = wxaMunicipalityForArgwx(item.id);
+  if (!municipality) { toast('Ese partido no está habilitado en tu panel.', 'error'); return; }
+  wxaResetForm();
+  state.wxaMunicipalityId = municipality.id;
+  const level = WXA_ARGWX_LEVEL[item.level] || 1;
+  const kind = WXA_HAZARD_BY_ARGWX[String(item.hazard || '').toLowerCase()] || 'otro';
+  const phenomenon = WXA_HAZARD_TEXT[kind];
+  elements.wxaLevel.value = String(level);
+  elements.wxaHazard.value = kind;
+  elements.wxaTitle.value = `Alerta ${WXA_LEVELS[level].toLowerCase()} por ${phenomenon} en ${municipality.name}`.slice(0, 120);
+  const rain = item.rainMm === null ? '' : ` Lluvia estimada: ${Math.round(item.rainMm)} mm.`;
+  elements.wxaMessage.value = `Se esperan ${phenomenon} en ${municipality.name}.${rain} Evitá circular por zonas anegables, asegurá objetos sueltos y seguí las indicaciones de Defensa Civil. Ante una emergencia llamá al 103.`;
+  elements.wxaOnset.value = toLocalInput(Date.now());
+  elements.wxaExpires.value = view.validTo ? toLocalInput(view.validTo.getTime()) : '';
+  state.wxaArgwx = { id: item.id, level: item.level, window: state.wxaWindow, generatedAt: view.generatedAt ? view.generatedAt.toISOString() : '' };
+  renderWeatherAdmin();
+  elements.wxaForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  toast('Revisá el texto antes de enviar: el motor sólo propone.');
+}
+
+async function renderWxaEngine() {
+  if (!elements.wxaEngineList || !state.profile) return;
+  const request = ++state.wxaRequest;
+  const coverage = coverageFor(scopeParts());
+  if (coverage.mode === 'none') {
+    elements.wxaEngineStatus.textContent = coverage.reason;
+    resetContainer(elements.wxaEngineList, []);
+    return;
+  }
+  elements.wxaEngineStatus.textContent = 'Cargando datos del motor…';
+  let data;
+  try {
+    data = await loadArgwxData();
+  } catch (_) {
+    if (request !== state.wxaRequest) return;
+    elements.wxaEngineStatus.textContent = 'Datos del motor no disponibles por el momento. Esto no significa que no haya riesgo: consultá las alertas del SMN.';
+    resetContainer(elements.wxaEngineList, []);
+    return;
+  }
+  if (request !== state.wxaRequest) return;
+  const view = buildWeatherView(data, coverage, state.wxaWindow);
+  const parts = [
+    `${view.windowLabel}${view.validTo ? ` · hasta ${formatWeatherDate(view.validTo)}` : ''}.`,
+    `Actualizado ${formatWeatherDate(view.generatedAt)} · ${view.modelCount} modelos.`,
+  ];
+  if (view.stale) parts.push('El último dato puede no reflejar la situación actual.');
+  if (!view.live) parts.push('Datos de demostración.');
+  elements.wxaEngineStatus.textContent = parts.join(' ');
+  const rows = view.withAlert.map((item) => {
+    const text = describeWeather(item);
+    const row = element('div', { className: 'wxa-engine-row' });
+    const swatch = element('i', { className: 'wx-swatch' });
+    swatch.style.background = levelInfo(item.level).color;
+    const copy = element('div');
+    copy.append(element('b', { text: item.name }), element('small', { text: [text.head, text.source, text.rain].filter(Boolean).join(' · ') }));
+    row.append(swatch, copy);
+    if (wxaCanSend()) {
+      row.append(element('button', { className: 'button secondary', type: 'button', text: 'Preparar alerta', onClick: () => wxaPrepareFromEngine(item, view) }));
+    }
+    return row;
+  });
+  resetContainer(elements.wxaEngineList, rows.length
+    ? rows
+    : [emptyInline(`Sin avisos del motor para este período (${view.features.length} partidos revisados${view.missing ? `, ${view.missing} sin dato` : ''}).`)]);
 }
 
 function renderMessages() {
@@ -2008,6 +2335,7 @@ function renderAll() {
   renderOverview();
   renderReports();
   renderMessages();
+  renderWeatherAdmin();
   renderTeams();
   renderAds();
   renderUsage();
@@ -2033,6 +2361,7 @@ function showView(view) {
   if (view === 'map') window.setTimeout(renderMap, 20);
   if (view === 'usage' && state.usageScopeKey !== usageScopeKey()) loadUsageSummary();
   if (view === 'release') loadAppRelease();
+  if (view === 'weather') { renderWeatherAdmin(); renderWxaEngine(); }
 }
 
 function selectedReport() { return state.reports.find((report) => report.id === state.selectedReportId) || null; }
@@ -2227,6 +2556,14 @@ async function generateAiAnalysis() {
 
 function bindEvents() {
   elements.wxDashboard.href = ARGWX_DASHBOARD;
+  elements.wxaDashboardLink.href = ARGWX_DASHBOARD;
+  elements.wxaEmbed.addEventListener('toggle', () => {
+    if (elements.wxaEmbed.open && !elements.wxaFrame.src) elements.wxaFrame.src = ARGWX_DASHBOARD;
+  });
+  elements.wxaWindow.addEventListener('change', () => { state.wxaWindow = elements.wxaWindow.value; renderWxaEngine(); });
+  elements.wxaMunicipality.addEventListener('change', () => { state.wxaMunicipalityId = elements.wxaMunicipality.value; renderWeatherAdmin(); });
+  elements.wxaForm.addEventListener('submit', submitWeatherAlert);
+  elements.wxaFormReset.addEventListener('click', wxaResetForm);
   elements.wxToggle.addEventListener('change', () => {
     state.weatherOn = elements.wxToggle.checked;
     renderWeather({ fit: state.weatherOn });
@@ -2284,6 +2621,7 @@ function bindEvents() {
     }
     renderAll();
     if (state.weatherOn) renderWeather();
+    if (state.currentView === 'weather') renderWxaEngine();
     subscribeOperationalData();
     loadManagementDashboard();
     loadUsageSummary();

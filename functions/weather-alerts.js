@@ -758,6 +758,9 @@ async function processMunicipality(db, municipalityId, recipients, ctx, profileH
       } catch (error) {
         if (error?.code === 6 || error?.code === 'already-exists') {
           const existing = await alertRef.get();
+          // Corregida o anulada desde el panel: la corrida automática no la
+          // pisa ni la vuelve a enviar.
+          if (existing.get('adminEdited') === true) continue;
           const existingVersionKey = asText(existing.get('versionKey'));
           // Las alertas creadas antes del versionado ya usaron
           // `weather_${alertKey}`. Se conserva esa clave una vez para que los
@@ -882,6 +885,7 @@ const weatherAlerts = onSchedule(
 
 module.exports = {
   weatherAlerts,
+  stableHash,
   runWeatherAlerts,
   averageForecasts,
   evaluate,

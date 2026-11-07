@@ -156,3 +156,35 @@ input:focus, select:focus, textarea:focus { border-color: #478ce6; box-shadow: 0
 @media (max-width: 650px) { .teams-heading-actions { justify-content: flex-start; flex-wrap: wrap; }.team-editor, .ad-editor, .release-panel, .message-panel, .weather-panel { padding: 17px; }.team-form, .ad-form, .release-form, .message-form { grid-template-columns: 1fr; }.team-form-full, .team-active, .team-form-actions, .ad-form-full, .ad-form .team-active, .ad-form .team-form-actions, .release-form-full, .release-note, .message-form-full, .recipient-picker, .message-reach, .message-result { grid-column: auto; }.team-form-actions { justify-content: stretch; }.team-form-actions .button { flex: 1; }.team-details div { grid-template-columns: 88px minmax(0, 1fr); }.ads-grid { grid-template-columns: 1fr; } }
 .map-heading-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 14px; }.wx-controls { display: flex; align-items: center; gap: 8px; }.wx-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid #d7e0eb; border-radius: 9px; color: var(--ink); background: #fff; font-size: 12px; font-weight: 750; cursor: pointer; }.wx-toggle input { width: 16px; height: 16px; margin: 0; }.wx-controls select { width: auto; height: 34px; font-size: 12px; }.wx-panel { margin-top: 22px; padding-top: 18px; border-top: 1px solid #edf1f6; }.wx-status { margin-bottom: 10px; color: var(--muted); font-size: 11px; line-height: 1.5; }.wx-status .wx-warn { display: block; margin-top: 6px; padding: 7px 9px; border-radius: 8px; color: #6b3d00; background: #fff4e0; font-weight: 700; }.wx-list { display: grid; gap: 6px; }.wx-item { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 8px 0; border-bottom: 1px solid #edf1f6; }.wx-item:last-child { border-bottom: 0; }.wx-swatch { width: 10px; height: 10px; border-radius: 3px; }.wx-item b { display: block; color: #263b57; font-size: 12px; }.wx-item small { display: block; margin-top: 2px; color: #465971; font-size: 10px; }.wx-item button { border: 0; color: var(--blue); background: transparent; font-size: 11px; font-weight: 750; cursor: pointer; }.wx-note { margin: 12px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }.wx-note a { color: var(--blue); }.wx-popup b { display: block; }.wx-popup small { display: block; margin-top: 3px; color: #465971; }
 .denied-account { margin: -12px auto 22px !important; padding: 10px 12px; border-radius: 10px; color: #25415f !important; background: #f1f6fc; font-size: 13px; }.access-card .button + .button { margin-left: 8px; }
+/* Clima y alertas (motor ARGWX + alertas manuales) */
+.wx-heading-tools { display: flex; align-items: center; gap: 10px; }
+.wx-heading-tools .button { text-decoration: none; }
+.wxa-embed { margin-bottom: 20px; padding: 0; overflow: hidden; }
+.wxa-embed summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 22px; cursor: pointer; list-style: none; }
+.wxa-embed summary::-webkit-details-marker { display: none; }
+.wxa-embed summary b { display: block; color: var(--ink); font-size: 14px; }
+.wxa-embed summary small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.wxa-embed iframe { display: block; width: 100%; height: min(78vh, 820px); border: 0; border-top: 1px solid var(--line); background: var(--canvas); }
+.wxa-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 20px; align-items: start; margin-bottom: 20px; }
+.wxa-engine, .wxa-compose, .wxa-sent { padding: 22px; }
+.wxa-engine select { width: auto; height: 34px; font-size: 12px; }
+.wxa-engine-list { display: grid; max-height: 520px; overflow: auto; }
+.wxa-engine-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #edf1f6; }
+.wxa-engine-row:last-child { border-bottom: 0; }
+.wxa-engine-row b { display: block; color: #263b57; font-size: 12px; }
+.wxa-engine-row small { display: block; margin-top: 3px; color: #465971; font-size: 10px; line-height: 1.4; }
+.wxa-engine-row .button { padding: 7px 10px; font-size: 11px; white-space: nowrap; }
+.wxa-check { display: flex !important; align-items: center; gap: 8px !important; color: var(--ink) !important; font-size: 12px !important; }
+.wxa-check input { width: 16px !important; height: 16px; margin: 0; }
+.wxa-check[hidden] { display: none !important; }
+.wxa-sent-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.wxa-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.wxa-card-actions { display: flex; gap: 16px; margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,.06); }
+.wxa-card-actions .row-action { cursor: pointer; }
+.row-action.danger-text { color: #b42f2f; }
+.weather-alert-card.cancelled { border-color: #dfe5ec; border-left-color: #9aa8b8; background: #f6f8fa; }
+.weather-alert-card.cancelled b, .weather-alert-card.cancelled p { color: #5d6b7c; text-decoration: line-through; text-decoration-thickness: 1px; }
+.weather-alert-card.editing { box-shadow: 0 0 0 2px var(--blue); }
+.wxa-reason { display: block; margin-top: 4px; }
+@media (max-width: 1180px) { .wxa-grid { grid-template-columns: 1fr; } }
+@media (max-width: 650px) { .wxa-engine, .wxa-compose, .wxa-sent { padding: 17px; } .wxa-sent-list { grid-template-columns: 1fr; } .wxa-embed iframe { height: 70vh; } .wx-heading-tools .button { width: 100%; } }
