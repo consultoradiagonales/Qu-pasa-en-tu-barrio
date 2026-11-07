@@ -1,15 +1,19 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/report_model.dart';
+import '../services/report_submission_policy.dart';
 import '../../core/constants/app_constants.dart';
 
 class ReportsRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'southamerica-east1',
+  );
 
   CollectionReference<Map<String, dynamic>> get _col =>
       _db.collection(AppConstants.reportsCollection);
@@ -19,6 +23,7 @@ class ReportsRepository {
   Stream<List<ReportModel>> watchReports({
     String? municipalityId,
     ReportStatus? status,
+    int limit = 200,
   }) {
     Query<Map<String, dynamic>> q = _col.where('hidden', isEqualTo: false);
     if (municipalityId != null) {
@@ -27,7 +32,7 @@ class ReportsRepository {
     if (status != null) {
       q = q.where('status', isEqualTo: status.value);
     }
-    q = q.orderBy('createdAt', descending: true).limit(200);
+    q = q.orderBy('createdAt', descending: true).limit(limit);
     return q.snapshots().map(
           (snap) => snap.docs.map(ReportModel.fromFirestore).toList(),
         );
@@ -61,6 +66,7 @@ class ReportsRepository {
     final snap = await _col
         .where('userId', isEqualTo: userId)
         .where('createdAt', isGreaterThan: Timestamp.fromDate(since))
+        .orderBy('createdAt', descending: true)
         .count()
         .get();
     return snap.count ?? 0;
@@ -69,15 +75,68 @@ class ReportsRepository {
   // ─── Escritura ────────────────────────────────────────────────────────────
 
   Future<String> createReport(ReportModel report) async {
-    await _col.doc(report.id).set(report.toFirestore());
-    // Actualizar contador del usuario
-    await _db
-        .collection(AppConstants.usersCollection)
-        .doc(report.userId)
-        .update({
-      'reportsCount': FieldValue.increment(1),
-      'lastReportAt': FieldValue.serverTimestamp(),
-    });
+    final reportRef = _col.doc(report.id);
+    final quotaRef =
+        _db.collection('reportSubmissionQuotas').doc(report.userId);
+    final proposed = report.toFirestore();
+    var quotaWasFull = false;
+    final bool created;
+    try {
+      created = await _db.runTransaction<bool>((transaction) async {
+        final existing = await transaction.get(reportRef);
+        if (existing.exists) {
+          if (!matchesReportSubmission(existing.data()!, proposed)) {
+            throw StateError(
+                'Este número ya corresponde a otro envío. Iniciá un nuevo reporte.');
+          }
+          return false;
+        }
+        final quota = await transaction.get(quotaRef);
+        final slots =
+            Map<String, dynamic>.from(quota.data()?['slots'] as Map? ?? {});
+        final slot = nextReportQuotaSlot(slots);
+        // Sólo orienta el texto ante un rechazo; la autorización usa el reloj
+        // y las reglas del servidor, aunque el dispositivo tenga otra hora.
+        quotaWasFull = slots.length == 10 &&
+            slots.values.every((value) =>
+                value is Timestamp &&
+                value.toDate().isAfter(
+                    DateTime.now().subtract(const Duration(hours: 24))));
+        transaction.set(reportRef, {
+          ...proposed,
+          'submissionProtocol': 1,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        transaction.set(
+            quotaRef,
+            {
+              'slots': {slot: FieldValue.serverTimestamp()},
+              'lastSlot': slot,
+              'lastReportId': report.id,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true));
+        return true;
+      });
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied' && quotaWasFull) {
+        throw StateError('Alcanzaste el límite de 10 reportes en 24 horas.');
+      }
+      rethrow;
+    }
+    if (!created) return report.id;
+    // El reclamo ya quedó guardado. El contador es auxiliar y no debe hacer
+    // que la pantalla informe un fallo ni deje al usuario reintentando.
+    try {
+      await _db
+          .collection(AppConstants.usersCollection)
+          .doc(report.userId)
+          .update({
+        'reportsCount': FieldValue.increment(1),
+        'lastReportAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
     return report.id;
   }
 
@@ -90,7 +149,7 @@ class ReportsRepository {
 
   /// La función valida rol, municipio, estado y equipo antes de asignar.
   Future<void> assignTeam(String reportId, String teamId) async {
-    await FirebaseFunctions.instance.httpsCallable('assignReportTeam').call({
+    await _functions.httpsCallable('assignReportTeam').call({
       'reportId': reportId,
       'teamId': teamId,
     });
@@ -181,7 +240,8 @@ class ReportsRepository {
     });
     // Incrementar contador de denuncias en el item
     if (targetType == 'report') {
-      await _col.doc(targetId)
+      await _col
+          .doc(targetId)
           .update({'flaggedCount': FieldValue.increment(1)});
     }
   }
@@ -210,4 +270,12 @@ final myReportsProvider =
 final teamReportsProvider =
     StreamProvider.family<List<ReportModel>, String>((ref, teamId) {
   return ref.read(reportsRepositoryProvider).watchTeamReports(teamId);
+});
+
+final adminMunicipalityReportsProvider =
+    StreamProvider.family<List<ReportModel>, String>((ref, municipalityId) {
+  return ref.read(reportsRepositoryProvider).watchReports(
+        municipalityId: municipalityId,
+        limit: 2000,
+      );
 });

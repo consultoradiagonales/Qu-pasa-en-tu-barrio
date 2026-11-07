@@ -22,29 +22,29 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyD6ZSFUyCA-x2zxtrvBk77WsuVhYtS0fuQ',
-    appId: '1:650673979964:web:e6da5febf86c7abad3b939',
-    messagingSenderId: '650673979964',
-    projectId: 'que-pasa-en-tu-barrio',
-    authDomain: 'que-pasa-en-tu-barrio.firebaseapp.com',
-    storageBucket: 'que-pasa-en-tu-barrio.firebasestorage.app',
-    measurementId: 'G-X8F4YT9QT6',
+    apiKey: 'AIzaSyAq8vtaTmwWkYaJGSdXj6wtbhGwWLZm00Y',
+    appId: '1:949079641355:web:93b3655887afd98a94e60e',
+    messagingSenderId: '949079641355',
+    projectId: 'project-5fc9024a-e961-42b7-9ee',
+    authDomain: 'project-5fc9024a-e961-42b7-9ee.firebaseapp.com',
+    storageBucket: 'project-5fc9024a-e961-42b7-9ee.firebasestorage.app',
+    measurementId: 'G-QW4Q8449WR',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDeBjOxDmiZSAjGi00I7TD5UED6UmEVkJg',
-    appId: '1:650673979964:android:c9cb7350c01d0277d3b939',
-    messagingSenderId: '650673979964',
-    projectId: 'que-pasa-en-tu-barrio',
-    storageBucket: 'que-pasa-en-tu-barrio.firebasestorage.app',
+    apiKey: 'AIzaSyBOW2aAZi-9HRd2iRB3GP7INAB0paVvAXg',
+    appId: '1:949079641355:android:fc11ef66a7c1930d94e60e',
+    messagingSenderId: '949079641355',
+    projectId: 'project-5fc9024a-e961-42b7-9ee',
+    storageBucket: 'project-5fc9024a-e961-42b7-9ee.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAkcmwvTvpjeO4Po3mcahCV1Xb3NRrYhWs',
-    appId: '1:650673979964:ios:016eb29e4266a07cd3b939',
-    messagingSenderId: '650673979964',
-    projectId: 'que-pasa-en-tu-barrio',
-    storageBucket: 'que-pasa-en-tu-barrio.firebasestorage.app',
-    iosBundleId: 'com.quepasaentubarrio.quePasaEnTuBarrio',
+    apiKey: 'AIzaSyCaJ45Z52WO-vM0Q3XFz6I8iEVgy43HBVA',
+    appId: '1:949079641355:ios:8d58ccdaea04f99b94e60e',
+    messagingSenderId: '949079641355',
+    projectId: 'project-5fc9024a-e961-42b7-9ee',
+    storageBucket: 'project-5fc9024a-e961-42b7-9ee.firebasestorage.app',
+    iosBundleId: 'ar.com.consultoradiagonales.condi',
   );
 }

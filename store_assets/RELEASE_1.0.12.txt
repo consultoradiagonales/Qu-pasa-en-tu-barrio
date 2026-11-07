@@ -1,0 +1,6 @@
+Novedades de ConDi
+
+- Mejoras para cargar reportes con una referencia de dirección, aun sin activar la ubicación.
+- Seguimiento más claro de los reclamos, con notificaciones y fotos de resolución de la cuadrilla.
+- Mejoras de estabilidad y seguridad.
+- Nueva medición territorial opcional y agregada para ayudar a planificar la gestión municipal, sin guardar IP ni ubicación exacta.

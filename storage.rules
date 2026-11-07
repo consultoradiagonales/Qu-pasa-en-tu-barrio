@@ -1,0 +1,49 @@
+rules_version = '2';
+
+// Las fotos de los reportes. Sin este archivo el bucket queda con las reglas
+// por defecto y toda subida falla, igual que pasó con Firestore.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Una foto de reporte: hasta 8 MB y solo imágenes.
+    function fotoValida() {
+      return request.resource.size < 8 * 1024 * 1024 &&
+             request.resource.contentType.matches('image/.*');
+    }
+
+    // Cualquiera que haya iniciado sesión puede ver las fotos: los reportes
+    // son públicos dentro de la app.
+    match /reports/{reportId}/{fase}/{archivo} {
+      allow read: if signedIn();
+
+      // Las fotos son la evidencia del estado del reclamo, así que una vez
+      // subidas no se tocan.
+      //
+      // OJO: en Storage, volver a subir sobre un path existente se evalúa
+      // como 'create', no como 'update'. Sin el `resource == null` cualquiera
+      // podría reemplazar la foto del antes después de hecho el trabajo.
+      allow create: if signedIn() && fotoValida() && resource == null;
+      allow update, delete: if false;
+    }
+
+    match /advertising/{municipalityId}/{file} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.organizationId == 'diagonales' &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.disabled != true &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(jpeg|png|webp)') && resource == null;
+      allow update, delete: if false;
+    }
+
+    // Todo lo que no esté contemplado arriba queda cerrado.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

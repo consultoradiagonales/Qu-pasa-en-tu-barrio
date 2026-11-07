@@ -3,6 +3,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function own(id) { return signedIn() && request.auth.uid == id; }
+    function ownerAccount() {
+      return signedIn() &&
+        request.auth.token.email == 'info.consultoradiagonales@gmail.com' &&
+        request.auth.token.email_verified == true;
+    }
     function profile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
@@ -11,40 +16,170 @@ service cloud.firestore {
         profile().role in ['coordinator', 'admin', 'moderator'];
     }
     function admin() {
-      return signedIn() && profile().disabled != true && profile().role == 'admin';
+      return signedIn() && profile().disabled != true && profile().role == 'admin' &&
+        profile().get('organizationId', '') == 'diagonales';
     }
     function coordinatorFor(municipalityId) {
-      return staff() && (profile().role == 'admin' ||
-        profile().municipalityId == municipalityId);
+      return staff() && (admin() ||
+        (profile().municipalityId is string && profile().municipalityId.size() > 0 && profile().municipalityId == municipalityId));
+    }
+    // Personal operativo del mismo municipio, o administración central.
+    // Se usa para evitar que un municipio consulte perfiles de otro.
+    function staffFor(data) {
+      return staff() && (admin() ||
+        (data.municipalityId is string && data.municipalityId.size() > 0 &&
+          profile().municipalityId == data.municipalityId));
     }
     function workerFor(report) {
       return signedIn() && profile().disabled != true &&
         profile().role == 'field_worker' &&
+        profile().teamId is string && profile().teamId.size() > 0 &&
         profile().municipalityId == report.municipalityId &&
         profile().teamId == report.assignedTeamId;
     }
+    function canReadReport(report) {
+      return signedIn() && profile().disabled != true &&
+        ((report.hidden == false &&
+            profile().municipalityId == report.municipalityId) ||
+          (own(report.userId) && (profile().role == 'citizen' || profile().municipalityId == report.municipalityId)) ||
+          coordinatorFor(report.municipalityId) || workerFor(report));
+    }
+    function canReadParentReport(reportId) {
+      return exists(/databases/$(database)/documents/reports/$(reportId)) &&
+        canReadReport(get(/databases/$(database)/documents/reports/$(reportId)).data);
+    }
+    function canInteractWithReport(reportId) {
+      return signedIn() && profile().disabled != true && canReadParentReport(reportId);
+    }
+    function canModerateReport(reportId) {
+      return exists(/databases/$(database)/documents/reports/$(reportId)) &&
+        coordinatorFor(get(/databases/$(database)/documents/reports/$(reportId)).data.municipalityId);
+    }
+    function nullableText(value, maximum) {
+      return value == null || (value is string && value.size() <= maximum);
+    }
+    function initialReport(data) {
+      return data.keys().hasOnly([
+          'userId', 'municipalityId', 'municipalityName', 'provinceId', 'province',
+          'departmentId', 'department', 'localityId', 'locality', 'settlementId',
+          'settlement', 'title', 'description', 'category', 'photosReport',
+          'photosBefore', 'photosProgress', 'photosAfter', 'location', 'status',
+          'priority', 'supportCount', 'assignedTeamId', 'assignedWorkerId',
+          'assignedAt', 'workerArrivedAt', 'workStartedAt', 'workFinishedAt',
+          'workerNotes', 'resolvedAt', 'rejectionReason', 'hidden', 'flaggedCount',
+          'commentsCount', 'createdAt', 'updatedAt', 'aiRequested',
+          'aiConsentVersion', 'rating', 'ratingComment', 'submissionProtocol'
+        ]) &&
+        data.municipalityId is string && data.municipalityId.size() > 0 && data.municipalityId.size() <= 128 &&
+        data.title is string && data.title.size() > 0 && data.title.size() <= 80 &&
+        data.description is string && data.description.size() <= 500 &&
+        data.category in ['infrastructure', 'lighting', 'garbage', 'security', 'health', 'transport', 'environment', 'other'] &&
+        data.status == 'pending' && data.hidden == false &&
+        data.priority is int && data.priority == 1 &&
+        data.supportCount is int && data.supportCount == 0 &&
+        data.flaggedCount is int && data.flaggedCount == 0 &&
+        data.commentsCount is int && data.commentsCount == 0 &&
+        data.assignedTeamId == null && data.assignedWorkerId == null && data.assignedAt == null &&
+        data.workerArrivedAt == null && data.workStartedAt == null && data.workFinishedAt == null &&
+        data.workerNotes == null && data.resolvedAt == null && data.rejectionReason == null &&
+        data.rating == null && data.ratingComment == null &&
+        data.photosBefore is list && data.photosBefore.size() == 0 &&
+        data.photosProgress is list && data.photosProgress.size() == 0 &&
+        data.photosAfter is list && data.photosAfter.size() == 0 &&
+        data.photosReport is list && data.photosReport.size() > 0 && data.photosReport.size() <= 5 &&
+        validPhotoReference(data.photosReport[0]) &&
+        (data.photosReport.size() < 2 || validPhotoReference(data.photosReport[1])) &&
+        (data.photosReport.size() < 3 || validPhotoReference(data.photosReport[2])) &&
+        (data.photosReport.size() < 4 || validPhotoReference(data.photosReport[3])) &&
+        (data.photosReport.size() < 5 || validPhotoReference(data.photosReport[4])) &&
+        data.location is map && data.location.keys().hasOnly(['lat', 'lng', 'geohash', 'address', 'isManualAddress']) &&
+        data.location.lat is number && data.location.lat >= -90 && data.location.lat <= 90 &&
+        data.location.lng is number && data.location.lng >= -180 && data.location.lng <= 180 &&
+        data.location.geohash is string && data.location.geohash.matches('^[0123456789bcdefghjkmnpqrstuvwxyz]{1,12}$') &&
+        data.location.isManualAddress is bool && nullableText(data.location.get('address', null), 500) &&
+        nullableText(data.get('municipalityName', null), 160) &&
+        nullableText(data.get('provinceId', null), 128) && nullableText(data.get('province', null), 160) &&
+        nullableText(data.get('departmentId', null), 128) && nullableText(data.get('department', null), 160) &&
+        nullableText(data.get('localityId', null), 128) && nullableText(data.get('locality', null), 160) &&
+        nullableText(data.get('settlementId', null), 128) && nullableText(data.get('settlement', null), 160) &&
+        data.aiRequested is bool && data.aiConsentVersion == (data.aiRequested ? 1 : 0) &&
+        data.get('submissionProtocol', 1) == 1 &&
+        data.createdAt == request.time && data.updatedAt == request.time;
+    }
+    function legacyReportCreation(data) {
+      // Transición explícita para las aplicaciones móviles ya distribuidas.
+      // La versión nueva siempre declara protocolo 1 y necesita cuota.
+      return !data.keys().hasAny(['submissionProtocol']) &&
+        exists(/databases/$(database)/documents/reportSubmissionPolicy/current) &&
+        get(/databases/$(database)/documents/reportSubmissionPolicy/current).data.legacyEnabled == true &&
+        data.status == 'pending' && data.hidden == false &&
+        (!('aiRequested' in data) || data.aiRequested is bool) &&
+        (!('aiConsentVersion' in data) || data.aiConsentVersion in [0, 1]);
+    }
+    function validPhotoReference(value) {
+      // La propiedad y el contenido real se resolverán con reservas de
+      // adjuntos. Esto limita el formato y tamaño del campo, no certifica fotos.
+      return value is string && value.size() > 0 && value.size() <= 2048;
+    }
+    function quotaForReport(reportId) {
+      let quota = getAfter(/databases/$(database)/documents/reportSubmissionQuotas/$(request.auth.uid)).data;
+      return quota.lastReportId == reportId && quota.updatedAt == request.time;
+    }
+    function validQuota(data) {
+      return signedIn() && profile().disabled != true &&
+        data.keys().hasOnly(['slots', 'lastSlot', 'lastReportId', 'updatedAt']) &&
+        data.slots is map && data.slots.keys().hasOnly(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']) &&
+        data.lastSlot is string && data.lastSlot.matches('^[0-9]$') &&
+        data.lastReportId is string && data.lastReportId.size() > 0 && data.lastReportId.size() <= 128 &&
+        data.slots[data.lastSlot] == request.time && data.updatedAt == request.time &&
+        !exists(/databases/$(database)/documents/reports/$(data.lastReportId)) &&
+        getAfter(/databases/$(database)/documents/reports/$(data.lastReportId)).data.userId == request.auth.uid;
+    }
+
+    // Una posición no puede borrarse ni reutilizarse durante 24 horas. La
+    // reserva y el reporte se confirman en la misma operación atómica.
+    match /reportSubmissionQuotas/{userId} {
+      allow get: if own(userId);
+      allow create: if own(userId) && validQuota(request.resource.data) &&
+        request.resource.data.slots.size() == 1;
+      allow update: if own(userId) && validQuota(request.resource.data) &&
+        request.resource.data.slots.diff(resource.data.slots).affectedKeys().hasOnly([request.resource.data.lastSlot]) &&
+        (!(request.resource.data.lastSlot in resource.data.slots) ||
+          resource.data.slots[request.resource.data.lastSlot] <= request.time - duration.value(24, 'h'));
+      allow list, delete: if false;
+    }
 
     match /users/{userId} {
-      allow get: if own(userId) || staff();
-      allow list: if staff();
+      allow get, list: if own(userId) || staffFor(resource.data);
       allow create: if own(userId) && request.resource.data.role == 'citizen' &&
-        request.resource.data.disabled == false;
+        request.resource.data.disabled == false &&
+        !request.resource.data.keys().hasAny(['organizationId', 'centralAdmin', 'isPlatformAdmin']);
       allow update: if admin() || (own(userId) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'displayName', 'realName', 'photoURL', 'fcmToken', 'reportsCount',
-          'lastReportAt', 'updatedAt'
+          'lastReportAt', 'updatedAt', 'municipalityId', 'municipalityName',
+          'provinceId', 'province', 'departmentId', 'department',
+          'localityId', 'locality', 'settlementId', 'settlement'
         ]) &&
-        request.resource.data.reportsCount >= resource.data.reportsCount);
-      allow delete: if own(userId) || admin();
+        request.resource.data.reportsCount >= resource.data.reportsCount &&
+        // El municipio lo elige el vecino al registrarse y puede cambiarlo si
+        // se muda. Para el personal municipal es distinto: su municipio define
+        // qué reportes ve, así que dejarlo cambiarlo sería darle acceso a los
+        // datos de otro municipio.
+        (request.resource.data.municipalityId == resource.data.municipalityId ||
+          resource.data.role == 'citizen'));
+      allow delete: if admin() || (own(userId) && resource.data.role == 'citizen' && resource.data.disabled != true);
     }
 
     match /teams/{teamId} {
-      allow read: if signedIn();
+      // Las fichas operativas contienen responsables y personal de cuadrilla.
+      // Sólo las cuentas de gestión pueden consultarlas.
+      allow read: if staffFor(resource.data);
       allow write: if admin();
     }
 
     match /municipalities/{municipalityId} {
-      allow read: if signedIn();
+      allow read: if admin() || (signedIn() && profile().municipalityId == municipalityId);
       allow write: if admin();
     }
 
@@ -52,23 +187,43 @@ service cloud.firestore {
       allow read: if coordinatorFor(municipalityId);
     }
 
+    // AI results are server-authored and never writable by clients.
+    match /reportInsights/{reportId} {
+      allow get: if signedIn() && exists(/databases/$(database)/documents/reports/$(reportId)) &&
+        (own(get(/databases/$(database)/documents/reports/$(reportId)).data.userId) ||
+          coordinatorFor(get(/databases/$(database)/documents/reports/$(reportId)).data.municipalityId));
+      allow list, create, update, delete: if false;
+    }
+
     match /reports/{reportId} {
-      allow read: if signedIn() &&
-        (resource.data.hidden == false || own(resource.data.userId) ||
-          coordinatorFor(resource.data.municipalityId) || workerFor(resource.data));
-      allow create: if signedIn() && own(request.resource.data.userId) &&
+      allow read: if canReadReport(resource.data);
+      // La transacción de alta comprueba primero si su UUID ya se confirmó.
+      allow get: if signedIn() && profile().disabled != true &&
+        !exists(/databases/$(database)/documents/reports/$(reportId));
+      allow create: if signedIn() && profile().disabled != true && own(request.resource.data.userId) &&
+        request.resource.data.municipalityId is string && request.resource.data.municipalityId.size() > 0 &&
         request.resource.data.municipalityId == profile().municipalityId &&
-        request.resource.data.status == 'pending' &&
-        request.resource.data.hidden == false;
-      allow update: if signedIn() && (
+        ((initialReport(request.resource.data) && quotaForReport(reportId)) ||
+          legacyReportCreation(request.resource.data));
+      allow update: if signedIn() && profile().disabled != true && (
         (own(resource.data.userId) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'rating', 'ratingComment', 'hidden', 'updatedAt'
           ]) &&
           (request.resource.data.hidden == resource.data.hidden ||
             request.resource.data.hidden == true) &&
-          (request.resource.data.rating == resource.data.rating ||
-            resource.data.status in ['resolved', 'closed'])) ||
+          // Una valoración sólo es válida tras la resolución, con una escala
+          // conocida y comentario acotado. La condición también permite que
+          // el titular oculte su reporte sin modificar su valoración.
+          ((request.resource.data.rating == resource.data.rating &&
+            request.resource.data.ratingComment == resource.data.ratingComment) ||
+            (resource.data.status in ['resolved', 'closed'] &&
+              request.resource.data.rating is int &&
+              request.resource.data.rating >= 1 &&
+              request.resource.data.rating <= 5 &&
+              (request.resource.data.ratingComment == null ||
+                (request.resource.data.ratingComment is string &&
+                  request.resource.data.ratingComment.size() <= 500))))) ||
         (workerFor(resource.data) && (
           (resource.data.status == 'assigned' &&
             request.resource.data.status == 'in_progress' &&
@@ -93,12 +248,12 @@ service cloud.firestore {
               'photosProgress', 'updatedAt'
             ]))
         )) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        (canInteractWithReport(reportId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'supportCount'
         ]) && request.resource.data.supportCount == resource.data.supportCount + 1 &&
           !exists(/databases/$(database)/documents/reports/$(reportId)/supportVotes/$(request.auth.uid)) &&
           existsAfter(/databases/$(database)/documents/reports/$(reportId)/supportVotes/$(request.auth.uid))) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        (canInteractWithReport(reportId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'flaggedCount'
         ]) && request.resource.data.flaggedCount == resource.data.flaggedCount + 1)
       );
@@ -106,30 +261,109 @@ service cloud.firestore {
       allow delete: if admin();
 
       match /supportVotes/{voteUserId} {
-        allow read: if signedIn();
-        allow create: if own(voteUserId) &&
+        allow get: if (canReadParentReport(reportId) && own(voteUserId)) ||
+          (canReadParentReport(reportId) &&
+            coordinatorFor(get(/databases/$(database)/documents/reports/$(reportId)).data.municipalityId));
+        allow list: if canReadParentReport(reportId) &&
+          coordinatorFor(get(/databases/$(database)/documents/reports/$(reportId)).data.municipalityId);
+        allow create: if canReadParentReport(reportId) && own(voteUserId) &&
           request.resource.data.userId == voteUserId;
       }
 
       match /comments/{commentId} {
-        allow read: if signedIn() && resource.data.hidden == false;
-        allow create: if signedIn() &&
-          request.resource.data.userId == request.auth.uid;
-        allow update: if staff();
+        allow read: if resource.data.hidden == false && canReadParentReport(reportId);
+        allow create: if canInteractWithReport(reportId) &&
+          request.resource.data.keys().hasOnly([
+            'reportId', 'userId', 'displayName', 'text', 'isOfficialResponse',
+            'hidden', 'flaggedCount', 'createdAt'
+          ]) &&
+          request.resource.data.reportId == reportId &&
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.displayName is string &&
+          request.resource.data.displayName.size() <= 100 &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 4000 &&
+          request.resource.data.hidden == false &&
+          request.resource.data.flaggedCount == 0 &&
+          request.resource.data.createdAt is timestamp &&
+          request.resource.data.isOfficialResponse is bool &&
+          (!request.resource.data.isOfficialResponse || canModerateReport(reportId));
+        allow update: if canModerateReport(reportId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hidden']) &&
+          request.resource.data.hidden is bool;
       }
     }
 
+    match /localAds/{adId} {
+      allow read: if admin() || (signedIn() && resource.data.active == true &&
+        resource.data.municipalityId == profile().municipalityId);
+      allow create, update: if admin() &&
+        request.resource.data.keys().hasOnly(['municipalityId', 'business', 'message', 'imageUrl', 'link', 'startsAt', 'endsAt', 'active', 'updatedAt']) &&
+        request.resource.data.municipalityId is string &&
+        request.resource.data.business is string && request.resource.data.business.size() > 0 && request.resource.data.business.size() <= 80 &&
+        request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 180 &&
+        request.resource.data.imageUrl is string &&
+        (request.resource.data.imageUrl == '' || request.resource.data.imageUrl.matches('https://.*')) &&
+        request.resource.data.link is string && request.resource.data.link.matches('https://.*') &&
+        request.resource.data.startsAt is timestamp && request.resource.data.endsAt is timestamp &&
+        request.resource.data.endsAt > request.resource.data.startsAt &&
+        request.resource.data.active is bool && request.resource.data.updatedAt == request.time;
+      allow delete: if admin();
+    }
+
+// Datos del dispositivo y de la cuenta, guardados solo con consentimiento
+    // expreso. Los escribe una Cloud Function; solo el administrador los lee.
+    match /userDevices/{userId} {
+      allow read: if admin();
+    }
+
+    // Analítica territorial agregada. Nunca se consulta directamente desde
+    // clientes: la Cloud Function filtra por rol y evita exponer datos de uso
+    // individuales o IPs.
+    match /usageDaily/{date} {
+      allow read, write: if false;
+      match /cities/{cityId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /weatherAlerts/{alertId} {
+      allow read: if staffFor(resource.data);
+    }
+
+
     match /notifications/{notificationId} {
+      // Cloud Functions create all notifications after validating the complete
+      // message, its recipient and municipal authorization. Clients can never
+      // forge, truncate or retarget an inbox message.
       allow read: if signedIn() && own(resource.data.userId);
+      allow create: if false;
       allow update: if signedIn() && own(resource.data.userId) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
         request.resource.data.read == true;
+      // Cada vecino puede quitar únicamente sus propios avisos con el gesto
+      // lateral de la bandeja. Nunca puede borrar avisos de otra cuenta.
+      allow delete: if signedIn() && own(resource.data.userId);
     }
 
     match /contentFlags/{flagId} {
-      allow read, update: if staff();
-      allow create: if signedIn() &&
-        request.resource.data.reportedBy == request.auth.uid;
+      allow read: if canModerateReport(resource.data.reportId);
+      allow update: if canModerateReport(resource.data.reportId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+        request.resource.data.status in ['pending', 'reviewed', 'dismissed'];
+      allow create: if canInteractWithReport(request.resource.data.reportId) &&
+        request.resource.data.keys().hasOnly([
+          'reportedBy', 'targetType', 'targetId', 'reportId', 'reason', 'status', 'createdAt'
+        ]) &&
+        request.resource.data.reportedBy == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.reason is string &&
+        request.resource.data.reason.size() > 0 && request.resource.data.reason.size() <= 1000 &&
+        ((request.resource.data.targetType == 'report' &&
+            request.resource.data.targetId == request.resource.data.reportId) ||
+          (request.resource.data.targetType == 'comment' &&
+            exists(/databases/$(database)/documents/reports/$(request.resource.data.reportId)/comments/$(request.resource.data.targetId))));
     }
   }
 }

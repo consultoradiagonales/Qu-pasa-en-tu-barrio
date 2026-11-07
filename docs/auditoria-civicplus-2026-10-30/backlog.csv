@@ -1,0 +1,13 @@
+id,prioridad,titulo,dias_persona_min,dias_persona_max,depende_de,aceptacion
+B01,P0,Permisos municipales y reglas auxiliares,3,6,,Usuario de A no opera casos de B
+B02,P1,Paginacion y KPI completos,4,8,B01,Caso antiguo incluido con mas de 2000 registros
+B03,P1,Catalogo municipal configurable,6,10,B01,Alta de categoria sin nueva version de app
+B04,P1,Triage y enrutamiento explicable,5,9,B03,Caso aceptado con responsable y proxima accion
+B05,P1,SLA calendario y escalacion,7,12,B03+B06,Vencimiento reproducible y aviso deduplicado
+B06,P1,Eventos y comandos transaccionales,5,9,B01,Historial consistente frente a concurrencia y reintentos
+B07,P2,Duplicados y seguidores,5,9,B03+B06,Union conserva historia y evita doble apoyo
+B08,P2,Ordenes de trabajo,8,14,B04+B06,Cierre condicionado por OT requeridas y evidencia
+B09,P2,Plantillas y entregas,4,7,B06,Proveedor acepto separado de lectura real
+B10,P2,Contactos y operador,5,9,B01+B03,Atencion sin cuenta ficticia
+B11,P2,Exportacion y metricas por cohorte,5,8,B02+B05,Exportacion y tablero concilian
+B12,P3,Base de servicios y asistencia IA,5,10,B03,Respuesta con fuente y borrador confirmado

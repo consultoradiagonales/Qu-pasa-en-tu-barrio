@@ -1,0 +1,37 @@
+flowchart TB
+  TITLE["MODELO PROPUESTO PARA CONDI — no implementado"]
+  subgraph CLIENTS[Clientes]
+    CIT["Vecino · Flutter / portal web"]
+    ADM["ADMIN · operador / coordinación"]
+    FIELD["Cuadrilla · Flutter / cola local"]
+  end
+  TITLE ~~~ CLIENTS
+  CIT --> API
+  ADM --> API
+  FIELD --> API
+  API["API de comandos<br/>Auth · municipalityId · esquema · cuota<br/>idempotencia · expectedVersion"]
+  CONFIG["Configuración municipal<br/>Catálogo · áreas · SLA · calendario<br/>políticas versionadas"]
+  subgraph TX[Transacción Firestore — operación atómica]
+    REPORT["reports + workOrders<br/>estado actual y versión"]
+    EVENT["reports/id/events<br/>historial privado"]
+    OUT["outbox<br/>trabajo pendiente"]
+  end
+  API --> TX
+  CONFIG -. "política vigente" .-> TX
+  API --> RES["Reserva de adjunto autorizada"]
+  RES --> STORAGE["Storage · ruta y actor autorizados"]
+  STORAGE --> FINAL["Finalizar · validar formato e integridad"]
+  FINAL -. "vincular evidencia validada" .-> TX
+  OUT --> WORK["Workers / Cloud Tasks<br/>reintentos · deduplicación · conciliación"]
+  SLA["Evaluador SLA<br/>revalida clockVersion, ciclo y estado"] -. "escalación por comando" .-> API
+  WORK --> PUBLIC["Proyección pública separada<br/>texto y ubicación redactados"]
+  WORK --> DELIVERY["Inbox / FCM / futuros canales<br/>proveedor aceptó ≠ vecino leyó"]
+  WORK --> METRICS["Agregados completos<br/>tablero · exportación · IA<br/>cobertura y fecha de corte"]
+  PUBLIC -. "lectura autorizada" .-> CIT
+  REPORT -. "consulta paginada autorizada" .-> ADM
+  classDef client fill:#F4FBFF,stroke:#009AFE,color:#092743,stroke-width:2px;
+  classDef core fill:#003A90,stroke:#003A90,color:#ffffff,stroke-width:2px;
+  classDef policy fill:#ffffff,stroke:#157A9E,color:#092743,stroke-width:2px;
+  class CIT,ADM,FIELD,REPORT,METRICS,DELIVERY client;
+  class API,WORK,OUT core;
+  class CONFIG,SLA,RES,STORAGE,FINAL,EVENT,PUBLIC policy;

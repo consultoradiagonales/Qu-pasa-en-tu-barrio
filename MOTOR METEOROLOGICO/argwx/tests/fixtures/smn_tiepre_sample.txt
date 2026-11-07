@@ -1,0 +1,2 @@
+Azul;04-noviembre-2026;11:00;Parcialmente nublado;15 km;19.3;No se calcula; 61;Oeste  11;992.6 / 
+Villa Ejemplo;04-noviembre-2026;11:00;Tormenta con lluvia;5 km;17.0;No se calcula; 95;Calma;1001.2 / 

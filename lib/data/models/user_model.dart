@@ -41,18 +41,31 @@ enum UserRole {
 
 class UserModel {
   final String uid;
-  final String displayName;  // "Usuario #XXXX" — visible en el mapa
-  final String realName;     // nombre real — solo visible para admin/coordinador
+  final String displayName; // "Usuario #XXXX" — visible en el mapa
+  final String realName; // nombre real — solo visible para admin/coordinador
   final String email;
   final String? photoURL;
   final UserRole role;
-  final String? teamId;       // solo para field_worker
+  final String? teamId; // solo para field_worker
   final String municipalityId;
+  final String? municipalityName;
+  final String? provinceId;
+  final String? province;
+  final String? departmentId;
+  final String? department;
+  final String? localityId;
+  final String? locality;
+  final String? settlementId;
+  final String? settlement;
   final String? fcmToken;
   final DateTime createdAt;
   final DateTime? lastReportAt;
   final int reportsCount;
   final bool disabled;
+  final String? organizationId;
+
+  bool get isCentralAdmin =>
+      !disabled && role == UserRole.admin && organizationId == 'diagonales';
 
   const UserModel({
     required this.uid,
@@ -63,11 +76,21 @@ class UserModel {
     required this.role,
     this.teamId,
     required this.municipalityId,
+    this.municipalityName,
+    this.provinceId,
+    this.province,
+    this.departmentId,
+    this.department,
+    this.localityId,
+    this.locality,
+    this.settlementId,
+    this.settlement,
     this.fcmToken,
     required this.createdAt,
     this.lastReportAt,
     this.reportsCount = 0,
     this.disabled = false,
+    this.organizationId,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -81,11 +104,21 @@ class UserModel {
       role: UserRole.fromString(data['role'] ?? 'citizen'),
       teamId: data['teamId'],
       municipalityId: data['municipalityId'] ?? '',
+      municipalityName: data['municipalityName'],
+      provinceId: data['provinceId'],
+      province: data['province'],
+      departmentId: data['departmentId'],
+      department: data['department'],
+      localityId: data['localityId'],
+      locality: data['locality'],
+      settlementId: data['settlementId'],
+      settlement: data['settlement'],
       fcmToken: data['fcmToken'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastReportAt: (data['lastReportAt'] as Timestamp?)?.toDate(),
       reportsCount: data['reportsCount'] ?? 0,
       disabled: data['disabled'] ?? false,
+      organizationId: data['organizationId'],
     );
   }
 
@@ -98,13 +131,22 @@ class UserModel {
       'role': role.value,
       'teamId': teamId,
       'municipalityId': municipalityId,
+      'municipalityName': municipalityName,
+      'provinceId': provinceId,
+      'province': province,
+      'departmentId': departmentId,
+      'department': department,
+      'localityId': localityId,
+      'locality': locality,
+      'settlementId': settlementId,
+      'settlement': settlement,
       'fcmToken': fcmToken,
       'createdAt': Timestamp.fromDate(createdAt),
-      'lastReportAt': lastReportAt != null
-          ? Timestamp.fromDate(lastReportAt!)
-          : null,
+      'lastReportAt':
+          lastReportAt != null ? Timestamp.fromDate(lastReportAt!) : null,
       'reportsCount': reportsCount,
       'disabled': disabled,
+      if (organizationId != null) 'organizationId': organizationId,
     };
   }
 
@@ -116,6 +158,15 @@ class UserModel {
     UserRole? role,
     String? teamId,
     String? municipalityId,
+    String? municipalityName,
+    String? provinceId,
+    String? province,
+    String? departmentId,
+    String? department,
+    String? localityId,
+    String? locality,
+    String? settlementId,
+    String? settlement,
     String? fcmToken,
     DateTime? lastReportAt,
     int? reportsCount,
@@ -130,11 +181,21 @@ class UserModel {
       role: role ?? this.role,
       teamId: teamId ?? this.teamId,
       municipalityId: municipalityId ?? this.municipalityId,
+      municipalityName: municipalityName ?? this.municipalityName,
+      provinceId: provinceId ?? this.provinceId,
+      province: province ?? this.province,
+      departmentId: departmentId ?? this.departmentId,
+      department: department ?? this.department,
+      localityId: localityId ?? this.localityId,
+      locality: locality ?? this.locality,
+      settlementId: settlementId ?? this.settlementId,
+      settlement: settlement ?? this.settlement,
       fcmToken: fcmToken ?? this.fcmToken,
       createdAt: createdAt,
       lastReportAt: lastReportAt ?? this.lastReportAt,
       reportsCount: reportsCount ?? this.reportsCount,
       disabled: disabled ?? this.disabled,
+      organizationId: organizationId,
     );
   }
 }

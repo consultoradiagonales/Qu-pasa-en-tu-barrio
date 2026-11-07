@@ -1,0 +1,5 @@
+Novedades de ConDi
+
+- Actualización obligatoria configurable desde el panel de gestión.
+- Al definirse una versión mínima, la app abre Google Play y no permite continuar hasta instalarla.
+- Mejoras de gestión territorial, seguimiento de reportes y seguridad.

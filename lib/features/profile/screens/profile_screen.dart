@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../../../core/router/navigation_policy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/constants/app_constants.dart';
+import '../../../core/services/device_profile_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/municipality_identity.dart';
+import '../../../data/models/user_model.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/utils/error_text.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -14,29 +22,36 @@ class ProfileScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).valueOrNull;
     if (user == null) return const SizedBox.shrink();
 
-    final userAsync = ref.watch(
-      StreamProvider((ref) => ref.read(userRepositoryProvider).watchUser(user.uid)),
-    );
+    final userAsync = ref.watch(currentUserProfileProvider(user.uid));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mi perfil')),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(mensajeDeError(e))),
         data: (userModel) => ListView(
           padding: const EdgeInsets.all(24),
           children: [
+            Center(
+              child: MunicipalityIdentity(
+                municipalityId: userModel?.municipalityId,
+                municipalityName: userModel?.municipalityName,
+                subtitle: 'Municipio asociado a tu cuenta',
+                crestSize: 56,
+              ),
+            ),
+            const Divider(height: 40),
             // Avatar
             Center(
               child: CircleAvatar(
                 radius: 48,
-                backgroundColor: AppColors.primary.withOpacity(0.15),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                 child: Text(
                   userModel?.realName.isNotEmpty == true
                       ? userModel!.realName[0].toUpperCase()
                       : '?',
-                  style: const TextStyle(
-                      fontSize: 36, color: AppColors.primary),
+                  style:
+                      const TextStyle(fontSize: 36, color: AppColors.primary),
                 ),
               ),
             ),
@@ -44,8 +59,8 @@ class ProfileScreen extends ConsumerWidget {
             Center(
               child: Text(
                 userModel?.realName ?? '',
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
             Center(
@@ -61,7 +76,7 @@ class ProfileScreen extends ConsumerWidget {
                   _rolLabel(userModel?.role.value ?? 'citizen'),
                   style: const TextStyle(fontSize: 12),
                 ),
-                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
               ),
             ),
             const SizedBox(height: 32),
@@ -78,15 +93,122 @@ class ProfileScreen extends ConsumerWidget {
             const Divider(height: 40),
 
             // Opciones
+            if (userModel?.role == UserRole.citizen)
+              _MenuItem(
+                key: const Key('profile-change-municipality'),
+                icon: Icons.location_city_outlined,
+                label: 'Municipio y alertas climáticas',
+                onTap: () => context.go('/auth/municipio?next=profile'),
+              ),
+            if (userModel?.role == UserRole.citizen)
+              _MenuItem(
+                key: const Key('profile-weather'),
+                icon: Icons.thunderstorm_outlined,
+                label: 'Clima y prevención',
+                onTap: () => context.go('/profile/clima'),
+              ),
+            _MenuItem(
+              icon: Icons.lock_outline,
+              label: 'Cambiar contraseña',
+              onTap: () => _changePassword(context, ref),
+            ),
+            if ((kIsWeb || operationsBuild) &&
+                user.email?.toLowerCase() ==
+                    'info.consultoradiagonales@gmail.com' &&
+                userModel?.role.value != 'admin')
+              _MenuItem(
+                icon: Icons.admin_panel_settings_outlined,
+                label: 'Activar administración ConDi',
+                color: AppColors.brandBlue,
+                onTap: () => _activateAdmin(context, ref),
+              ),
+            if ((kIsWeb || operationsBuild) && userModel?.role.value == 'admin')
+              _MenuItem(
+                icon: Icons.dashboard_outlined,
+                label: 'Abrir panel de gestión',
+                color: AppColors.brandBlue,
+                onTap: () => context.go('/admin'),
+              ),
+            _MenuItem(
+              icon: Icons.analytics_outlined,
+              label: 'Medición territorial de uso',
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  final accepted =
+                      await DeviceProfileService.requestConsent(context);
+                  if (!context.mounted) return;
+                  messenger.showSnackBar(SnackBar(
+                    content: Text(accepted
+                        ? 'Activaste la medición territorial agregada.'
+                        : 'La medición territorial quedó desactivada.'),
+                  ));
+                } catch (error) {
+                  if (context.mounted) {
+                    messenger.showSnackBar(
+                        SnackBar(content: Text(mensajeDeError(error))));
+                  }
+                }
+              },
+            ),
+            _MenuItem(
+              icon: Icons.shield_outlined,
+              label: 'Desactivar medición territorial',
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await DeviceProfileService.withdraw();
+                  messenger.showSnackBar(const SnackBar(
+                      content:
+                          Text('Borramos tu consentimiento de medición.')));
+                } catch (e) {
+                  messenger
+                      .showSnackBar(SnackBar(content: Text(mensajeDeError(e))));
+                }
+              },
+            ),
             _MenuItem(
               icon: Icons.privacy_tip_outlined,
               label: 'Política de privacidad',
-              onTap: () {/* TODO: abrir URL */},
+              onTap: () async {
+                await launchUrl(
+                  Uri.parse(AppConstants.privacyPolicyUrl),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
             ),
             _MenuItem(
               icon: Icons.info_outline,
               label: 'Acerca de la app',
-              onTap: () {/* TODO: pantalla about */},
+              onTap: () => showAboutDialog(
+                context: context,
+                applicationName: 'ConDi',
+                applicationVersion: 'MVP municipal',
+                children: [
+                  const Text(
+                      'Plataforma privada de Consultora Diagonales para registrar y seguir problemas urbanos. No representa por sí misma a un gobierno ni implica adhesión de todos los municipios. La atención municipal depende de las instituciones que operen el servicio.'),
+                  const SizedBox(height: 12),
+                  const Text(
+                      'Los escudos identifican el ámbito territorial. ConDi no es un servicio de emergencias.'),
+                  TextButton(
+                      onPressed: () => launchUrl(
+                          Uri.parse('https://www.gba.gob.ar/municipios'),
+                          mode: LaunchMode.externalApplication),
+                      child: const Text('Fuente de identidades municipales')),
+                  TextButton(
+                      onPressed: () => launchUrl(
+                          Uri.parse('https://www.smn.gob.ar/'),
+                          mode: LaunchMode.externalApplication),
+                      child: const Text(
+                          'Fuente de alertas: Servicio Meteorológico Nacional')),
+                  TextButton(
+                      onPressed: () => launchUrl(
+                          Uri.parse(
+                              'https://datosgobar.github.io/georef-ar-api/'),
+                          mode: LaunchMode.externalApplication),
+                      child: const Text('Fuente territorial: Georef')),
+                ],
+              ),
             ),
             const Divider(height: 32),
 
@@ -97,7 +219,7 @@ class ProfileScreen extends ConsumerWidget {
               color: Colors.orange,
               onTap: () async {
                 await ref.read(authServiceProvider).signOut();
-                if (context.mounted) context.go('/auth/welcome');
+                if (context.mounted) context.go(citizenStartLocation);
               },
             ),
 
@@ -122,7 +244,8 @@ class ProfileScreen extends ConsumerWidget {
         title: const Text('Eliminar cuenta'),
         content: const Text(
           'Esta acción es irreversible. Se eliminarán tu cuenta y todos tus datos. '
-          'Tus reportes quedarán anónimos en el mapa.\n\n'
+          'Tus reportes dejarán de mostrarse en el mapa; el municipio conserva '
+          'el registro sin tu nombre ni tu correo.\n\n'
           '¿Estás seguro/a?',
         ),
         actions: [
@@ -133,8 +256,8 @@ class ProfileScreen extends ConsumerWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar',
-                style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Eliminar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -143,9 +266,12 @@ class ProfileScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
+      try {
+        await DeviceProfileService.withdraw();
+      } catch (_) {}
       await ref.read(userRepositoryProvider).deleteUserData(uid);
       await ref.read(authServiceProvider).deleteAccount();
-      if (context.mounted) context.go('/auth/welcome');
+      if (context.mounted) context.go(citizenStartLocation);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,6 +282,84 @@ class ProfileScreen extends ConsumerWidget {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _activateAdmin(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(authServiceProvider).activateOwnerAdmin();
+      if (context.mounted) context.go('/admin');
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mensajeDeError(error))),
+        );
+      }
+    }
+  }
+
+  Future<void> _changePassword(BuildContext context, WidgetRef ref) async {
+    final current = TextEditingController();
+    final next = TextEditingController();
+    final confirm = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cambiar contraseña'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+              controller: current,
+              obscureText: true,
+              decoration:
+                  const InputDecoration(labelText: 'Contraseña actual')),
+          const SizedBox(height: 10),
+          TextField(
+              controller: next,
+              obscureText: true,
+              decoration: const InputDecoration(
+                  labelText: 'Nueva contraseña (8 caracteres mínimo)')),
+          const SizedBox(height: 10),
+          TextField(
+              controller: confirm,
+              obscureText: true,
+              decoration:
+                  const InputDecoration(labelText: 'Repetir nueva contraseña')),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              if (next.text.length < 8 || next.text != confirm.text) return;
+              Navigator.pop(dialogContext, true);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (result != true || !context.mounted) return;
+    try {
+      await ref.read(authServiceProvider).changePassword(
+            currentPassword: current.text,
+            newPassword: next.text,
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Contraseña actualizada.')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mensajeDeError(error))),
+        );
+      }
+    } finally {
+      current.dispose();
+      next.dispose();
+      confirm.dispose();
     }
   }
 
@@ -186,11 +390,12 @@ class _StatTile extends StatelessWidget {
       children: [
         Text(value,
             style: const TextStyle(
-                fontSize: 24, fontWeight: FontWeight.bold,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
                 color: AppColors.primary)),
         Text(label,
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.textSecondary)),
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ],
     );
   }
@@ -202,7 +407,8 @@ class _MenuItem extends StatelessWidget {
   final VoidCallback onTap;
   final Color? color;
   const _MenuItem(
-      {required this.icon,
+      {super.key,
+      required this.icon,
       required this.label,
       required this.onTap,
       this.color});

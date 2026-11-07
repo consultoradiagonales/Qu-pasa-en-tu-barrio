@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -15,26 +17,20 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(),
-              // Ilustración / logo
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.location_city,
-                  size: 64,
-                  color: AppColors.primary,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(26),
+                child: Image.asset(
+                  'assets/images/condi_logo.png',
+                  width: 190,
+                  height: 190,
+                  fit: BoxFit.cover,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               Text(
-                '¿Qué pasa en tu barrio?',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                'Reportá lo que pasa en tu barrio',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.textSecondary,
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -76,7 +72,10 @@ class WelcomeScreen extends StatelessWidget {
               const SizedBox(height: 24),
               // Política de privacidad
               GestureDetector(
-                onTap: () {/* TODO: abrir URL política de privacidad */},
+                onTap: () => launchUrl(
+                  Uri.parse(AppConstants.privacyPolicyUrl),
+                  mode: LaunchMode.externalApplication,
+                ),
                 child: Text(
                   'Al continuar aceptás nuestra Política de privacidad',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(

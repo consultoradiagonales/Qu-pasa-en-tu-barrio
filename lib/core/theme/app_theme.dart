@@ -3,20 +3,24 @@ import 'package:flutter/material.dart';
 /// Paleta de colores oficial de la app
 abstract class AppColors {
   // Primario: azul municipal
+  /// Colores de la marca ConDi: "Con" azul, "Di" verde.
+  static const brandBlue = Color(0xFF1E56DB);
+  static const brandGreen = Color(0xFF16A34A);
+
   static const primary = Color(0xFF1565C0);
   static const primaryLight = Color(0xFF1E88E5);
   static const primaryDark = Color(0xFF0D47A1);
 
   // Acento: naranja urgencia
-  static const accent = Color(0xFFFF6F00);
+  static const accent = Color(0xFFB54708);
   static const accentLight = Color(0xFFFFB300);
 
   // Estados de los reportes
-  static const statusPending = Color(0xFFE53935);    // rojo
-  static const statusAssigned = Color(0xFFFB8C00);   // naranja
+  static const statusPending = Color(0xFFE53935); // rojo
+  static const statusAssigned = Color(0xFFFB8C00); // naranja
   static const statusInProgress = Color(0xFFFFB300); // amarillo
-  static const statusResolved = Color(0xFF43A047);   // verde
-  static const statusRejected = Color(0xFF757575);   // gris
+  static const statusResolved = Color(0xFF43A047); // verde
+  static const statusRejected = Color(0xFF757575); // gris
 
   // Categorías
   static const catInfrastructure = Color(0xFF5C6BC0);
@@ -29,10 +33,10 @@ abstract class AppColors {
   static const catOther = Color(0xFFBDBDBD);
 
   // Neutros
-  static const background = Color(0xFFF5F7FA);
+  static const background = Color(0xFFF8FAFC);
   static const surface = Color(0xFFFFFFFF);
-  static const onSurface = Color(0xFF212121);
-  static const textSecondary = Color(0xFF757575);
+  static const onSurface = Color(0xFF14283F);
+  static const textSecondary = Color(0xFF41556B);
   static const divider = Color(0xFFE0E0E0);
 
   // Dark mode
@@ -53,15 +57,25 @@ class AppTheme {
         secondary: AppColors.accent,
         background: AppColors.background,
         surface: AppColors.surface,
+        onSurface: AppColors.onSurface,
+        onSurfaceVariant: AppColors.textSecondary,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        error: const Color(0xFFB42318),
       ),
       scaffoldBackgroundColor: AppColors.background,
+      textTheme: ThemeData.light().textTheme.apply(
+            bodyColor: AppColors.onSurface,
+            displayColor: AppColors.onSurface,
+          ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.onSurface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(
-          color: Colors.white,
+          color: AppColors.onSurface,
           fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
@@ -94,13 +108,17 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
+        labelStyle: const TextStyle(color: AppColors.textSecondary),
+        hintStyle: const TextStyle(color: AppColors.textSecondary),
+        prefixIconColor: AppColors.textSecondary,
+        suffixIconColor: AppColors.textSecondary,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.divider),
+          borderSide: const BorderSide(color: Color(0xFF8596AA)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.divider),
+          borderSide: const BorderSide(color: Color(0xFF8596AA)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Feed de ejemplo (ficticio) para tests</title>
+  <entry>
+    <id>ejemplo-1</id>
+    <content type="text/xml">
+      <alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+        <identifier>EJEMPLO-001</identifier><sender>test</sender><sent>2026-11-04T18:00:00-03:00</sent>
+        <status>Exercise</status><msgType>Alert</msgType><scope>Public</scope>
+        <info>
+          <language>es-AR</language><category>Met</category><event>Tormentas</event>
+          <urgency>Expected</urgency><severity>Severe</severity><certainty>Likely</certainty>
+          <onset>2026-11-04T18:00:00-03:00</onset><expires>2026-11-05T06:00:00-03:00</expires>
+          <headline>Alerta naranja por tormentas</headline>
+          <area><areaDesc>Zona de ejemplo</areaDesc><polygon>-34.80,-58.30 -34.80,-57.80 -35.20,-57.80 -35.20,-58.30 -34.80,-58.30</polygon></area>
+        </info>
+      </alert>
+    </content>
+  </entry>
+  <entry>
+    <id>ejemplo-2</id>
+    <content type="text/xml">
+      <alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+        <identifier>EJEMPLO-002</identifier><sent>2026-11-04T18:00:00-03:00</sent><msgType>Alert</msgType>
+        <info>
+          <language>es-AR</language><event>Lluvias</event><severity>Moderate</severity>
+          <headline>Alerta amarilla por lluvias</headline>
+          <area><areaDesc>Buenos Aires: Pila, Pilar, Rojas y Monte Hermoso</areaDesc></area>
+        </info>
+      </alert>
+    </content>
+  </entry>
+</feed>

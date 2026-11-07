@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Que Pasa En Tu Barrio</string>
+	<string>ConDi</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>que_pasa_en_tu_barrio</string>
+	<string>ConDi</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,9 +27,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Usamos la cámara para documentar reportes y trabajos realizados.</string>
+	<string>ConDi usa la cámara para que puedas sacar una foto del problema que querés reportar en tu barrio (por ejemplo un bache o una luminaria rota) y adjuntarla al reporte.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Usamos tu ubicación para ubicar reportes en el barrio.</string>
+	<string>ConDi usa tu ubicación mientras la app está abierta para marcar en el mapa dónde está el problema que reportás y mostrarte lo que pasa cerca tuyo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ConDi accede a tu galería solo para que elijas las fotos que querés adjuntar a un reporte o a tu perfil.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ConDi puede guardar en tu galería la foto de un reporte solo si vos lo pedís.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -70,5 +74,29 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+<key>GIDClientID</key>
+<string>949079641355-f1pr7ccjgkt52uik3ffkd529i09qovh6.apps.googleusercontent.com</string>
+<key>GIDServerClientID</key>
+<string>949079641355-u8ktth9l6i9q3rcj6eesgajekuq7vgb1.apps.googleusercontent.com</string>
+<key>CLIENT_ID</key>
+<string>949079641355-f1pr7ccjgkt52uik3ffkd529i09qovh6.apps.googleusercontent.com</string>
+<key>REVERSED_CLIENT_ID</key>
+<string>com.googleusercontent.apps.949079641355-f1pr7ccjgkt52uik3ffkd529i09qovh6</string>
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleTypeRole</key>
+    <string>Editor</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>com.googleusercontent.apps.949079641355-f1pr7ccjgkt52uik3ffkd529i09qovh6</string>
+    </array>
+  </dict>
+</array>
+<key>ITSAppUsesNonExemptEncryption</key>
+<false/>
+<key>UIBackgroundModes</key>
+<array><string>remote-notification</string></array>
 </dict>
 </plist>
+

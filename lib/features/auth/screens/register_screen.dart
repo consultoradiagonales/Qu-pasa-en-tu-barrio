@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/user_repository.dart';
+import '../../../core/router/navigation_policy.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/models/user_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -34,6 +34,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -54,22 +65,32 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         realName: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         role: UserRole.citizen,
-        municipalityId: 'default', // TODO: selección de municipio
+        // Vacío a propósito: el municipio se elige en la pantalla siguiente.
+        // Poner 'default' hacía que los reportes cayeran en un municipio
+        // inexistente que ningún coordinador mira.
+        municipalityId: '',
         createdAt: DateTime.now(),
       ));
 
       await userRepo.refreshFcmToken(uid);
 
-      if (mounted) context.go('/map');
+      if (mounted)
+        context.go(signedInDestination(
+            GoRouterState.of(context).uri.queryParameters['next']));
     } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AuthService.errorMessage(e)),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError(AuthService.errorMessage(e));
+    } on FirebaseException catch (e) {
+      // createUser() escribe en Firestore y puede fallar por reglas de
+      // seguridad. Sin este catch la excepción escapaba y la pantalla quedaba
+      // congelada: la cuenta se creaba pero el usuario no veía nada.
+      _showError(
+        e.code == 'permission-denied'
+            ? 'Tu cuenta se creó pero no pudimos guardar tu perfil. '
+                'Escribinos a info.consultoradiagonales@gmail.com.'
+            : 'No pudimos guardar tu perfil. Intentá de nuevo.',
+      );
+    } catch (_) {
+      _showError('No se pudo crear la cuenta. Intentá de nuevo.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -83,6 +104,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
+          // Sin esto los errores quedan colgados hasta el próximo envío:
+          // el usuario corrige el campo y el texto rojo sigue ahí.
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -157,7 +181,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                 ),
                 validator: (v) {
-                  if (v != _passCtrl.text) return 'Las contraseñas no coinciden';
+                  if (v != _passCtrl.text)
+                    return 'Las contraseñas no coinciden';
                   return null;
                 },
               ),
@@ -186,7 +211,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 children: [
                   const Text('¿Ya tenés cuenta?'),
                   TextButton(
-                    onPressed: () => context.go('/auth/login'),
+                    onPressed: () => context.go(
+                        '/auth/login?next=${Uri.encodeComponent(GoRouterState.of(context).uri.queryParameters['next'] ?? 'report')}'),
                     child: const Text('Iniciá sesión'),
                   ),
                 ],

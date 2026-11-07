@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="960" viewBox="0 0 1200 960" role="img" aria-labelledby="title desc">
+  <title id="title">Arquitectura evolutiva propuesta para ConDi</title>
+  <desc id="desc">Los clientes vecino, ADMIN y cuadrilla envían comandos a una API con autenticación, ámbito municipal, idempotencia y versión. Una transacción Firestore actualiza reportes y órdenes, eventos y outbox. Workers procesan entregas, agregados y una proyección pública redactada. El SLA revalida plazos mediante comandos. Los adjuntos usan reserva, Storage y finalización. Es una propuesta, no una infraestructura implementada ni la arquitectura de CivicPlus.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 Z" fill="#003A90"/></marker>
+    <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 Z" fill="#157A9E"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #092743; }
+      .title { font-size: 31px; font-weight: 700; }
+      .subtitle { font-size: 19px; fill: #157A9E; }
+      .head { font-size: 23px; font-weight: 700; }
+      .body { font-size: 20px; }
+      .small { font-size: 18px; }
+      .white { fill: #fff; }
+      .box { fill: #fff; stroke: #009AFE; stroke-width: 2; rx: 12; }
+      .soft { fill: #F4FBFF; stroke: #009AFE; stroke-width: 2; rx: 12; }
+      .teal { fill: #fff; stroke: #157A9E; stroke-width: 2; rx: 12; }
+      .flow { fill: none; stroke: #003A90; stroke-width: 2.5; marker-end: url(#arrow); }
+      .policy { fill: none; stroke: #157A9E; stroke-width: 2.5; stroke-dasharray: 7 5; marker-end: url(#arrowTeal); }
+    </style>
+  </defs>
+  <rect width="1200" height="960" fill="#fff"/>
+  <rect x="30" y="22" width="7" height="65" fill="#009AFE"/>
+  <text x="53" y="51" class="title">ConDi: arquitectura evolutiva</text>
+  <text x="53" y="80" class="subtitle">MODELO PROPUESTO · Flutter + Firebase · 30 de octubre de 2026</text>
+
+  <rect x="45" y="120" width="330" height="85" class="soft"/>
+  <text x="210" y="153" text-anchor="middle" class="head">Vecino</text>
+  <text x="210" y="182" text-anchor="middle" class="body">Flutter / portal web</text>
+  <rect x="435" y="120" width="330" height="85" class="soft"/>
+  <text x="600" y="153" text-anchor="middle" class="head">ADMIN</text>
+  <text x="600" y="182" text-anchor="middle" class="body">Operador / coordinación</text>
+  <rect x="825" y="120" width="330" height="85" class="soft"/>
+  <text x="990" y="153" text-anchor="middle" class="head">Cuadrilla</text>
+  <text x="990" y="182" text-anchor="middle" class="body">Flutter / cola local</text>
+
+  <path d="M210 205 V232 H440 V260" class="flow"/>
+  <path d="M600 205 V260" class="flow"/>
+  <path d="M990 205 V232 H760 V260" class="flow"/>
+  <rect x="260" y="260" width="680" height="95" rx="12" fill="#003A90"/>
+  <text x="600" y="295" text-anchor="middle" class="head white">API de comandos autorizados</text>
+  <text x="600" y="325" text-anchor="middle" class="body white">Auth · municipalityId · esquema · cuota · idempotencia · versión</text>
+
+  <path d="M600 355 V405" class="flow"/>
+  <text x="620" y="387" class="small">operación atómica</text>
+  <rect x="315" y="405" width="570" height="150" class="soft"/>
+  <text x="600" y="438" text-anchor="middle" class="head">Transacción Firestore</text>
+  <rect x="335" y="459" width="172" height="73" rx="7" fill="#003A90"/>
+  <text x="421" y="488" text-anchor="middle" class="body white">reports + OT</text>
+  <text x="421" y="514" text-anchor="middle" class="small white">estado actual</text>
+  <rect x="514" y="459" width="172" height="73" rx="7" fill="#157A9E"/>
+  <text x="600" y="488" text-anchor="middle" class="body white">events</text>
+  <text x="600" y="514" text-anchor="middle" class="small white">historial privado</text>
+  <rect x="693" y="459" width="172" height="73" rx="7" fill="#009AFE"/>
+  <text x="779" y="488" text-anchor="middle" class="body white">outbox</text>
+  <text x="779" y="514" text-anchor="middle" class="small white">trabajo pendiente</text>
+
+  <rect x="30" y="405" width="245" height="150" class="teal"/>
+  <text x="152" y="440" text-anchor="middle" class="head">Configuración</text>
+  <text x="152" y="474" text-anchor="middle" class="body">Catálogo y áreas</text>
+  <text x="152" y="503" text-anchor="middle" class="body">SLA y calendario</text>
+  <text x="152" y="532" text-anchor="middle" class="small">Políticas versionadas</text>
+  <path d="M275 480 H315" class="policy"/>
+
+  <path d="M940 307 H1047 V405" class="flow"/>
+  <rect x="925" y="405" width="245" height="150" class="teal"/>
+  <text x="1047" y="440" text-anchor="middle" class="head">Adjuntos</text>
+  <text x="1047" y="475" text-anchor="middle" class="body">Reserva autorizada</text>
+  <text x="1047" y="505" text-anchor="middle" class="body">Storage → finalizar</text>
+  <text x="1047" y="535" text-anchor="middle" class="small">Sólo evidencia validada</text>
+  <path d="M925 516 H885" class="policy"/>
+
+  <path d="M779 555 V582 H600 V610" class="flow"/>
+  <rect x="315" y="610" width="570" height="100" rx="12" fill="#003A90"/>
+  <text x="600" y="646" text-anchor="middle" class="head white">Workers / Cloud Tasks</text>
+  <text x="600" y="679" text-anchor="middle" class="body white">Reintentos · deduplicación · conciliación · fallidos</text>
+
+  <rect x="30" y="610" width="245" height="100" class="teal"/>
+  <text x="152" y="644" text-anchor="middle" class="head">Evaluador SLA</text>
+  <text x="152" y="675" text-anchor="middle" class="small">Revalida reloj y estado</text>
+  <path d="M275 660 H295 V375 H330 V355" class="policy"/>
+  <text x="38" y="598" class="small">escalación por comando</text>
+
+  <path d="M600 710 V740 H205 V765" class="flow"/>
+  <path d="M600 710 V765" class="flow"/>
+  <path d="M600 710 V740 H995 V765" class="flow"/>
+  <rect x="30" y="765" width="350" height="110" class="teal"/>
+  <text x="205" y="800" text-anchor="middle" class="head">Proyección pública</text>
+  <text x="205" y="832" text-anchor="middle" class="body">Texto y ubicación redactados</text>
+  <text x="205" y="858" text-anchor="middle" class="small">Separada del expediente privado</text>
+  <rect x="425" y="765" width="350" height="110" class="soft"/>
+  <text x="600" y="800" text-anchor="middle" class="head">Comunicaciones</text>
+  <text x="600" y="832" text-anchor="middle" class="body">Inbox / FCM / futuros canales</text>
+  <text x="600" y="858" text-anchor="middle" class="small">Aceptado por proveedor ≠ leído</text>
+  <rect x="820" y="765" width="350" height="110" class="soft"/>
+  <text x="995" y="800" text-anchor="middle" class="head">Agregados completos</text>
+  <text x="995" y="832" text-anchor="middle" class="body">Tablero / exportación / IA</text>
+  <text x="995" y="858" text-anchor="middle" class="small">Cobertura y fecha de corte</text>
+
+  <text x="35" y="915" class="small">Lecturas: vistas paginadas con permisos. Líneas discontinuas: políticas y validaciones.</text>
+  <text x="35" y="944" class="small">Diseño para ConDi; no representa un despliegue existente ni la infraestructura privada de CivicPlus.</text>
+</svg>
