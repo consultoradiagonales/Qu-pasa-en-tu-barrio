@@ -229,8 +229,13 @@
           </section>
 
           <section class="view" id="view-weather" data-view-panel="weather" hidden>
-            <div class="view-heading"><div><p class="eyebrow">MOTOR METEOROLÓGICO ARGWX</p><h2>Clima y alertas a vecinos</h2><p class="muted">Consultá el motor, emití una alerta cuando haga falta y corregí o dejá sin efecto las ya enviadas. Las automáticas del SMN siguen saliendo solas.</p></div><div class="wx-heading-tools"><a class="button secondary" id="wxa-dashboard-link" href="#" target="_blank" rel="noopener">Abrir tablero en otra pestaña ↗</a></div></div>
+            <div class="view-heading"><div><p class="eyebrow">MOTOR METEOROLÓGICO ARGWX</p><h2>Clima y alertas a vecinos</h2><p class="muted">Consultá el motor, emití una alerta cuando haga falta y corregí o dejá sin efecto las ya enviadas. Las automáticas del SMN siguen saliendo solas.</p></div><div class="wx-heading-tools"><label class="wxa-focus-select">Centrar análisis en<select id="wxa-focus" aria-label="Partido en el que se centra el análisis"><option value="">Toda la provincia</option></select></label><a class="button secondary" id="wxa-dashboard-link" href="#" target="_blank" rel="noopener">Abrir tablero en otra pestaña ↗</a></div></div>
             <details class="panel wxa-embed" id="wxa-embed"><summary><span><b>Tablero completo del motor</b><small>Mapa, cuencas, histórico y consenso de modelos</small></span><span class="text-button">Mostrar / ocultar</span></summary><iframe id="wxa-frame" title="Tablero del motor meteorológico ARGWX" loading="lazy" referrerpolicy="no-referrer"></iframe></details>
+            <article class="panel wxa-focus-card" id="wxa-focus-card" hidden>
+              <div class="panel-heading"><div><p class="eyebrow">ANÁLISIS CENTRADO EN LA ZONA</p><h3 id="wxa-focus-title">Partido</h3></div><button class="button secondary" id="wxa-focus-prepare" type="button" hidden>Preparar alerta</button></div>
+              <div class="wxa-focus-grid"><div id="wxa-focus-windows" class="wxa-focus-windows"></div><div id="wxa-focus-bias" class="zones-analysis"></div></div>
+              <p class="wx-note">El análisis de puntos ciegos no cambia el nivel: muestra qué datos faltan para confiar en él. El tablero de abajo se centra en este partido.</p>
+            </article>
             <div class="wxa-grid">
               <article class="panel wxa-engine">
                 <div class="panel-heading"><div><p class="eyebrow">QUÉ DICE EL MOTOR</p><h3>Partidos con aviso</h3></div><select id="wxa-window" aria-label="Período del pronóstico"><option value="24">Próximas 24 h</option><option value="48">De 24 a 48 h</option><option value="72">De 48 a 72 h</option></select></div>

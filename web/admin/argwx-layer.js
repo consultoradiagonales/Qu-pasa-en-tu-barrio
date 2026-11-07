@@ -68,6 +68,63 @@ export async function loadArgwxData({ fetchImpl = fetch, now = Date.now } = {}) 
 
 export function resetArgwxCache() {
   cache = null;
+  blindCache = null;
+}
+
+let blindCache = null;
+
+/**
+ * Puntos ciegos por partido (skill "sesgo del superviviente"): análisis en 7
+ * pasos que publica el motor en data/sesgos_pba.json. Devuelve null si todavía
+ * no está publicado; no es un error del panel.
+ */
+export async function loadArgwxBlindspots({ fetchImpl = fetch, now = Date.now } = {}) {
+  if (blindCache && now() - blindCache.at < CACHE_MS) return blindCache.data;
+  let data = null;
+  try {
+    const response = await fetchImpl(`${ARGWX_BASE}/data/sesgos_pba.json`, { cache: 'no-cache' });
+    if (response.ok) {
+      const json = await response.json();
+      if (json && typeof json === 'object' && json.windows) data = json;
+    }
+  } catch (_) {
+    data = null;
+  }
+  blindCache = { at: now(), data };
+  return data;
+}
+
+/** Partidos del motor (id y nombre), ordenados por nombre. */
+export function argwxPartidos({ geo } = {}) {
+  return (geo?.features || [])
+    .map((f) => ({ id: f?.properties?.id, name: f?.properties?.name || f?.properties?.id }))
+    .filter((p) => p.id)
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
+}
+
+/** Nivel, consenso y lluvia de un partido en las tres ventanas. */
+export function partidoWindows({ alerts } = {}, id) {
+  return ['24', '48', '72'].map((key) => {
+    const window = alerts?.windows?.[key];
+    const m = (window?.municipios || []).find((x) => x.id === id) || null;
+    const code = m && LEVELS[m.alert_level] ? m.alert_level : 'UNKNOWN';
+    return {
+      key,
+      label: window?.label || `Próximas ${key} h`,
+      level: code,
+      info: levelInfo(code),
+      hazard: m?.hazard || null,
+      consensus: m?.consensus || null,
+      rainMm: typeof m?.lluvia_mm === 'number' ? m.lluvia_mm : null,
+      weighted: m?.ponderado || null,
+      entry: m,
+    };
+  });
+}
+
+/** Tablero centrado en un partido. */
+export function dashboardUrlFor(id) {
+  return id ? `${ARGWX_DASHBOARD}#partido=${encodeURIComponent(id)}` : ARGWX_DASHBOARD;
 }
 
 /**

@@ -205,6 +205,7 @@ function survivorshipAnalysis(stats, cells, residents) {
       missing: 'Cantidad de vecinos activos por zona y reclamos recibidos por otros canales (teléfono, mostrador, redes).',
       risk: 'Alto',
       riskReason: 'Sin observaciones, cualquier conclusión sobre el estado del municipio es un supuesto.',
+      assumption: null,
       conclusion: 'No hay evidencia para afirmar que el municipio no tenga problemas; sólo que no se reportaron por la app.',
       flags: { silentLocalities: [], concentration: null, manualAddress: 0, closedShare: 0 },
     };
@@ -265,8 +266,9 @@ function survivorshipAnalysis(stats, cells, residents) {
         : 'Los reportes vienen de muchas personas y casi todos están geolocalizados.';
 
   const top = cells.filter((c) => c.level === 'RED' || c.level === 'ORANGE').length;
-  const conclusion = `Supuesto: la app no llega a todos los vecinos por igual. ${top
-    ? `Las ${plural(top, 'zona', 'zonas')} en naranja o rojo concentran la demanda reportada por la app`
+  const assumption = 'Supuesto: la app no llega a todos los vecinos por igual.';
+  const conclusion = `${top
+    ? `${top === 1 ? 'La zona en naranja o rojo concentra' : `Las ${top} zonas en naranja o rojo concentran`} la demanda reportada por la app`
     : 'No hay zonas en naranja o rojo entre las reportadas por la app'}, no necesariamente la demanda real del municipio${silent.length ? '; antes de priorizar conviene relevar las localidades silenciosas' : ''}.`;
 
   return {
@@ -277,6 +279,7 @@ function survivorshipAnalysis(stats, cells, residents) {
     missing: 'Vecinos activos por zona (no sólo por localidad), reclamos por teléfono, mostrador y redes, y reportes que la gente dejó de hacer tras no recibir respuesta.',
     risk,
     riskReason,
+    assumption,
     conclusion,
     flags: {
       silentLocalities: silent.slice(0, 10),

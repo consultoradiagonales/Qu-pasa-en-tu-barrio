@@ -77,7 +77,8 @@ test('análisis de sesgo: localidades silenciosas, reportes sin mapa y fuente ú
   assert.deepEqual(analysis.flags.silentLocalities, [{ name: 'Tolosa', count: 2 }]);
   assert.match(analysis.absent, /Tolosa/);
   assert.equal(analysis.risk, 'Alto');
-  assert.match(analysis.conclusion, /^Supuesto:/);
+  assert.match(analysis.assumption, /^Supuesto:/);
+  assert.doesNotMatch(analysis.conclusion, /Supuesto/);
   for (const key of ['observed', 'absent', 'filter', 'distortion', 'missing', 'risk', 'riskReason', 'conclusion']) {
     assert.ok(analysis[key], key);
   }
