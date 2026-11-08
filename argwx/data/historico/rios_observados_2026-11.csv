@@ -1960,5 +1960,51 @@ fecha,estacion,rio,altura_m,alerta_m,evacuacion_m,red
 2026-11-07T19:45,Palmas,Paraná de las Palmas,2.22,,,na-sa
 2026-11-07T19:45,Puerto Belgrano,,3.59,,,Mareógrafos SHN
 2026-11-07T19:45,San Fernando,LUJAN,1.98,3,3.5,escalas Prefectura Nacional
+2026-11-07T20:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.14,,,red INA Delta y AMBA
+2026-11-07T20:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.6,2,2.2,RHN - SAT
+2026-11-07T20:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.14,,,red INA Delta y AMBA
+2026-11-07T20:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-07T20:45,Arroyo Carapachay,Arroyo Carapachay,2.95,,,red INA Delta y AMBA
+2026-11-07T20:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
 2026-11-07T20:45,Buenos Aires,RIODELAPLATA,2.02,3.3,3.9,escalas Prefectura Nacional
+2026-11-07T20:45,Canal Seoane,Canal Seoane,2.94,,,red INA Delta y AMBA
+2026-11-07T20:45,INTA Delta,Paraná de las Palmas,2.35,,,red INA Delta y AMBA
+2026-11-07T20:45,Palmas,Paraná de las Palmas,2.32,,,na-sa
+2026-11-07T20:45,Puerto Belgrano,,3.48,,,Mareógrafos SHN
 2026-11-07T20:45,San Fernando,LUJAN,2.01,3,3.5,escalas Prefectura Nacional
+2026-11-07T21:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-07T21:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.64,2,2.2,RHN - SAT
+2026-11-07T21:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.13,,,red INA Delta y AMBA
+2026-11-07T21:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-07T21:45,Arroyo Carapachay,Arroyo Carapachay,2.95,,,red INA Delta y AMBA
+2026-11-07T21:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-07T21:45,Buenos Aires,RIODELAPLATA,1.98,3.3,3.9,escalas Prefectura Nacional
+2026-11-07T21:45,Canal Seoane,Canal Seoane,2.96,,,red INA Delta y AMBA
+2026-11-07T21:45,INTA Delta,Paraná de las Palmas,2.41,,,red INA Delta y AMBA
+2026-11-07T21:45,Palmas,Paraná de las Palmas,2.33,,,na-sa
+2026-11-07T21:45,Puerto Belgrano,,3.16,,,Mareógrafos SHN
+2026-11-07T21:45,San Fernando,LUJAN,2.02,3,3.5,escalas Prefectura Nacional
+2026-11-07T22:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-07T22:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.68,2,2.2,RHN - SAT
+2026-11-07T22:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-07T22:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-07T22:45,Arroyo Carapachay,Arroyo Carapachay,2.95,,,red INA Delta y AMBA
+2026-11-07T22:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-07T22:45,Buenos Aires,RIODELAPLATA,1.85,3.3,3.9,escalas Prefectura Nacional
+2026-11-07T22:45,Canal Seoane,Canal Seoane,2.97,,,red INA Delta y AMBA
+2026-11-07T22:45,INTA Delta,Paraná de las Palmas,2.42,,,red INA Delta y AMBA
+2026-11-07T22:45,Palmas,Paraná de las Palmas,2.33,,,na-sa
+2026-11-07T22:45,Puerto Belgrano,,2.62,,,Mareógrafos SHN
+2026-11-07T22:45,San Fernando,LUJAN,1.96,3,3.5,escalas Prefectura Nacional
+2026-11-07T23:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.11,,,red INA Delta y AMBA
+2026-11-07T23:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.68,2,2.2,RHN - SAT
+2026-11-07T23:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.12,,,red INA Delta y AMBA
+2026-11-07T23:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.11,,,red INA Delta y AMBA
+2026-11-07T23:45,Arroyo Carapachay,Arroyo Carapachay,2.95,,,red INA Delta y AMBA
+2026-11-07T23:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.11,,,red INA Delta y AMBA
+2026-11-07T23:45,Buenos Aires,RIODELAPLATA,1.71,3.3,3.9,escalas Prefectura Nacional
+2026-11-07T23:45,Canal Seoane,Canal Seoane,2.97,,,red INA Delta y AMBA
+2026-11-07T23:45,INTA Delta,Paraná de las Palmas,2.42,,,red INA Delta y AMBA
+2026-11-07T23:45,Palmas,Paraná de las Palmas,2.24,,,na-sa
+2026-11-07T23:45,Puerto Belgrano,,1.88,,,Mareógrafos SHN
+2026-11-07T23:45,San Fernando,LUJAN,1.86,3,3.5,escalas Prefectura Nacional
