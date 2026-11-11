@@ -97,7 +97,7 @@ class ProfileScreen extends ConsumerWidget {
               _MenuItem(
                 key: const Key('profile-change-municipality'),
                 icon: Icons.location_city_outlined,
-                label: 'Municipio y alertas climáticas',
+                label: 'Municipio habitual y alertas climáticas',
                 onTap: () => context.go('/auth/municipio?next=profile'),
               ),
             if (userModel?.role == UserRole.citizen)

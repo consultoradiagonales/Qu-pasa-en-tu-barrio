@@ -66,7 +66,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('la mitad inferior ofrece alertas, reportes, mapa y perfil',
+  testWidgets('la mitad inferior evita duplicar accesos de la barra inferior',
       (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [
@@ -84,10 +84,10 @@ void main() {
         find.byKey(const Key('municipality-crest-la_plata')), findsOneWidget);
     expect(find.text('7'), findsOneWidget);
     expect(find.byKey(const Key('home-alerts')), findsOneWidget);
-    expect(find.byKey(const Key('home-my-reports')), findsOneWidget);
     expect(find.byKey(const Key('home-map')), findsOneWidget);
-    expect(find.byKey(const Key('home-full-profile')), findsOneWidget);
-    expect(find.byKey(const Key('home-change-municipality')), findsOneWidget);
+    expect(find.byKey(const Key('home-my-reports')), findsNothing);
+    expect(find.byKey(const Key('home-full-profile')), findsNothing);
+    expect(find.byKey(const Key('home-change-municipality')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

@@ -27,15 +27,13 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   bool _voting = false;
   bool _flagging = false;
   bool _rating = false;
-  late Future<ReportModel?> _reportFuture;
+  late Stream<ReportModel?> _reportStream;
 
   @override
   void initState() {
     super.initState();
-    // No crear el provider dentro de build: cada reconstrucción reiniciaba la
-    // lectura de Firestore y la pantalla podía quedar en el spinner.
-    _reportFuture =
-        ref.read(reportsRepositoryProvider).getReport(widget.reportId);
+    _reportStream =
+        ref.read(reportsRepositoryProvider).watchReport(widget.reportId);
   }
 
   Future<void> _toggleSupport(ReportModel report) async {
@@ -116,9 +114,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         'ratingComment': result.comment,
       });
       if (!mounted) return;
-      setState(() {
-        _reportFuture = ref.read(reportsRepositoryProvider).getReport(report.id);
-      });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Gracias por tu calificación.'),
       ));
@@ -175,8 +170,8 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 ),
               ],
             ),
-          FutureBuilder<ReportModel?>(
-            future: _reportFuture,
+          StreamBuilder<ReportModel?>(
+            stream: _reportStream,
             builder: (_, snapshot) {
               final report = snapshot.data;
               if (report == null) return const SizedBox.shrink();
@@ -194,14 +189,15 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<ReportModel?>(
-        future: _reportFuture,
+      body: StreamBuilder<ReportModel?>(
+        stream: _reportStream,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError)
+          if (snapshot.hasError) {
             return Center(child: Text(mensajeDeError(snapshot.error!)));
+          }
           final report = snapshot.data;
           if (report == null) {
             return const Center(child: Text('Reporte no encontrado.'));

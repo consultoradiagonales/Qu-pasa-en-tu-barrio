@@ -18,6 +18,18 @@ import '../../data/repositories/reports_repository.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/immutable_report_photo.dart';
+import '../../data/models/user_model.dart';
+import '../../data/services/georef_service.dart';
+
+/// El municipio habitual se obtiene de la cuenta, nunca del último reporte.
+final reportProfileProvider = Provider<AsyncValue<UserModel?>>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  return user == null
+      ? const AsyncData(null)
+      : ref.watch(currentUserProfileProvider(user.uid));
+});
+
+final reportGeoRefProvider = Provider((ref) => GeoRefService());
 
 class ReportPreset {
   const ReportPreset(this.id, this.label, this.category);
@@ -58,7 +70,11 @@ class ReportDraft {
       this.aiRequested = true,
       this.comment = '',
       this.address = '',
-      this.territory = ''})
+      this.territory = '',
+      this.reportMunicipalityId,
+      this.reportMunicipalityName,
+      this.reportProvinceId,
+      this.reportProvince})
       : id = id ?? const Uuid().v4();
   final String id;
   final String? photoPath;
@@ -77,8 +93,17 @@ class ReportDraft {
   final String comment;
   final String address;
   final String territory;
+
+  /// Municipio excepcional al que se dirige este reporte. No modifica el
+  /// municipio habitual del perfil y se descarta al terminar el envío.
+  final String? reportMunicipalityId;
+  final String? reportMunicipalityName;
+  final String? reportProvinceId;
+  final String? reportProvince;
+  bool get reportsAwayFromHome =>
+      reportMunicipalityId != null && reportMunicipalityId!.trim().isNotEmpty;
   bool get hasPhoto => photoPath != null && photoPath!.isNotEmpty;
-  bool get hasManualAddress => address.trim().length >= 4;
+  bool get hasManualAddress => address.trim().length >= 2;
   bool get hasCategory =>
       presetId != null && reportPresets.any((preset) => preset.id == presetId);
   bool get canSend =>
@@ -97,6 +122,11 @@ class ReportDraft {
           String? comment,
           String? address,
           String? territory,
+          String? reportMunicipalityId,
+          String? reportMunicipalityName,
+          String? reportProvinceId,
+          String? reportProvince,
+          bool clearReportMunicipality = false,
           bool clearLocation = false}) =>
       ReportDraft(
           id: id,
@@ -112,7 +142,19 @@ class ReportDraft {
           aiRequested: aiRequested ?? this.aiRequested,
           comment: comment ?? this.comment,
           address: address ?? this.address,
-          territory: territory ?? this.territory);
+          territory: territory ?? this.territory,
+          reportMunicipalityId: clearReportMunicipality
+              ? null
+              : reportMunicipalityId ?? this.reportMunicipalityId,
+          reportMunicipalityName: clearReportMunicipality
+              ? null
+              : reportMunicipalityName ?? this.reportMunicipalityName,
+          reportProvinceId: clearReportMunicipality
+              ? null
+              : reportProvinceId ?? this.reportProvinceId,
+          reportProvince: clearReportMunicipality
+              ? null
+              : reportProvince ?? this.reportProvince);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -127,6 +169,10 @@ class ReportDraft {
         'comment': comment,
         'address': address,
         'territory': territory,
+        'reportMunicipalityId': reportMunicipalityId,
+        'reportMunicipalityName': reportMunicipalityName,
+        'reportProvinceId': reportProvinceId,
+        'reportProvince': reportProvince,
       };
   factory ReportDraft.fromJson(Map<String, dynamic> j) {
     final lat = j['lat'] as num?;
@@ -144,7 +190,11 @@ class ReportDraft {
         aiRequested: j['aiRequested'] != false,
         comment: j['comment'] as String? ?? '',
         address: j['address'] as String? ?? '',
-        territory: j['territory'] as String? ?? '');
+        territory: j['territory'] as String? ?? '',
+        reportMunicipalityId: j['reportMunicipalityId'] as String?,
+        reportMunicipalityName: j['reportMunicipalityName'] as String?,
+        reportProvinceId: j['reportProvinceId'] as String?,
+        reportProvince: j['reportProvince'] as String?);
   }
 }
 
@@ -242,6 +292,10 @@ final reportCaptureProvider = Provider((ref) => ReportCaptureService());
 
 class MunicipalityRequired implements Exception {}
 
+class ReportSubmissionException extends StateError {
+  ReportSubmissionException(super.message);
+}
+
 class ReportSubmitService {
   ReportSubmitService(this.ref);
   final Ref ref;
@@ -258,9 +312,23 @@ class ReportSubmitService {
     }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw StateError('Iniciá sesión para enviar tu reporte.');
-    final profile = await ref.read(userRepositoryProvider).getUser(user.uid);
-    final municipality = profile?.municipalityId ?? '';
-    if (municipality.isEmpty) throw MunicipalityRequired();
+    UserModel? profile;
+    try {
+      profile = await ref.read(userRepositoryProvider).getUser(user.uid);
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied' ||
+          error.code == 'unauthenticated') {
+        throw ReportSubmissionException(
+          'No pudimos validar tu cuenta para enviar el reporte. Cerrá sesión, volvé a ingresar e intentá de nuevo.',
+        );
+      }
+      rethrow;
+    }
+    final homeMunicipality = profile?.municipalityId ?? '';
+    if (homeMunicipality.isEmpty) throw MunicipalityRequired();
+    final municipality = draft.reportsAwayFromHome
+        ? draft.reportMunicipalityId!.trim()
+        : homeMunicipality;
     final repo = ref.read(reportsRepositoryProvider);
     Uint8List bytes = await XFile(draft.photoPath!).readAsBytes();
     if (bytes.isEmpty) {
@@ -273,42 +341,41 @@ class ReportSubmitService {
           minHeight: AppConstants.maxImagePixels);
     } catch (_) {/* Upload the original if this platform cannot compress. */}
     final isPng = bytes.length > 4 && bytes[0] == 137 && bytes[1] == 80;
-    final photo = FirebaseStorage.instance
-        .ref('reports/${draft.id}/citizen/photo.${isPng ? 'png' : 'jpg'}');
-    final url = await uploadImmutableReportPhoto(
-      bytes: bytes,
-      read: () => photo.getData(8 * 1024 * 1024),
-      upload: () async {
-        await photo.putData(bytes,
-            SettableMetadata(contentType: isPng ? 'image/png' : 'image/jpeg'));
-      },
-      downloadUrl: photo.getDownloadURL,
-    );
-    // Una dirección escrita complementa el punto elegido por la persona; no
-    // se inventan coordenadas cuando falta geocodificación.
+    final photoPath =
+        'reports/${draft.id}/citizen/photo.${isPng ? 'png' : 'jpg'}';
+    final photo = FirebaseStorage.instance.ref(photoPath);
+    // Primero se confirma el alta liviana. El ADMIN la recibe por Firestore
+    // mientras la evidencia continúa subiendo en segundo plano de red.
     final location = draft.location!;
     final locationLabel = [draft.territory.trim(), draft.address.trim()]
         .where((value) => value.isNotEmpty)
         .join(' · ');
     final now = DateTime.now();
-    await repo.createReport(ReportModel(
+    final report = ReportModel(
         id: draft.id,
         userId: user.uid,
         municipalityId: municipality,
-        municipalityName: profile?.municipalityName,
-        provinceId: profile?.provinceId,
-        province: profile?.province,
-        departmentId: profile?.departmentId,
-        department: profile?.department,
-        localityId: profile?.localityId,
-        locality: profile?.locality,
-        settlementId: profile?.settlementId,
-        settlement: profile?.settlement,
+        municipalityName: draft.reportsAwayFromHome
+            ? draft.reportMunicipalityName
+            : profile?.municipalityName,
+        provinceId: draft.reportsAwayFromHome
+            ? draft.reportProvinceId
+            : profile?.provinceId,
+        province: draft.reportsAwayFromHome
+            ? draft.reportProvince
+            : profile?.province,
+        departmentId: draft.reportsAwayFromHome ? null : profile?.departmentId,
+        department: draft.reportsAwayFromHome ? null : profile?.department,
+        localityId: draft.reportsAwayFromHome ? null : profile?.localityId,
+        locality: draft.reportsAwayFromHome ? null : profile?.locality,
+        settlementId: draft.reportsAwayFromHome ? null : profile?.settlementId,
+        settlement: draft.reportsAwayFromHome ? null : profile?.settlement,
+        homeMunicipalityId: homeMunicipality,
+        reportedAwayFromHome: municipality != homeMunicipality,
         title: draft.preset.label,
         description: draft.comment.trim(),
         category: draft.preset.category,
         aiRequested: draft.aiRequested,
-        photosReport: [url],
         location: ReportLocation(
             lat: location.latitude,
             lng: location.longitude,
@@ -318,7 +385,47 @@ class ReportSubmitService {
             address: locationLabel.isEmpty ? null : locationLabel,
             isManualAddress: draft.usesManualAddress),
         createdAt: now,
-        updatedAt: now));
+        updatedAt: now);
+    try {
+      await repo.createReport(report, pendingPhotoPath: photoPath);
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied' ||
+          error.code == 'unauthenticated') {
+        throw ReportSubmissionException(
+          'No se pudo registrar el reporte. Revisá que tu cuenta tenga un municipio asignado y volvé a intentar.',
+        );
+      }
+      rethrow;
+    }
+    String url;
+    try {
+      url = await uploadImmutableReportPhoto(
+        bytes: bytes,
+        read: () => photo.getData(8 * 1024 * 1024),
+        upload: () async {
+          await photo.putData(
+              bytes,
+              SettableMetadata(
+                  contentType: isPng ? 'image/png' : 'image/jpeg'));
+        },
+        downloadUrl: photo.getDownloadURL,
+      );
+    } catch (error) {
+      throw ReportSubmissionException(
+        'El reporte ya fue recibido por el municipio, pero no pudimos adjuntar la foto. Revisá tu conexión y tocá “Enviar reporte” otra vez para completar el envío.',
+      );
+    }
+    try {
+      await repo.completeReportPhoto(
+        reportId: draft.id,
+        storagePath: photoPath,
+        downloadUrl: url,
+      );
+    } catch (_) {
+      throw ReportSubmissionException(
+        'El reporte ya fue recibido por el municipio, pero falta confirmar la foto. Tocá “Enviar reporte” otra vez para completar el envío.',
+      );
+    }
     return draft.id;
   }
 }

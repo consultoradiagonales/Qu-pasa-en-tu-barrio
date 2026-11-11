@@ -128,6 +128,8 @@ class ReportModel {
   final String? locality;
   final String? settlementId;
   final String? settlement;
+  final String homeMunicipalityId;
+  final bool reportedAwayFromHome;
 
   // Datos del problema
   final String title;
@@ -189,6 +191,8 @@ class ReportModel {
     this.locality,
     this.settlementId,
     this.settlement,
+    String? homeMunicipalityId,
+    this.reportedAwayFromHome = false,
     required this.title,
     required this.description,
     required this.category,
@@ -217,7 +221,7 @@ class ReportModel {
     this.aiRequested = false,
     this.rating,
     this.ratingComment,
-  });
+  }) : homeMunicipalityId = homeMunicipalityId ?? municipalityId;
 
   factory ReportModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -234,6 +238,9 @@ class ReportModel {
       locality: data['locality'],
       settlementId: data['settlementId'],
       settlement: data['settlement'],
+      homeMunicipalityId:
+          data['homeMunicipalityId'] ?? data['municipalityId'] ?? '',
+      reportedAwayFromHome: data['reportedAwayFromHome'] == true,
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       category: ReportCategory.fromString(data['category'] ?? 'other'),
@@ -280,6 +287,8 @@ class ReportModel {
       'locality': locality,
       'settlementId': settlementId,
       'settlement': settlement,
+      'homeMunicipalityId': homeMunicipalityId,
+      'reportedAwayFromHome': reportedAwayFromHome,
       'title': title,
       'description': description,
       'category': category.value,
@@ -365,6 +374,8 @@ class ReportModel {
       locality: locality ?? this.locality,
       settlementId: settlementId ?? this.settlementId,
       settlement: settlement ?? this.settlement,
+      homeMunicipalityId: homeMunicipalityId,
+      reportedAwayFromHome: reportedAwayFromHome,
       title: title ?? this.title,
       description: description ?? this.description,
       category: category ?? this.category,

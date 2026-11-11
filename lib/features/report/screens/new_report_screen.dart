@@ -1,7 +1,7 @@
+import 'dart:async';
 import 'dart:typed_data';
 import '../../../core/services/device_profile_service.dart';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,7 +14,6 @@ import '../../../core/utils/platform_support.dart';
 import '../../../core/widgets/locality_autocomplete.dart';
 import '../../../core/widgets/municipality_autocomplete.dart';
 import '../../../data/models/user_model.dart';
-import '../../../data/repositories/user_repository.dart';
 import '../report_flow.dart';
 import '../report_insight.dart';
 import '../../../data/services/georef_service.dart';
@@ -39,14 +38,27 @@ class NewReportScreen extends ConsumerStatefulWidget {
 class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   final _comment = TextEditingController();
   final _manualAddress = TextEditingController();
+  final _addressFocus = FocusNode();
+  final _categoryFocus = FocusNode(debugLabel: 'report-category');
+  final _photoReviewFocus = FocusNode();
+  final _locationKey = GlobalKey();
+  final _addressKey = GlobalKey();
+  final _localityKey = GlobalKey();
+  final _photoReviewKey = GlobalKey();
+  final _categoryKey = GlobalKey();
+  final _scroll = ScrollController();
   int _step = 0;
   bool _openingCamera = false, _locating = false, _sending = false;
   bool _showMap = false;
+  bool _loadingMunicipalityCenter = false;
+  int _municipalityCenterRequest = 0;
+  String? _missingField, _defaultProfileKey;
   String? _error, _sentId;
   bool _sentWithAi = false;
   Future<Uint8List>? _preview;
   GoogleMapController? _map;
-  final _geoRef = GeoRefService();
+  GeoRefService get _geoRef => ref.read(reportGeoRefProvider);
+  UserModel? get _profile => ref.read(reportProfileProvider).valueOrNull;
   @override
   void initState() {
     super.initState();
@@ -57,6 +69,10 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   void dispose() {
     _comment.dispose();
     _manualAddress.dispose();
+    _addressFocus.dispose();
+    _categoryFocus.dispose();
+    _photoReviewFocus.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -64,9 +80,220 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   bool get _photoConfirmed => _draft.photoConfirmed;
   void _update(ReportDraft draft) =>
       ref.read(reportDraftProvider.notifier).update(draft);
+
+  String get _municipalityId => _draft.reportsAwayFromHome
+      ? _draft.reportMunicipalityId!
+      : _profile?.municipalityId ?? '';
+
+  String get _municipalityLabel {
+    final name = _draft.reportsAwayFromHome
+        ? _draft.reportMunicipalityName
+        : _profile?.municipalityName;
+    final province =
+        _draft.reportsAwayFromHome ? _draft.reportProvince : _profile?.province;
+    return [name, province]
+        .whereType<String>()
+        .where((part) => part.trim().isNotEmpty)
+        .join(', ');
+  }
+
+  Future<void> _applyProfileDefault(UserModel? profile) async {
+    if (profile == null || profile.municipalityId.trim().isEmpty) return;
+    final key = '${profile.uid}:${profile.municipalityId}';
+    if (_defaultProfileKey == key) return;
+    _defaultProfileKey = key;
+    if (_draft.territory.trim().isEmpty) {
+      _update(_draft.copyWith(territory: _municipalityLabel));
+    }
+    if (_draft.location == null) await _loadMunicipalityCenter();
+  }
+
+  Future<void> _loadMunicipalityCenter() async {
+    final id = _municipalityId;
+    if (id.isEmpty || _draft.location != null) return;
+    final request = ++_municipalityCenterRequest;
+    setState(() => _loadingMunicipalityCenter = true);
+    try {
+      final center = await _geoRef.municipalityCenter(id);
+      if (!mounted ||
+          request != _municipalityCenterRequest ||
+          id != _municipalityId) {
+        return;
+      }
+      if (center != null && _draft.location == null) {
+        _update(_draft.copyWith(
+          location: LatLng(center.lat, center.lng),
+          usesManualAddress: true,
+          locationConfirmed: false,
+        ));
+      }
+    } catch (_) {
+      // El municipio sigue elegido; GPS/mapa permiten recuperar la ubicación.
+    } finally {
+      if (mounted && request == _municipalityCenterRequest) {
+        setState(() => _loadingMunicipalityCenter = false);
+      }
+    }
+  }
+
+  void _showMissing(String field, String message, {required int step}) {
+    setState(() {
+      _step = step;
+      _error = message;
+      _missingField = field;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final key = switch (field) {
+        'address' => _addressKey,
+        'locality' => _localityKey,
+        'photoReview' => _photoReviewKey,
+        'category' => _categoryKey,
+        _ => _locationKey,
+      };
+      final target = key.currentContext;
+      if (target != null) {
+        await Scrollable.ensureVisible(target,
+            alignment: .15, duration: const Duration(milliseconds: 250));
+      }
+      if (!mounted) return;
+      switch (field) {
+        case 'address':
+          _addressFocus.requestFocus();
+        case 'category':
+          _categoryFocus.requestFocus();
+        case 'photoReview':
+          _photoReviewFocus.requestFocus();
+      }
+    });
+  }
+
+  String? _fieldError(String field) => _missingField == field ? _error : null;
+
+  void _clearMissing(String field) {
+    if (_missingField == field) {
+      setState(() {
+        _missingField = null;
+        _error = null;
+      });
+    }
+  }
+
+  void _confirmLocation() {
+    if (_draft.usesManualAddress || _draft.location == null) {
+      if (_draft.territory.trim().isEmpty) {
+        _showMissing('locality', 'Elegí una ciudad o localidad de la lista.',
+            step: 1);
+        return;
+      }
+      if (!_draft.hasManualAddress) {
+        _showMissing(
+            'address', 'Completá la dirección o una referencia del lugar.',
+            step: 1);
+        return;
+      }
+    }
+    if (_draft.location == null) {
+      _showMissing('location',
+          'No pudimos ubicar el lugar. Usá tu ubicación o marcá un punto en el mapa.',
+          step: 1);
+      return;
+    }
+    _update(_draft.copyWith(locationConfirmed: true));
+    setState(() {
+      _step = 2;
+      _error = null;
+      _missingField = null;
+    });
+    _scroll.jumpTo(0);
+  }
+
+  Future<void> _chooseReportMunicipality() async {
+    MunicipalitySuggestion? selected;
+    String? validation;
+    final choice = await showModalBottomSheet<MunicipalitySuggestion>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, updateSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              24, 8, 24, MediaQuery.viewInsetsOf(context).bottom + 24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('¿En qué municipio está el problema?',
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                const Text(
+                    'Este cambio se aplica solo a este reporte. Tu municipio habitual seguirá guardado.'),
+                const SizedBox(height: 16),
+                MunicipalityAutocomplete(
+                  key: const Key('report-other-municipality'),
+                  search: _geoRef.searchMunicipalities,
+                  onSelected: (value) => updateSheet(() {
+                    selected = value;
+                    validation = null;
+                  }),
+                ),
+                if (validation != null)
+                  Text(validation!,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error)),
+                const SizedBox(height: 16),
+                FilledButton(
+                  key: const Key('confirm-report-municipality'),
+                  onPressed: () {
+                    if (selected == null) {
+                      updateSheet(() => validation =
+                          'Elegí el municipio de la lista de resultados.');
+                    } else {
+                      Navigator.pop(sheetContext, selected);
+                    }
+                  },
+                  child: const Text('Usar para este reporte'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    final id = 'georef_${choice.id}';
+    final home = _profile?.municipalityId ?? '';
+    _update(_draft.copyWith(
+      reportMunicipalityId: id,
+      reportMunicipalityName: choice.name,
+      reportProvinceId: choice.provinceId,
+      reportProvince: choice.province,
+      clearReportMunicipality: id == home,
+      territory: choice.label,
+      clearLocation: true,
+      usesManualAddress: true,
+    ));
+    setState(() {
+      _error = null;
+      _missingField = null;
+    });
+    await _loadMunicipalityCenter();
+  }
+
+  Future<void> _useHomeMunicipality() async {
+    _update(_draft.copyWith(
+        clearReportMunicipality: true,
+        clearLocation: true,
+        usesManualAddress: true));
+    _update(_draft.copyWith(territory: _municipalityLabel));
+    await _loadMunicipalityCenter();
+  }
+
   Future<void> _start() async {
     await ref.read(reportDraftProvider.notifier).ready;
     if (!mounted) return;
+    _defaultProfileKey = null;
     try {
       final recovered = await ref.read(reportCaptureProvider).recoverPhoto();
       if (recovered != null) {
@@ -87,6 +314,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       if (!mounted) return;
       _comment.text = _draft.comment;
       _manualAddress.text = _draft.address;
+      unawaited(_applyProfileDefault(_profile));
       if (widget.initialLocation != null && !_draft.locationConfirmed) {
         _update(_draft.copyWith(location: widget.initialLocation));
       }
@@ -157,12 +385,14 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   void _useManualAddress() {
     final address = _manualAddress.text.trim();
     if (_draft.territory.trim().isEmpty) {
-      setState(() => _error = 'Elegí una ciudad o localidad de la lista.');
+      _showMissing('locality', 'Elegí una ciudad o localidad de la lista.',
+          step: 1);
       return;
     }
     if (address.length < 2) {
-      setState(() => _error =
-          'Escribí una calle o una intersección para completar la dirección.');
+      _showMissing(
+          'address', 'Completá la dirección o una referencia del lugar.',
+          step: 1);
       return;
     }
     _update(_draft.copyWith(
@@ -170,11 +400,15 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       usesManualAddress: true,
       locationConfirmed: _draft.location != null,
     ));
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _missingField = null;
+    });
   }
 
   void _syncManualAddress(String value) {
     _update(_draft.copyWith(address: value, usesManualAddress: true));
+    if (value.trim().length >= 2) _clearMissing('address');
   }
 
   void _selectLocality(LocalitySuggestion? locality) {
@@ -191,6 +425,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       clearLocation: !locality.hasCoordinates,
       locationConfirmed: false,
     ));
+    _clearMissing('locality');
   }
 
   String _locationDescription(ReportDraft draft) {
@@ -264,18 +499,24 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   /// reportó con dirección escrita y sin punto en el mapa.
   Future<bool> _confirmPointMatchesMunicipality() async {
     final point = _draft.location;
-    if (point == null) return true;
+    // En dirección escrita, el centro del municipio sólo es una referencia,
+    // no una geocodificación de la calle ni motivo para cambiar el destino.
+    if (point == null ||
+        (_draft.usesManualAddress && _draft.territory == _municipalityLabel)) {
+      return true;
+    }
 
     UserModel? profile;
     GeoRefPlace? found;
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return true;
-      profile = await ref.read(userRepositoryProvider).getUser(uid);
-      final mine = (profile?.municipalityId ?? '').replaceFirst('georef_', '');
+      profile = _profile;
+      final mine = _municipalityId.replaceFirst('georef_', '');
       if (mine.isEmpty) return true;
       found = await _geoRef.municipalityAt(point.latitude, point.longitude);
-      if (found == null || found.id == mine) return true;
+      if (found == null) return true;
+      if (found.id == mine) {
+        return true;
+      }
     } catch (_) {
       // Esta comprobación es una ayuda: si falla por cualquier motivo no
       // puede impedir que se envíe el reporte.
@@ -289,9 +530,9 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       builder: (context) => AlertDialog(
         title: const Text('¿El lugar es correcto?'),
         content: Text(
-          'El punto que marcaste está en ${place.name}, pero tu municipio es '
-          '${profile?.municipalityName ?? 'otro'}. El reporte le llegaría a '
-          '${profile?.municipalityName ?? 'ese municipio'}.',
+          'El punto que marcaste está en ${place.name}, pero el municipio del reporte es '
+          '${_municipalityLabel.isEmpty ? 'otro' : _municipalityLabel}. Podés reportar donde estás '
+          'sin cambiar el municipio habitual que queda guardado en tu perfil.',
         ),
         actions: [
           TextButton(
@@ -299,23 +540,33 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
             child: const Text('Corregir el punto'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, 'municipality'),
-            child: Text('Mi municipio es ${place.name}'),
+            key: const Key('report-away-from-home'),
+            onPressed: () => Navigator.pop(context, 'away'),
+            child: Text('Reportar en ${place.name}'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, 'send'),
-            child: const Text('Enviar igual'),
+            onPressed: () => Navigator.pop(context, 'home'),
+            child: Text(
+                'Enviar a ${_municipalityLabel.isEmpty ? 'mi municipio' : _municipalityLabel}'),
           ),
         ],
       ),
     );
     if (!mounted) return false;
     switch (choice) {
-      case 'send':
+      case 'home':
         return true;
-      case 'municipality':
-        context.go('/auth/municipio?next=report');
-        return false;
+      case 'away':
+        final municipality = await _geoRef.municipalityById(place.id);
+        _update(_draft.copyWith(
+          reportMunicipalityId: 'georef_${place.id}',
+          reportMunicipalityName: municipality?.name ?? place.name,
+          reportProvinceId: municipality?.provinceId,
+          reportProvince: municipality?.province,
+          clearReportMunicipality:
+              'georef_${place.id}' == profile?.municipalityId,
+        ));
+        return true;
       case 'point':
         setState(() => _step = 1);
         return false;
@@ -325,7 +576,34 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   }
 
   Future<void> _send() async {
-    if (_sending || !_draft.canSend || !_photoConfirmed) return;
+    if (_sending) return;
+    if (!_draft.hasPhoto) {
+      _showMissing('photo', 'Agregá una foto del problema para continuar.',
+          step: 0);
+      return;
+    }
+    if (!_draft.locationConfirmed || _draft.location == null) {
+      _showMissing('location', 'Completá y confirmá la ubicación del problema.',
+          step: 1);
+      return;
+    }
+    if (_draft.usesManualAddress && !_draft.hasManualAddress) {
+      _showMissing(
+          'address', 'Completá la dirección o una referencia del lugar.',
+          step: 1);
+      return;
+    }
+    if (!_photoConfirmed) {
+      _showMissing('photoReview', 'Confirmá que la foto muestra el problema.',
+          step: 2);
+      return;
+    }
+    if (!_draft.hasCategory) {
+      _showMissing(
+          'category', 'Elegí el tipo de problema para enviar el reporte.',
+          step: 2);
+      return;
+    }
     setState(() {
       _sending = true;
       _error = null;
@@ -353,6 +631,9 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
 
   Future<void> _newPhoto() async {
     await ref.read(reportDraftProvider.notifier).clear();
+    if (!mounted) return;
+    _defaultProfileKey = null;
+    unawaited(_applyProfileDefault(_profile));
     _comment.clear();
     _manualAddress.clear();
     setState(() {
@@ -366,6 +647,15 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<UserModel?>>(reportProfileProvider, (_, next) {
+      final profile = next.valueOrNull;
+      if (profile != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_applyProfileDefault(profile));
+        });
+      }
+    });
+    ref.watch(reportProfileProvider);
     final draft = ref.watch(reportDraftProvider);
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
@@ -431,52 +721,61 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
                         ),
                       ),
                       Expanded(
-                        child: ListView(
+                        child: SingleChildScrollView(
+                          controller: _scroll,
                           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                          children: [
-                            Text(
-                              [
-                                'Mostrá el problema',
-                                '¿Dónde está?',
-                                'Listo para enviar',
-                              ][_step],
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineSmall
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              [
-                                'Sacá una foto para empezar.',
-                                'Escribí la dirección, usá tu ubicación o marcá un punto si preferís.',
-                                'Revisá la foto, elegí una opción y enviá el reporte.',
-                              ][_step],
-                            ),
-                            const SizedBox(height: 18),
-                            if (_step == 0) _photoStart(context),
-                            if (_step == 1) ..._locationStep(context, draft),
-                            if (_step == 2) ..._detailsStep(context, draft),
-                            if (_error != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _error!,
-                                      style: TextStyle(color: colors.error),
-                                    ),
-                                    if (_step < 2)
-                                      TextButton(
-                                        onPressed:
-                                            ReportPermissions.openSettings,
-                                        child: const Text('Revisar permisos'),
-                                      ),
-                                  ],
-                                ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                [
+                                  'Mostrá el problema',
+                                  '¿Dónde está?',
+                                  'Listo para enviar',
+                                ][_step],
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineSmall
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
-                          ],
+                              const SizedBox(height: 8),
+                              Text(
+                                [
+                                  'Sacá una foto para empezar.',
+                                  'Escribí la dirección, usá tu ubicación o marcá un punto si preferís.',
+                                  'Revisá la foto, elegí una opción y enviá el reporte.',
+                                ][_step],
+                              ),
+                              const SizedBox(height: 18),
+                              if (_step == 0) _photoStart(context),
+                              if (_step == 0 && _fieldError('photo') != null)
+                                _validationNote(_fieldError('photo')!),
+                              if (_step == 1) ..._locationStep(context, draft),
+                              if (_step == 2) ..._detailsStep(context, draft),
+                              if (_error != null && _missingField == null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 16),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        key: const Key(
+                                            'report-validation-message'),
+                                        _error!,
+                                        style: TextStyle(color: colors.error),
+                                      ),
+                                      if (_step < 2)
+                                        TextButton(
+                                          onPressed:
+                                              ReportPermissions.openSettings,
+                                          child: const Text('Revisar permisos'),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                       Padding(
@@ -495,19 +794,10 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
                               Expanded(
                                 child: FilledButton(
                                   key: const Key('confirm-location'),
-                                  onPressed: draft.location == null || _locating
-                                      ? null
-                                      : () {
-                                          _update(
-                                            draft.copyWith(
-                                              locationConfirmed: true,
-                                            ),
-                                          );
-                                          setState(() {
-                                            _step = 2;
-                                            _error = null;
-                                          });
-                                        },
+                                  onPressed:
+                                      _locating || _loadingMunicipalityCenter
+                                          ? null
+                                          : _confirmLocation,
                                   child: const Text(
                                     'Usar esta ubicación',
                                     textAlign: TextAlign.center,
@@ -517,11 +807,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
                             if (_step == 2)
                               Expanded(
                                 child: FilledButton.icon(
-                                  onPressed: _sending ||
-                                          !_photoConfirmed ||
-                                          !_draft.canSend
-                                      ? null
-                                      : _send,
+                                  onPressed: _sending ? null : _send,
                                   icon: _sending
                                       ? const SizedBox(
                                           width: 18,
@@ -585,7 +871,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
         ),
       );
   List<Widget> _locationStep(BuildContext context, ReportDraft draft) => [
-        _photo(height: 130),
+        KeyedSubtree(key: _locationKey, child: _photo(height: 130)),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
@@ -595,35 +881,93 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        if (_fieldError('location') != null)
+          _validationNote(_fieldError('location')!),
+        if (_municipalityId.isNotEmpty) ...[
+          Card(
+            key: const Key('report-municipality-summary'),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      draft.reportsAwayFromHome
+                          ? 'Municipio de este reporte'
+                          : 'Tu municipio habitual',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(_municipalityLabel.isEmpty
+                      ? _municipalityId
+                      : _municipalityLabel),
+                  const Text(
+                      'Ya está seleccionado. Completá la dirección del problema.'),
+                  TextButton.icon(
+                    key: const Key('change-report-municipality'),
+                    onPressed: _sending ? null : _chooseReportMunicipality,
+                    icon: const Icon(Icons.swap_horiz),
+                    label: const Text('Reportar en otro municipio'),
+                  ),
+                  if (draft.reportsAwayFromHome &&
+                      (_profile?.municipalityId.isNotEmpty ?? false))
+                    TextButton(
+                      key: const Key('use-home-municipality'),
+                      onPressed: _useHomeMunicipality,
+                      child: const Text('Volver a mi municipio habitual'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         const Text(
           'Dirección manual',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'Elegí la ciudad y completá solo los datos de la calle que conozcas.',
+        Text(
+          _municipalityId.isEmpty
+              ? 'Elegí la ciudad y completá solo los datos de la calle que conozcas.'
+              : 'Completá la calle, intersección o referencia. No hace falta volver a elegir el municipio.',
         ),
         const SizedBox(height: 10),
-        LocalityAutocomplete(
-          key: const Key('manual-locality'),
-          initialText: draft.territory,
-          onSelected: _selectLocality,
-        ),
+        if (_municipalityId.isEmpty)
+          KeyedSubtree(
+            key: _localityKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                LocalityAutocomplete(
+                  key: const Key('manual-locality'),
+                  initialText: draft.territory,
+                  search: _geoRef.searchLocalities,
+                  onSelected: _selectLocality,
+                ),
+                if (_fieldError('locality') != null)
+                  _validationNote(_fieldError('locality')!),
+              ],
+            ),
+          ),
         const SizedBox(height: 8),
-        TextField(
-          key: const Key('manual-address'),
-          controller: _manualAddress,
-          maxLength: 240,
-          keyboardType: TextInputType.streetAddress,
-          textInputAction: TextInputAction.done,
-          textCapitalization: TextCapitalization.sentences,
-          autocorrect: true,
-          enableSuggestions: true,
-          onChanged: _syncManualAddress,
-          decoration: const InputDecoration(
-            labelText: 'Dirección o referencia',
-            hintText: 'Ej.: Av. 7 Nº 123, entre 48 y 49, frente a la plaza',
-            prefixIcon: Icon(Icons.signpost_outlined),
+        KeyedSubtree(
+          key: _addressKey,
+          child: TextField(
+            key: const Key('manual-address'),
+            controller: _manualAddress,
+            focusNode: _addressFocus,
+            maxLength: 240,
+            keyboardType: TextInputType.streetAddress,
+            textInputAction: TextInputAction.done,
+            textCapitalization: TextCapitalization.sentences,
+            autocorrect: true,
+            enableSuggestions: true,
+            onChanged: _syncManualAddress,
+            decoration: InputDecoration(
+              labelText: 'Dirección o referencia',
+              hintText: 'Ej.: Av. 7 Nº 123, entre 48 y 49, frente a la plaza',
+              prefixIcon: const Icon(Icons.signpost_outlined),
+              errorText: _fieldError('address'),
+            ),
           ),
         ),
         Align(
@@ -636,8 +980,10 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Al elegir la ciudad, la app usa su centro como referencia. Podés mejorar el punto con GPS o tocando el mapa.',
+        Text(
+          _loadingMunicipalityCenter
+              ? 'Preparando la referencia de tu municipio…'
+              : 'Para la dirección escrita se usa el centro del municipio como referencia aproximada. Podés precisar el punto con GPS o el mapa.',
           style: TextStyle(fontSize: 12),
         ),
         if (draft.usesManualAddress && draft.location == null)
@@ -711,25 +1057,16 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
           icon: const Icon(Icons.my_location),
           label: Text(_locating ? 'Buscando ubicación…' : 'Usar mi ubicación'),
         ),
-        const SizedBox(height: 14),
-        const Text(
-          'Municipio (opcional)',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 2),
-        const Text(
-          'Escribí el nombre y elegilo de la lista para describir mejor el lugar.',
-        ),
-        const SizedBox(height: 8),
-        MunicipalityAutocomplete(
-          key: const Key('territory-municipality'),
-          openUp: true,
-          initialText: draft.territory,
-          onSelected: (municipality) => _update(
-            _draft.copyWith(territory: municipality?.label ?? ''),
-          ),
-        ),
       ];
+
+  Widget _validationNote(String text) => Semantics(
+        liveRegion: true,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(text,
+              style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        ),
+      );
   List<Widget> _detailsStep(BuildContext context, ReportDraft draft) => [
         _photo(),
         const SizedBox(height: 12),
@@ -739,19 +1076,27 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
           label: const Text('Cambiar foto'),
         ),
         const SizedBox(height: 8),
-        Card(
-          child: CheckboxListTile(
-            key: const Key('photo-evidence-confirmed'),
-            value: _photoConfirmed,
-            onChanged: (value) =>
-                _update(_draft.copyWith(photoConfirmed: value ?? false)),
-            title: const Text('Confirmo que la foto muestra el problema'),
-            subtitle: const Text(
-              'No envíes capturas de pantalla ni pantallas de permisos.',
+        Focus(
+          focusNode: _photoReviewFocus,
+          child: Card(
+            key: _photoReviewKey,
+            child: CheckboxListTile(
+              key: const Key('photo-evidence-confirmed'),
+              value: _photoConfirmed,
+              onChanged: (value) {
+                _update(_draft.copyWith(photoConfirmed: value ?? false));
+                if (value == true) _clearMissing('photoReview');
+              },
+              title: const Text('Confirmo que la foto muestra el problema'),
+              subtitle: const Text(
+                'No envíes capturas de pantalla ni pantallas de permisos.',
+              ),
+              controlAffinity: ListTileControlAffinity.leading,
             ),
-            controlAffinity: ListTileControlAffinity.leading,
           ),
         ),
+        if (_fieldError('photoReview') != null)
+          _validationNote(_fieldError('photoReview')!),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -769,31 +1114,37 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          key: const Key('report-category'),
-          initialValue: draft.hasCategory ? draft.presetId : null,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Tipo de problema',
-            prefixIcon: Icon(Icons.report_problem_outlined),
-          ),
-          hint: const Text('Elegí una categoría'),
-          items: reportPresets
-              .map(
-                (preset) => DropdownMenuItem<String>(
-                  value: preset.id,
-                  child: Text(
-                    preset.label,
-                    overflow: TextOverflow.ellipsis,
+        KeyedSubtree(
+          key: _categoryKey,
+          child: DropdownButtonFormField<String>(
+            key: const Key('report-category'),
+            focusNode: _categoryFocus,
+            initialValue: draft.hasCategory ? draft.presetId : null,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Tipo de problema',
+              prefixIcon: const Icon(Icons.report_problem_outlined),
+              errorText: _fieldError('category'),
+            ),
+            hint: const Text('Elegí una categoría'),
+            items: reportPresets
+                .map(
+                  (preset) => DropdownMenuItem<String>(
+                    value: preset.id,
+                    child: Text(
+                      preset.label,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              )
-              .toList(growable: false),
-          onChanged: (presetId) {
-            if (presetId != null) {
-              _update(draft.copyWith(presetId: presetId));
-            }
-          },
+                )
+                .toList(growable: false),
+            onChanged: (presetId) {
+              if (presetId != null) {
+                _update(draft.copyWith(presetId: presetId));
+                _clearMissing('category');
+              }
+            },
+          ),
         ),
         if (!draft.hasCategory)
           const Padding(

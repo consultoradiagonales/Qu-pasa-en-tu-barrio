@@ -64,3 +64,13 @@ test('el intervalo se limita a 90 días y entrega fechas ordenadas', () => {
   assert.ok(range[0] < range.at(-1));
   assert.equal(range.at(-1), '2026-10-17');
 });
+
+test('el filtro municipal reúne el código histórico y el código GeoRef', () => {
+  const result = aggregateUsage([
+    { date: '2026-11-10', municipalityId: '060707', city: 'Saladillo', activeUsers: 2 },
+    { date: '2026-11-10', municipalityId: 'georef_060707', city: 'Saladillo', activeUsers: 1 },
+    { date: '2026-11-10', municipalityId: 'georef_060441', city: 'La Plata', activeUsers: 9 },
+  ], { dayKeys: ['2026-11-10'], municipalityId: '060707' });
+  assert.equal(result.totalSessions, 3);
+  assert.equal(result.activeUsersToday, 3);
+});

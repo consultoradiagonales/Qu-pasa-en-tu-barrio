@@ -60,7 +60,7 @@ void main() {
       find.byKey(const Key('profile-change-municipality')),
       findsOneWidget,
     );
-    expect(find.text('Municipio y alertas climáticas'), findsOneWidget);
+    expect(find.text('Municipio habitual y alertas climáticas'), findsOneWidget);
   });
 
   testWidgets('el perfil operativo no permite cambiar el municipio',

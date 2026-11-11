@@ -110,7 +110,7 @@ class _SelectMunicipalityScreenState
               Text(
                 MunicipalityBuildConfig.isLocked
                     ? 'Esta edición corresponde a ${MunicipalityBuildConfig.municipalityName}'
-                    : '¿En qué municipio querés recibir alertas?',
+                    : '¿Cuál es tu municipio habitual?',
                 style: Theme.of(context).textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
@@ -118,7 +118,7 @@ class _SelectMunicipalityScreenState
               Text(
                 MunicipalityBuildConfig.isLocked
                     ? 'Tus reportes y la información visible se gestionan únicamente dentro de este municipio.'
-                    : 'Escribí el nombre y elegilo de la lista. Quedará guardado en tu perfil para recibir alertas oficiales del SMN de tu zona y áreas aledañas.',
+                    : 'Escribí el nombre y elegilo de la lista. Quedará guardado en tu perfil y no cambiará cuando reportes desde otro lugar.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context)
                     .textTheme

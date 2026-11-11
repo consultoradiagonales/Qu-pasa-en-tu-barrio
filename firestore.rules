@@ -11,6 +11,10 @@ service cloud.firestore {
     function profile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
+    function sameMunicipality(left, right) {
+      return left is string && right is string && left.size() > 0 && right.size() > 0 &&
+        (left == right || left == 'georef_' + right || 'georef_' + left == right);
+    }
     function staff() {
       return signedIn() && profile().disabled != true &&
         profile().role in ['coordinator', 'admin', 'moderator'];
@@ -21,27 +25,27 @@ service cloud.firestore {
     }
     function coordinatorFor(municipalityId) {
       return staff() && (admin() ||
-        (profile().municipalityId is string && profile().municipalityId.size() > 0 && profile().municipalityId == municipalityId));
+        (profile().municipalityId is string && profile().municipalityId.size() > 0 && sameMunicipality(profile().municipalityId, municipalityId)));
     }
     // Personal operativo del mismo municipio, o administración central.
     // Se usa para evitar que un municipio consulte perfiles de otro.
     function staffFor(data) {
       return staff() && (admin() ||
         (data.municipalityId is string && data.municipalityId.size() > 0 &&
-          profile().municipalityId == data.municipalityId));
+          sameMunicipality(profile().municipalityId, data.municipalityId)));
     }
     function workerFor(report) {
       return signedIn() && profile().disabled != true &&
         profile().role == 'field_worker' &&
         profile().teamId is string && profile().teamId.size() > 0 &&
-        profile().municipalityId == report.municipalityId &&
+        sameMunicipality(profile().municipalityId, report.municipalityId) &&
         profile().teamId == report.assignedTeamId;
     }
     function canReadReport(report) {
       return signedIn() && profile().disabled != true &&
         ((report.hidden == false &&
-            profile().municipalityId == report.municipalityId) ||
-          (own(report.userId) && (profile().role == 'citizen' || profile().municipalityId == report.municipalityId)) ||
+            sameMunicipality(profile().municipalityId, report.municipalityId)) ||
+          (own(report.userId) && (profile().role == 'citizen' || sameMunicipality(profile().municipalityId, report.municipalityId))) ||
           coordinatorFor(report.municipalityId) || workerFor(report));
     }
     function canReadParentReport(reportId) {
@@ -58,19 +62,25 @@ service cloud.firestore {
     function nullableText(value, maximum) {
       return value == null || (value is string && value.size() <= maximum);
     }
-    function initialReport(data) {
+    function initialReport(data, reportId) {
       return data.keys().hasOnly([
           'userId', 'municipalityId', 'municipalityName', 'provinceId', 'province',
           'departmentId', 'department', 'localityId', 'locality', 'settlementId',
           'settlement', 'title', 'description', 'category', 'photosReport',
+          'homeMunicipalityId', 'reportedAwayFromHome',
           'photosBefore', 'photosProgress', 'photosAfter', 'location', 'status',
           'priority', 'supportCount', 'assignedTeamId', 'assignedWorkerId',
           'assignedAt', 'workerArrivedAt', 'workStartedAt', 'workFinishedAt',
           'workerNotes', 'resolvedAt', 'rejectionReason', 'hidden', 'flaggedCount',
           'commentsCount', 'createdAt', 'updatedAt', 'aiRequested',
-          'aiConsentVersion', 'rating', 'ratingComment', 'submissionProtocol'
+          'aiConsentVersion', 'rating', 'ratingComment', 'submissionProtocol',
+          'photoUploadStatus', 'photoStoragePath', 'photoUploadedAt'
         ]) &&
         data.municipalityId is string && data.municipalityId.size() > 0 && data.municipalityId.size() <= 128 &&
+        data.homeMunicipalityId is string &&
+        data.homeMunicipalityId == profile().municipalityId &&
+        data.reportedAwayFromHome is bool &&
+        data.reportedAwayFromHome == (data.municipalityId != data.homeMunicipalityId) &&
         data.title is string && data.title.size() > 0 && data.title.size() <= 80 &&
         data.description is string && data.description.size() <= 500 &&
         data.category in ['infrastructure', 'lighting', 'garbage', 'security', 'health', 'transport', 'environment', 'other'] &&
@@ -86,12 +96,19 @@ service cloud.firestore {
         data.photosBefore is list && data.photosBefore.size() == 0 &&
         data.photosProgress is list && data.photosProgress.size() == 0 &&
         data.photosAfter is list && data.photosAfter.size() == 0 &&
-        data.photosReport is list && data.photosReport.size() > 0 && data.photosReport.size() <= 5 &&
-        validPhotoReference(data.photosReport[0]) &&
-        (data.photosReport.size() < 2 || validPhotoReference(data.photosReport[1])) &&
-        (data.photosReport.size() < 3 || validPhotoReference(data.photosReport[2])) &&
-        (data.photosReport.size() < 4 || validPhotoReference(data.photosReport[3])) &&
-        (data.photosReport.size() < 5 || validPhotoReference(data.photosReport[4])) &&
+        data.photosReport is list && data.photosReport.size() <= 5 &&
+        ((data.get('photoUploadStatus', 'ready') == 'pending' &&
+            data.photosReport.size() == 0 &&
+            data.photoStoragePath is string &&
+            data.photoStoragePath.matches('^reports/' + reportId + '/citizen/photo\\.(jpg|png)$') &&
+            data.get('photoUploadedAt', null) == null) ||
+          (data.get('photoUploadStatus', 'ready') == 'ready' &&
+            data.photosReport.size() > 0 &&
+            validPhotoReference(data.photosReport[0]) &&
+            (data.photosReport.size() < 2 || validPhotoReference(data.photosReport[1])) &&
+            (data.photosReport.size() < 3 || validPhotoReference(data.photosReport[2])) &&
+            (data.photosReport.size() < 4 || validPhotoReference(data.photosReport[3])) &&
+            (data.photosReport.size() < 5 || validPhotoReference(data.photosReport[4])))) &&
         data.location is map && data.location.keys().hasOnly(['lat', 'lng', 'geohash', 'address', 'isManualAddress']) &&
         data.location.lat is number && data.location.lat >= -90 && data.location.lat <= 90 &&
         data.location.lng is number && data.location.lng >= -180 && data.location.lng <= 180 &&
@@ -179,7 +196,7 @@ service cloud.firestore {
     }
 
     match /municipalities/{municipalityId} {
-      allow read: if admin() || (signedIn() && profile().municipalityId == municipalityId);
+      allow read: if admin() || (signedIn() && sameMunicipality(profile().municipalityId, municipalityId));
       allow write: if admin();
     }
 
@@ -202,9 +219,9 @@ service cloud.firestore {
         !exists(/databases/$(database)/documents/reports/$(reportId));
       allow create: if signedIn() && profile().disabled != true && own(request.resource.data.userId) &&
         request.resource.data.municipalityId is string && request.resource.data.municipalityId.size() > 0 &&
-        request.resource.data.municipalityId == profile().municipalityId &&
-        ((initialReport(request.resource.data) && quotaForReport(reportId)) ||
-          legacyReportCreation(request.resource.data));
+        ((initialReport(request.resource.data, reportId) && quotaForReport(reportId)) ||
+          (request.resource.data.municipalityId == profile().municipalityId &&
+            legacyReportCreation(request.resource.data)));
       allow update: if signedIn() && profile().disabled != true && (
         (own(resource.data.userId) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -222,8 +239,20 @@ service cloud.firestore {
               request.resource.data.rating >= 1 &&
               request.resource.data.rating <= 5 &&
               (request.resource.data.ratingComment == null ||
-                (request.resource.data.ratingComment is string &&
+                  (request.resource.data.ratingComment is string &&
                   request.resource.data.ratingComment.size() <= 500))))) ||
+        (own(resource.data.userId) &&
+          resource.data.get('photoUploadStatus', '') == 'pending' &&
+          request.resource.data.get('photoUploadStatus', '') == 'ready' &&
+          request.resource.data.photoStoragePath == resource.data.photoStoragePath &&
+          request.resource.data.photosReport is list &&
+          request.resource.data.photosReport.size() == 1 &&
+          validPhotoReference(request.resource.data.photosReport[0]) &&
+          request.resource.data.photoUploadedAt == request.time &&
+          request.resource.data.updatedAt == request.time &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'photosReport', 'photoUploadStatus', 'photoUploadedAt', 'updatedAt'
+          ])) ||
         (workerFor(resource.data) && (
           (resource.data.status == 'assigned' &&
             request.resource.data.status == 'in_progress' &&
@@ -296,7 +325,7 @@ service cloud.firestore {
 
     match /localAds/{adId} {
       allow read: if admin() || (signedIn() && resource.data.active == true &&
-        resource.data.municipalityId == profile().municipalityId);
+        sameMunicipality(resource.data.municipalityId, profile().municipalityId));
       allow create, update: if admin() &&
         request.resource.data.keys().hasOnly(['municipalityId', 'business', 'message', 'imageUrl', 'link', 'startsAt', 'endsAt', 'active', 'updatedAt']) &&
         request.resource.data.municipalityId is string &&

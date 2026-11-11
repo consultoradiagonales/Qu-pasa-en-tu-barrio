@@ -129,6 +129,7 @@
               <span>Ámbito</span>
               <select id="municipality-select" aria-label="Seleccionar municipio"></select>
             </label>
+            <button class="incoming-reports" id="incoming-reports" type="button" hidden aria-live="polite">⚡ <span id="incoming-report-count">0</span> nuevo</button>
             <button class="icon-button" id="refresh-data" type="button" title="Actualizar datos" aria-label="Actualizar datos">↻</button>
             <button class="profile-button" id="profile-menu" type="button" aria-expanded="false">
               <span class="profile-initial" id="profile-initial">G</span>
@@ -160,11 +161,11 @@
             </section>
 
             <div class="metric-grid" id="metric-grid">
-              <article class="metric-card accent-red"><span class="metric-label">Abiertos</span><strong id="metric-open">—</strong><small id="metric-open-detail">Sincronizando</small></article>
-              <article class="metric-card accent-amber"><span class="metric-label">Sin asignar</span><strong id="metric-unassigned">—</strong><small>Requieren decisión</small></article>
-              <article class="metric-card accent-blue"><span class="metric-label">En campo</span><strong id="metric-field">—</strong><small>Cuadrillas activas</small></article>
-              <article class="metric-card accent-green"><span class="metric-label">Resueltos 7 días</span><strong id="metric-resolved">—</strong><small id="metric-resolved-detail">Sin datos</small></article>
-              <article class="metric-card accent-purple"><span class="metric-label">Tiempo de resolución</span><strong id="metric-resolution">—</strong><small>Mediana de casos resueltos/cerrados</small></article>
+              <button class="metric-card metric-link accent-red" data-report-status="open" type="button" aria-label="Ver reportes abiertos"><span class="metric-label">Abiertos</span><strong id="metric-open">—</strong><small id="metric-open-detail">Sincronizando</small></button>
+              <button class="metric-card metric-link accent-amber" data-report-status="unassigned" type="button" aria-label="Ver reportes sin asignar"><span class="metric-label">Sin asignar</span><strong id="metric-unassigned">—</strong><small>Requieren decisión</small></button>
+              <button class="metric-card metric-link accent-blue" data-report-status="field" type="button" aria-label="Ver reportes en campo"><span class="metric-label">En campo</span><strong id="metric-field">—</strong><small>Cuadrillas activas</small></button>
+              <button class="metric-card metric-link accent-green" data-report-status="resolved_week" type="button" aria-label="Ver reportes resueltos en los últimos 7 días"><span class="metric-label">Resueltos 7 días</span><strong id="metric-resolved">—</strong><small id="metric-resolved-detail">Sin datos</small></button>
+              <button class="metric-card metric-link accent-purple" data-report-status="resolution" type="button" aria-label="Ver reportes con tiempo de resolución"><span class="metric-label">Tiempo de resolución</span><strong id="metric-resolution">—</strong><small>Mediana de casos resueltos/cerrados</small></button>
             </div>
 
             <div class="dashboard-grid">
@@ -191,17 +192,26 @@
           </section>
 
           <section class="view" id="view-reports" data-view-panel="reports" hidden>
-            <div class="view-heading"><div><p class="eyebrow">SEGUIMIENTO DE SOLUCIONES</p><h2>Reportes y evidencia de cuadrillas</h2></div><span class="live-label"><i></i> EN VIVO</span></div>
+            <div class="view-heading"><div><p class="eyebrow">SEGUIMIENTO DE SOLUCIONES</p><h2>Reportes y evidencia de cuadrillas</h2></div><span class="live-label" id="report-live-status"><i></i> EN VIVO</span></div>
             <div class="filter-bar">
               <label class="search-field"><span>⌕</span><input id="report-search" type="search" placeholder="Buscar por problema, categoría o zona"></label>
               <select id="status-filter" aria-label="Filtrar por estado">
                 <option value="all">Todos los estados</option>
+                <optgroup label="Resumen operativo">
+                  <option value="open">Abiertos</option>
+                  <option value="unassigned">Sin asignar</option>
+                  <option value="field">En campo</option>
+                  <option value="resolved_week">Resueltos 7 días</option>
+                  <option value="resolution">Con tiempo de resolución</option>
+                </optgroup>
+                <optgroup label="Estado del reporte">
                 <option value="pending">Pendientes</option>
                 <option value="assigned">Asignados</option>
                 <option value="in_progress">En curso</option>
                 <option value="resolved">Resueltos</option>
                 <option value="rejected">Rechazados</option>
                 <option value="closed">Cerrados</option>
+                </optgroup>
               </select>
               <select id="priority-filter" aria-label="Filtrar por prioridad">
                 <option value="all">Toda prioridad</option>
@@ -209,7 +219,8 @@
                 <option value="unassigned">Sin cuadrilla</option>
               </select>
             </div>
-            <div class="report-count" id="report-count">Cargando reportes…</div>
+            <div class="report-filter-summary" id="report-filter-summary" hidden><span id="report-filter-label"></span><button class="text-button" id="clear-report-filters" type="button">Ver todos los reportes</button></div>
+            <div class="report-count" id="report-count" role="status" aria-live="polite">Cargando reportes…</div>
             <div class="table-shell">
               <table class="report-table">
                 <thead><tr><th>Reporte</th><th>Estado</th><th>Prioridad</th><th>Cuadrilla</th><th>Fecha</th><th></th></tr></thead>

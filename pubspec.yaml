@@ -1,7 +1,7 @@
 name: que_pasa_en_tu_barrio
 description: App ciudadana de reporte de problemas urbanos geolocalizados.
 publish_to: 'none'
-version: 1.0.25+26
+version: 1.0.29+30
 environment:
   sdk: '>=3.3.0 <4.0.0'
 

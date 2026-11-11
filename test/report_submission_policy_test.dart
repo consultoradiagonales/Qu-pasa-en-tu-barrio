@@ -61,6 +61,27 @@ void main() {
         '2');
   });
 
+  test('Un reintento de evidencia pendiente reconoce el alta ya recibida', () {
+    final proposed = {
+      ...submission(),
+      'photosReport': <String>[],
+      'photoUploadStatus': 'pending',
+      'photoStoragePath': 'reports/case/citizen/photo.jpg',
+    };
+    final completed = {
+      ...proposed,
+      'photosReport': ['https://example.test/photo'],
+      'photoUploadStatus': 'ready',
+    };
+    expect(matchesReportSubmission(proposed, proposed), isTrue);
+    expect(matchesReportSubmission(completed, proposed), isTrue);
+    expect(
+        matchesReportSubmission(
+            {...completed, 'photoStoragePath': 'reports/other/photo.jpg'},
+            proposed),
+        isFalse);
+  });
+
   test(
       'Con diez posiciones elige la más antigua para que el servidor valide 24 h',
       () {

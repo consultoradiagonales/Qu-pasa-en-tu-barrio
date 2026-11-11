@@ -55,8 +55,6 @@ class CitizenHomeScreen extends ConsumerWidget {
                             reportsCount: profile?.reportsCount,
                             municipalityId: profile?.municipalityId,
                             municipalityName: profile?.municipalityName,
-                            canChangeMunicipality:
-                                profile?.role == UserRole.citizen,
                           ),
                         ),
               ),
@@ -132,7 +130,8 @@ class _CameraQuickAccess extends StatelessWidget {
                   const Text(
                     'Sacá una foto y cargá el reporte en pocos pasos',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    style:
+                        TextStyle(color: AppColors.textSecondary, fontSize: 14),
                   ),
                 ],
               ),
@@ -194,7 +193,6 @@ class _ProfileShortcuts extends StatelessWidget {
     this.reportsCount,
     this.municipalityId,
     this.municipalityName,
-    this.canChangeMunicipality = false,
   });
 
   final String name;
@@ -202,7 +200,6 @@ class _ProfileShortcuts extends StatelessWidget {
   final int? reportsCount;
   final String? municipalityId;
   final String? municipalityName;
-  final bool canChangeMunicipality;
 
   @override
   Widget build(BuildContext context) {
@@ -295,37 +292,13 @@ class _ProfileShortcuts extends StatelessWidget {
                 onTap: () => context.go('/notifications'),
               ),
               _HomeShortcut(
-                key: const Key('home-my-reports'),
-                icon: Icons.list_alt_outlined,
-                label: 'Mis reportes',
-                onTap: () => context.go('/my-reports'),
-              ),
-              _HomeShortcut(
                 key: const Key('home-map'),
                 icon: Icons.map_outlined,
                 label: 'Mapa',
                 onTap: () => context.go('/map'),
               ),
-              _HomeShortcut(
-                key: const Key('home-full-profile'),
-                icon: Icons.manage_accounts_outlined,
-                label: 'Mi perfil',
-                onTap: () => context.go('/profile'),
-              ),
             ],
           ),
-          if (canChangeMunicipality) ...[
-            const SizedBox(height: 6),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                key: const Key('home-change-municipality'),
-                onPressed: () => context.go('/auth/municipio?next=home'),
-                icon: const Icon(Icons.location_city_outlined),
-                label: const Text('Cambiar municipio de alertas'),
-              ),
-            ),
-          ],
         ],
       ),
     );

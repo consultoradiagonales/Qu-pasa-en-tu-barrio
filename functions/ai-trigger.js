@@ -1,21 +1,22 @@
 'use strict';
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 const { GoogleAuth } = require('google-auth-library');
 const { generate, reserve, photoPath } = require('./report-ai');
+const { shouldInterpret } = require('./ai-trigger-policy');
 const PROJECT = 'project-5fc9024a-e961-42b7-9ee';
 const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
 
-exports.interpretCitizenReport = onDocumentCreated({
+exports.interpretCitizenReport = onDocumentWritten({
   document: 'reports/{reportId}', region: 'southamerica-east1',
   serviceAccount: `condi-ai@${PROJECT}.iam.gserviceaccount.com`,
-  memory: '512MiB', timeoutSeconds: 90, maxInstances: 2, concurrency: 4, retry: true,
+  memory: '512MiB', timeoutSeconds: 90, maxInstances: 2, concurrency: 4,
 }, async event => {
-  const report = event.data?.data();
+  const before = event.data?.before?.exists ? event.data.before.data() : null;
+  const report = event.data?.after?.exists ? event.data.after.data() : null;
   const id = event.params.reportId;
-  if (!report || report.aiRequested !== true || report.aiConsentVersion !== 1 || report.hidden === true ||
-      typeof report.userId !== 'string' || !report.userId || !Array.isArray(report.photosReport)) return;
+  if (!shouldInterpret(before, report)) return;
   const db = getFirestore();
   const insight = db.collection('reportInsights').doc(id);
   if (!await reserve(db, id, report.userId)) return;

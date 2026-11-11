@@ -2,6 +2,7 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { isCentralAdmin, sameMunicipality } = require('./management-access');
 
 const REGION = 'southamerica-east1';
 const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator']);
@@ -76,7 +77,7 @@ function aggregateUsage(rows, { dayKeys, municipalityId = '', provinceId = '', l
   for (const row of rows || []) {
     const data = typeof row?.data === 'function' ? row.data() : row;
     if (!data || !daily.has(data.date)) continue;
-    if (municipalityId && data.municipalityId !== municipalityId) continue;
+    if (municipalityId && !sameMunicipality(data.municipalityId, municipalityId)) continue;
     if (provinceId && data.provinceId !== provinceId) continue;
     if (localityId && data.localityId !== localityId) continue;
 
@@ -211,9 +212,9 @@ async function getUsageSummaryHandler(request) {
   const requestedMunicipality = validScopeValue(data.municipalityId);
   const requestedProvince = validScopeValue(data.provinceId);
   const requestedLocality = validScopeValue(data.localityId);
-  const isAdmin = require('./management-access').isCentralAdmin(profile);
+  const isAdmin = isCentralAdmin(profile);
   const municipalityId = isAdmin ? requestedMunicipality : validScopeValue(profile.municipalityId);
-  if (!isAdmin && (!municipalityId || (requestedMunicipality && requestedMunicipality !== municipalityId) || requestedProvince)) {
+  if (!isAdmin && (!municipalityId || (requestedMunicipality && !sameMunicipality(requestedMunicipality, municipalityId)) || requestedProvince)) {
     throw new HttpsError('permission-denied', 'Sólo podés consultar el municipio asignado.');
   }
   const provinceId = isAdmin && !municipalityId ? requestedProvince : '';

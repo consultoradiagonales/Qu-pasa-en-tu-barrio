@@ -26,9 +26,16 @@ bool matchesReportSubmission(
   for (final field in fields) {
     if (stored[field] != proposed[field]) return false;
   }
+  if (!mapEquals(stored['location'] as Map?, proposed['location'] as Map?)) {
+    return false;
+  }
+  if (proposed['photoUploadStatus'] == 'pending') {
+    return stored['photoStoragePath'] == proposed['photoStoragePath'] &&
+        (stored['photoUploadStatus'] == 'pending' ||
+            stored['photoUploadStatus'] == 'ready');
+  }
   return listEquals(
-          stored['photosReport'] as List?, proposed['photosReport'] as List?) &&
-      mapEquals(stored['location'] as Map?, proposed['location'] as Map?);
+      stored['photosReport'] as List?, proposed['photosReport'] as List?);
 }
 
 /// Diez posiciones protegidas por reglas: cada una se puede reutilizar

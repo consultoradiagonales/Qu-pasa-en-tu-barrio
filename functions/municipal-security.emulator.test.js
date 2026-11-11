@@ -27,13 +27,15 @@ function encode(value) {
 }
 
 async function writeAs(actor, path, values, serverTime = false) {
+  const serverTimeFields = serverTime === true ? ['createdAt'] :
+    Array.isArray(serverTime) ? serverTime : [];
   const response = await fetch(`${base}:commit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${actors[actor].idToken}` },
     body: JSON.stringify({ writes: [{
       update: { name: `${base.split('/v1/')[1]}/${path}`, fields: Object.fromEntries(Object.entries(values).map(([k, v]) => [k, encode(v)])) },
       updateMask: { fieldPaths: Object.keys(values) },
-      ...(serverTime ? { updateTransforms: [{ fieldPath: 'createdAt', setToServerValue: 'REQUEST_TIME' }] } : {}),
+      ...(serverTimeFields.length ? { updateTransforms: serverTimeFields.map((fieldPath) => ({ fieldPath, setToServerValue: 'REQUEST_TIME' })) } : {}),
     }] }),
   });
   return { status: response.status, body: await response.json() };
@@ -55,6 +57,7 @@ test.before(async () => {
     ['coordinatorA', 'coordinator', 'a', false], ['coordinatorB', 'coordinator', 'b', false],
     ['disabled', 'citizen', 'a', true], ['admin', 'admin', 'b', false],
     ['schema', 'citizen', 'a', false], ['quota', 'citizen', 'a', false],
+    ['awayValidation', 'citizen', 'a', false],
     ['localAdminA', 'admin', 'a', false], ['localAdminB', 'admin', 'b', false],
     ['dashboardA', 'coordinator', 'analytics-a', false], ['dashboardB', 'admin', 'analytics-b', false],
   ]) {
@@ -66,6 +69,7 @@ test.before(async () => {
     await db.collection('users').doc(actors[name].localId).set({ role, municipalityId, disabled, ...(name==='admin'?{organizationId:'diagonales'}:{}) });
   }
   await db.doc('reports/case-a').set({ municipalityId: 'a', userId: actors.citizenA.localId, hidden: false, status: 'pending' });
+  await db.doc('reports/case-a-georef').set({ municipalityId: 'georef_a', userId: actors.citizenA.localId, hidden: false, status: 'pending', createdAt: new Date() });
   await db.doc('reports/private-a').set({ municipalityId: 'a', userId: actors.coordinatorA.localId, hidden: true, status: 'pending' });
   await db.doc('reports/case-b').set({ municipalityId:'b', userId:actors.citizenB.localId, hidden:false, status:'pending', flaggedCount:0 });
   await db.doc('reports/case-a/comments/existing').set(comment());
@@ -84,6 +88,21 @@ test('comentarios: acepta vecino del ámbito y rechaza otro municipio, padre aus
   for (const [actor, reportId] of [['citizenB', 'case-a'], ['citizenA', 'missing'], ['citizenA', 'private-a'], ['disabled', 'case-a']]) {
     assert.equal((await writeAs(actor, `reports/${reportId}/comments/denied-${actor}`, comment({ reportId, userId: actors[actor].localId }))).status, 403);
   }
+});
+
+test('municipio: el código histórico y su alias GeoRef comparten acceso y consulta', async () => {
+  assert.equal(await readAs('coordinatorA', 'reports/case-a-georef'), 200);
+  const structuredQuery = {
+    from: [{ collectionId: 'reports' }],
+    where: { fieldFilter: { field: { fieldPath: 'municipalityId' }, op: 'IN',
+      value: { arrayValue: { values: [{ stringValue: 'a' }, { stringValue: 'georef_a' }] } } } },
+  };
+  const response = await fetch(`${base}:runQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${actors.coordinatorA.idToken}` },
+    body: JSON.stringify({ structuredQuery }),
+  });
+  assert.equal(response.status, 200, await response.text());
 });
 
 test('comentarios: impide respuesta oficial falsa, texto excesivo y claves ajenas al esquema', async () => {
@@ -168,6 +187,7 @@ test('asignación: rechaza entrada inválida y conserva compatibilidad de client
 function submission(actor, overrides = {}) {
   return {
     userId: actors[actor].localId, municipalityId: 'a', municipalityName: 'Municipio de prueba',
+    homeMunicipalityId: 'a', reportedAwayFromHome: false,
     provinceId: null, province: null, departmentId: null, department: null, localityId: null, locality: null, settlementId: null, settlement: null,
     title: 'Luminaria apagada', description: 'No enciende', category: 'lighting',
     photosReport: ['https://example.test/synthetic-photo.jpg'], photosBefore: [], photosProgress: [], photosAfter: [],
@@ -182,6 +202,10 @@ function submission(actor, overrides = {}) {
 async function submitAs(actor, id, slot, overrides = {}, { includeQuota = true, resetSlots = false, clientTime = false, legacyClient = false } = {}) {
   const values = submission(actor, overrides);
   if (legacyClient) delete values.submissionProtocol;
+  if (legacyClient) {
+    delete values.homeMunicipalityId;
+    delete values.reportedAwayFromHome;
+  }
   if (clientTime) { values.createdAt = new Date('2020-01-01'); values.updatedAt = new Date('2020-01-01'); }
   const documentRoot = base.split('/v1/')[1];
   const writes = [{
@@ -211,6 +235,98 @@ test('alta: confirma reporte y cuota atómicos, con estado inicial y reloj del s
   assert.equal(report.status, 'pending');
   assert.equal(report.createdAt.toMillis(), quota.slots['0'].toMillis());
   assert.equal(quota.lastReportId, 'submission-valid');
+});
+
+test('alta ágil: el municipio recibe el reporte antes de que termine la foto', async () => {
+  const id = 'submission-fast-intake';
+  const storagePath = `reports/${id}/citizen/photo.jpg`;
+  const result = await submitAs('schema', id, '2', {
+    photosReport: [],
+    photoUploadStatus: 'pending',
+    photoStoragePath: storagePath,
+  });
+  assert.equal(result.status, 200, JSON.stringify(result.body));
+  const pending = (await db.doc(`reports/${id}`).get()).data();
+  assert.equal(pending.photoUploadStatus, 'pending');
+  assert.deepEqual(pending.photosReport, []);
+  assert.equal(await readAs('coordinatorA', `reports/${id}`), 200);
+
+  const url = 'https://firebasestorage.googleapis.com/v0/b/demo/o/photo.jpg';
+  const completed = await writeAs('schema', `reports/${id}`, {
+    photosReport: [url],
+    photoUploadStatus: 'ready',
+  }, ['photoUploadedAt', 'updatedAt']);
+  assert.equal(completed.status, 200, JSON.stringify(completed.body));
+  const ready = (await db.doc(`reports/${id}`).get()).data();
+  assert.equal(ready.photoUploadStatus, 'ready');
+  assert.deepEqual(ready.photosReport, [url]);
+  assert.ok(ready.photoUploadedAt);
+
+  assert.equal((await writeAs('schema', `reports/${id}`, {
+    photosReport: ['https://example.test/replaced.jpg'],
+  })).status, 403);
+});
+
+test('alta: permite reportar donde ocurrió sin cambiar el municipio habitual', async () => {
+  const result = await submitAs('schema', 'submission-away', '1', {
+    municipalityId: 'b',
+    municipalityName: 'Municipio visitado',
+    homeMunicipalityId: 'a',
+    reportedAwayFromHome: true,
+  });
+  assert.equal(result.status, 200, JSON.stringify(result.body));
+  const report = (await db.doc('reports/submission-away').get()).data();
+  assert.equal(report.municipalityId, 'b');
+  assert.equal(report.homeMunicipalityId, 'a');
+  assert.equal(report.reportedAwayFromHome, true);
+  assert.equal((await db.doc(`users/${actors.schema.localId}`).get()).data().municipalityId, 'a');
+  // El autor puede seguir su caso visitante, pero no adquiere acceso al resto
+  // de los casos del destino. Tampoco lo adquiere el personal de su origen.
+  assert.equal(await readAs('schema', 'reports/submission-away'), 200);
+  assert.equal(await readAs('schema', 'reports/case-b'), 403);
+  for (const actor of ['coordinatorA', 'localAdminA', 'citizenA']) {
+    assert.equal(await readAs(actor, 'reports/submission-away'), 403, actor);
+  }
+  for (const actor of ['coordinatorB', 'localAdminB', 'admin']) {
+    assert.equal(await readAs(actor, 'reports/submission-away'), 200, actor);
+  }
+  assert.equal((await writeAs('schema', 'reports/submission-away', { municipalityId: 'a' })).status, 403);
+  assert.equal((await writeAs('coordinatorA', 'reports/submission-away', { flaggedCount: 1 })).status, 403);
+});
+
+test('alta visitante: origen y excepción deben ser coherentes; GeoRef no requiere cambiar perfil ni adhesión', async () => {
+  const invalid = [
+    { municipalityId: 'b', homeMunicipalityId: 'b', reportedAwayFromHome: false },
+    { municipalityId: 'b', homeMunicipalityId: 'a', reportedAwayFromHome: false },
+    { municipalityId: 'a', homeMunicipalityId: 'a', reportedAwayFromHome: true },
+    { municipalityId: 'b', homeMunicipalityId: null, reportedAwayFromHome: true },
+    { municipalityId: 'b', homeMunicipalityId: 'a', reportedAwayFromHome: null },
+  ];
+  const quotaRef = db.doc(`reportSubmissionQuotas/${actors.awayValidation.localId}`);
+  for (const [index, overrides] of invalid.entries()) {
+    const id = `away-inconsistent-${index}`;
+    const result = await submitAs('awayValidation', id, '0', overrides);
+    assert.equal(result.status, 403, `${index}: ${JSON.stringify(result.body)}`);
+    assert.equal((await db.doc(`reports/${id}`).get()).exists, false);
+    assert.equal((await quotaRef.get()).exists, false);
+  }
+  // Confirma que los rechazos anteriores no se debían a una cuota consumida
+  // y conserva la selección nacional GeoRef, no sólo municipios adheridos.
+  const destination = 'georef_060441';
+  assert.equal((await db.doc(`municipalities/${destination}`).get()).exists, false);
+  const accepted = await submitAs('awayValidation', 'away-georef-destination', '0', {
+    municipalityId: destination,
+    municipalityName: 'La Plata',
+    provinceId: '06',
+    province: 'Buenos Aires',
+    homeMunicipalityId: 'a',
+    reportedAwayFromHome: true,
+  });
+  assert.equal(accepted.status, 200, JSON.stringify(accepted.body));
+  assert.equal((await quotaRef.get()).data().lastReportId, 'away-georef-destination');
+  assert.equal((await db.doc(`users/${actors.awayValidation.localId}`).get()).data().municipalityId, 'a');
+  assert.equal(await readAs('awayValidation', 'reports/away-georef-destination'), 200);
+  assert.equal(await readAs('localAdminA', 'reports/away-georef-destination'), 403);
 });
 
 test('alta: rechaza esquema inventado, metadatos operativos, campos excesivos y consentimiento inconsistente', async () => {

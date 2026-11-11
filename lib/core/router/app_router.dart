@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'navigation_policy.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -261,6 +262,7 @@ class _CitizenShell extends ConsumerStatefulWidget {
 
 class _CitizenShellState extends ConsumerState<_CitizenShell> {
   bool _consentChecked = false;
+  bool _handlingBack = false;
 
   @override
   void initState() {
@@ -278,41 +280,82 @@ class _CitizenShellState extends ConsumerState<_CitizenShell> {
     final index = _indexFromLocation(location);
     final municipalityId = ref.watch(currentUserMunicipalityProvider) ?? '';
 
-    return Scaffold(
-      body: widget.child,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          LocalAdsBanner(municipalityId: municipalityId),
-          NavigationBar(
-            selectedIndex: index,
-            onDestinationSelected: (i) => _navigate(context, i),
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'Inicio',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.list_alt_outlined),
-                selectedIcon: Icon(Icons.list_alt),
-                label: 'Mis reportes',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.notifications_outlined),
-                selectedIcon: Icon(Icons.notifications),
-                label: 'Alertas',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
-                label: 'Perfil',
-              ),
-            ],
+    return PopScope<Object?>(
+      // En móvil el retroceso primero vuelve a Inicio; desde Inicio pide
+      // confirmación antes de cerrar. En web se conserva el historial normal.
+      canPop: kIsWeb,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !kIsWeb) _handleSystemBack(location);
+      },
+      child: Scaffold(
+        body: widget.child,
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LocalAdsBanner(municipalityId: municipalityId),
+            NavigationBar(
+              selectedIndex: index,
+              onDestinationSelected: (i) => _navigate(context, i),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Inicio',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.list_alt_outlined),
+                  selectedIcon: Icon(Icons.list_alt),
+                  label: 'Mis reportes',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.notifications_outlined),
+                  selectedIcon: Icon(Icons.notifications),
+                  label: 'Alertas',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Perfil',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleSystemBack(String location) async {
+    if (location.startsWith('/profile/')) {
+      context.go('/profile');
+      return;
+    }
+    if (location != '/home') {
+      context.go('/home');
+      return;
+    }
+    if (_handlingBack) return;
+    _handlingBack = true;
+    final exit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Querés salir de ConDi?'),
+        content:
+            const Text('Podés volver a abrir la aplicación cuando quieras.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Seguir en la app'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Salir'),
           ),
         ],
       ),
     );
+    _handlingBack = false;
+    if (exit == true && mounted) await SystemNavigator.pop();
   }
 
   int _indexFromLocation(String location) {

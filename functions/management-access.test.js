@@ -8,7 +8,8 @@ test('un administrador municipal no adquiere alcance global por su rol',()=>{
   const profile={role:'admin',municipalityId:'060441'};
   assert.equal(isCentralAdmin(profile),false);
   assert.equal(canManageMunicipality(profile,'060441'),true);
-  for(const scope of ['060707','georef_060441','',null])assert.equal(canManageMunicipality(profile,scope),false);
+  assert.equal(canManageMunicipality(profile,'georef_060441'),true);
+  for(const scope of ['060707','georef_060707','',null])assert.equal(canManageMunicipality(profile,scope),false);
 });
 test('el acceso central requiere organización, rol y cuenta habilitada',()=>{
   const central={role:'admin',organizationId:'diagonales'};

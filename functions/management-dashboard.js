@@ -3,7 +3,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldPath, Timestamp } = require('firebase-admin/firestore');
 const { createHash, randomUUID } = require('node:crypto');
-const { isCentralAdmin, canManageMunicipality } = require('./management-access');
+const { isCentralAdmin, canManageMunicipality, municipalityAliases, sameMunicipality } = require('./management-access');
 
 const PAGE_SIZE = 500;
 const MAX_REPORTS = 50000;
@@ -74,7 +74,7 @@ function aggregateManagementReports(documents, now = new Date()) {
 
 async function loadManagementReports(db, municipalityId) {
   let source = db.collection('reports').where('hidden','==',false);
-  if (municipalityId) source = source.where('municipalityId','==',municipalityId);
+  if (municipalityId) source = source.where('municipalityId','in',municipalityAliases(municipalityId));
   source = source.orderBy(FieldPath.documentId()).select('municipalityId','municipalityName','provinceId','status','category','priority','assignedTeamId','createdAt','resolvedAt','workFinishedAt','hidden');
   const docs=[];
   let cursor;
@@ -101,11 +101,11 @@ async function getManagementDashboardHandler(request, deps = {}) {
   if(typeof provinceId!=='string' || (provinceId && !/^\d{2}$/.test(provinceId))) throw new HttpsError('invalid-argument','La provincia no es válida.');
   if(requested!==undefined && (typeof requested!=='string' || requested.length>128 || requested.includes('/'))) throw new HttpsError('invalid-argument','El ámbito no es válido.');
   if(requested && provinceId) throw new HttpsError('invalid-argument','Elegí un municipio o una provincia.');
-  if(!central && (provinceId || request.data?.scope==='all' || (requested && requested!==profile?.municipalityId))) throw new HttpsError('permission-denied','Sólo podés consultar tu municipio.');
+  if(!central && (provinceId || request.data?.scope==='all' || (requested && !sameMunicipality(requested,profile?.municipalityId)))) throw new HttpsError('permission-denied','Sólo podés consultar tu municipio.');
   const municipalityId=central ? requested || '' : profile?.municipalityId;
   if(!central && !canManageMunicipality(profile,municipalityId)) throw new HttpsError('permission-denied','No tenés permisos de gestión.');
   const now=deps.now || new Date();
-  const key=createHash('sha256').update(municipalityId || (provinceId ? `province:${provinceId}` : '__all__')).digest('hex');
+  const key=createHash('sha256').update(`aliases-v2:${municipalityId || (provinceId ? `province:${provinceId}` : '__all__')}`).digest('hex');
   const ref=db.collection('managementDashboardCache').doc(key);
   const lease=randomUUID();
   const reserved=await db.runTransaction(async tx=>{

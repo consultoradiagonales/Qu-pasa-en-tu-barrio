@@ -1,5 +1,7 @@
 import { isCentralAdmin } from './management-access.js';
-import { findMunicipalityIdentity } from './municipality-branding.js';
+import { matchesReportStatus, reportStatusLabel } from './report-status.js';
+import { formatReceiptLatency, reportReceiptLatency } from './report-realtime.js';
+import { findMunicipalityIdentity, municipalityAliases, sameMunicipality } from './municipality-branding.js';
 import { ARGWX_DASHBOARD, argwxIdFor, argwxPartidos, buildWeatherView, coverageFor, dashboardUrlFor, describe as describeWeather, levelInfo, loadArgwxBlindspots, loadArgwxData, partidoWindows } from './argwx-layer.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import {
@@ -161,6 +163,9 @@ const elements = {
   profilePopover: $('profile-popover'),
   signout: $('signout'),
   refreshData: $('refresh-data'),
+  incomingReports: $('incoming-reports'),
+  incomingReportCount: $('incoming-report-count'),
+  reportLiveStatus: $('report-live-status'),
   mobileMenu: $('mobile-menu'),
   navOpenCount: $('nav-open-count'),
   overviewHeading: $('overview-heading'),
@@ -338,11 +343,17 @@ const state = {
   priority: 'all',
   selectedReportId: null,
   unsubReports: null,
+  unsubIncomingReports: null,
   unsubTeams: null,
   unsubAds: null,
   unsubMunicipalities: null,
   unsubResidents: null,
   unsubWeatherAlerts: null,
+  incomingSeeded: false,
+  incomingKnownIds: new Set(),
+  incomingReports: [],
+  lastReportLatencyMs: null,
+  pendingOpenReportId: null,
   map: null,
   mapLayer: null,
   mapHasFitted: false,
@@ -389,6 +400,8 @@ const state = {
   reportCursor: null,
   reportHasMore: false,
   reportLoadingMore: false,
+  reportInitialLoading: false,
+  reportLoadGeneration: 0,
   reportExtraPages: [],
 };
 
@@ -607,9 +620,9 @@ function provinceIdentity(id, name) {
 function matchesScope(report, scope = scopeParts()) {
   if (scope.type === 'all') return true;
   const territory = territoryFor(report);
-  if (scope.type === 'municipality') return territory.municipalityId === scope.municipalityId;
+  if (scope.type === 'municipality') return sameMunicipality(territory.municipalityId, scope.municipalityId);
   if (scope.type === 'province') return territory.provinceId === scope.provinceId;
-  if (scope.type === 'locality') return territory.municipalityId === scope.municipalityId && territory.localityId === scope.localityId;
+  if (scope.type === 'locality') return sameMunicipality(territory.municipalityId, scope.municipalityId) && territory.localityId === scope.localityId;
   return true;
 }
 function geographicReports() { return state.reports.filter((report) => matchesScope(report)); }
@@ -690,11 +703,15 @@ async function resolveProfile(user) {
 }
 
 function cleanUpSubscriptions() {
-  [state.unsubReports, state.unsubTeams, state.unsubAds, state.unsubMunicipalities,
+  state.reportLoadGeneration++;
+  state.reportLoadingMore = false;
+  state.reportInitialLoading = false;
+  [state.unsubReports, state.unsubIncomingReports, state.unsubTeams, state.unsubAds, state.unsubMunicipalities,
     state.unsubResidents, state.unsubWeatherAlerts, state.unsubZones].forEach((unsubscribe) => {
     if (typeof unsubscribe === 'function') unsubscribe();
   });
   state.unsubReports = null;
+  state.unsubIncomingReports = null;
   state.unsubTeams = null;
   state.unsubAds = null;
   state.unsubMunicipalities = null;
@@ -926,7 +943,7 @@ function renderMunicipalityPicker() {
 }
 
 function subscribeMunicipalities() {
-  const source = isCentralAdmin(state.profile) ? collection(db, 'municipalities') : query(collection(db, 'municipalities'), where(documentId(), '==', state.profile.municipalityId));
+  const source = isCentralAdmin(state.profile) ? collection(db, 'municipalities') : query(collection(db, 'municipalities'), where(documentId(), 'in', municipalityAliases(state.profile.municipalityId)));
   state.unsubMunicipalities = onSnapshot(source, (snapshot) => {
     state.municipalities = snapshot.docs.map((item) => {
       const data = item.data();
@@ -957,18 +974,93 @@ function subscribeMunicipalities() {
 
 function reportsQuery() {
   const constraints = [where('hidden', '==', false)];
-  if (!isCentralAdmin(state.profile)) constraints.push(where('municipalityId', '==', state.profile?.municipalityId || ''));
+  if (!isCentralAdmin(state.profile)) constraints.push(where('municipalityId', 'in', municipalityAliases(state.profile?.municipalityId)));
   else {
     const scope=scopeParts();
-    if(['municipality','locality'].includes(scope.type)) constraints.push(where('municipalityId','==',scope.municipalityId));
+    if(['municipality','locality'].includes(scope.type)) constraints.push(where('municipalityId','in',municipalityAliases(scope.municipalityId)));
   }
   constraints.push(orderBy('createdAt', 'desc'), limit(200));
   return query(collection(db, 'reports'), ...constraints);
 }
 
+function incomingReportsQuery() {
+  const constraints = [where('hidden', '==', false)];
+  if (!isCentralAdmin(state.profile)) {
+    constraints.push(where('municipalityId', 'in', municipalityAliases(state.profile?.municipalityId)));
+  }
+  constraints.push(orderBy('createdAt', 'desc'), limit(25));
+  return query(collection(db, 'reports'), ...constraints);
+}
+
+function renderIncomingReports() {
+  const count = state.incomingReports.length;
+  elements.incomingReports.hidden = count === 0;
+  elements.incomingReportCount.textContent = String(count);
+  elements.incomingReports.lastChild.textContent = count === 1 ? ' nuevo' : ' nuevos';
+  const detail = state.lastReportLatencyMs == null
+    ? ' EN VIVO'
+    : ` EN VIVO · último ingreso en ${formatReceiptLatency(state.lastReportLatencyMs)}`;
+  elements.reportLiveStatus.replaceChildren(element('i'), document.createTextNode(detail));
+}
+
+function subscribeIncomingReports() {
+  if (state.unsubIncomingReports) state.unsubIncomingReports();
+  state.incomingSeeded = false;
+  state.incomingKnownIds = new Set();
+  state.unsubIncomingReports = onSnapshot(incomingReportsQuery(), (snapshot) => {
+    const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    if (!state.incomingSeeded) {
+      state.incomingKnownIds = new Set(rows.map((item) => item.id));
+      state.incomingSeeded = true;
+      renderIncomingReports();
+      return;
+    }
+    const additions = snapshot.docChanges()
+      .filter((change) => change.type === 'added' && !state.incomingKnownIds.has(change.doc.id))
+      .map((change) => ({ id: change.doc.id, ...change.doc.data() }));
+    rows.forEach((item) => state.incomingKnownIds.add(item.id));
+    if (!additions.length) return;
+    const receivedAt = Date.now();
+    additions.forEach((report) => {
+      const createdAtMs = dateFrom(report.createdAt)?.getTime();
+      report.receiptLatencyMs = reportReceiptLatency(createdAtMs, receivedAt);
+      state.lastReportLatencyMs = report.receiptLatencyMs;
+      state.incomingReports = [report, ...state.incomingReports.filter((item) => item.id !== report.id)].slice(0, 10);
+    });
+    renderIncomingReports();
+    const newest = additions[0];
+    toast(`Nuevo reporte recibido en ${safeText(newest.municipalityName, newest.municipalityId)} · ${formatReceiptLatency(newest.receiptLatencyMs)}.`, 'success');
+  }, () => {
+    elements.reportLiveStatus.replaceChildren(element('i'), document.createTextNode(' RECONECTANDO'));
+  });
+}
+
+function openIncomingReport() {
+  const report = state.incomingReports.shift();
+  if (!report) return;
+  renderIncomingReports();
+  state.pendingOpenReportId = report.id;
+  const alreadyInScope = matchesScope(report);
+  if (isCentralAdmin(state.profile) && !alreadyInScope) {
+    state.scope = 'all';
+    renderMunicipalityPicker();
+    showView('reports');
+    subscribeOperationalData();
+    return;
+  }
+  showView('reports');
+  const available = state.reports.some((item) => item.id === report.id);
+  if (available) {
+    state.pendingOpenReportId = null;
+    openReport(report.id);
+  } else {
+    subscribeOperationalData();
+  }
+}
+
 function teamsQuery() {
   if (isCentralAdmin(state.profile)) return query(collection(db, 'teams'));
-  return query(collection(db, 'teams'), where('municipalityId', '==', state.profile?.municipalityId || ''), where('active', '==', true));
+  return query(collection(db, 'teams'), where('municipalityId', 'in', municipalityAliases(state.profile?.municipalityId)), where('active', '==', true));
 }
 
 function subscribeAds() {
@@ -1772,8 +1864,14 @@ function subscribeOperationalData() {
   state.reportCursor=null;
   state.reportExtraPages=[];
   state.reportHasMore=false;
+  state.reportLoadingMore=false;
+  state.reportInitialLoading=true;
+  state.reports=[];
+  const generation = ++state.reportLoadGeneration;
 
   state.unsubReports = onSnapshot(reportsQuery(), (snapshot) => {
+    if (generation !== state.reportLoadGeneration) return;
+    state.reportInitialLoading=false;
     const firstPage=snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
     const freshIds=new Set(firstPage.map(item=>item.id));
     state.reports=[...firstPage,...state.reportExtraPages.filter(item=>!freshIds.has(item.id))];
@@ -1784,7 +1882,15 @@ function subscribeOperationalData() {
     renderMunicipalityPicker();
     renderAll();
     if (state.selectedReportId) renderDrawer();
+    if (state.pendingOpenReportId && state.reports.some((item) => item.id === state.pendingOpenReportId)) {
+      const reportId = state.pendingOpenReportId;
+      state.pendingOpenReportId = null;
+      openReport(reportId);
+    }
+    fillReportPage();
   }, (error) => {
+    if (generation !== state.reportLoadGeneration) return;
+    state.reportInitialLoading=false;
     state.reports = [];
     renderAll();
     toast(`No se pudieron leer los reportes: ${firebaseErrorMessage(error)}`, 'error');
@@ -1801,31 +1907,76 @@ function subscribeOperationalData() {
   });
 }
 
-async function loadMoreReports() {
-  if(!state.reportCursor || !state.reportHasMore || state.reportLoadingMore) return;
+function reportFilterKey() {
+  return JSON.stringify([state.status, state.priority, state.search, state.scope]);
+}
+
+function fillReportPage() {
+  if (state.currentView !== 'reports' || state.reportInitialLoading || filteredReports().length >= 200) return;
+  return loadMoreReports({ fill: true });
+}
+
+async function loadMoreReports({ fill = false } = {}) {
+  if(!state.reportCursor || !state.reportHasMore || state.reportLoadingMore || state.reportInitialLoading) return;
   state.reportLoadingMore=true;
   renderReports();
   const authVersion=state.authVersion;
   const scopeKey=state.scope;
+  const generation=state.reportLoadGeneration;
+  const filterKey=reportFilterKey();
+  const target=fill ? 200 : filteredReports().length + 200;
+  const current=()=>authVersion===state.authVersion && scopeKey===state.scope && generation===state.reportLoadGeneration;
   try {
-    const snapshot=await getDocs(query(reportsQuery(),startAfter(state.reportCursor)));
-    if(authVersion!==state.authVersion || scopeKey!==state.scope) return;
-    const additions=snapshot.docs.map(item=>({id:item.id,...item.data()}));
-    state.reportExtraPages.push(...additions);
-    state.reports=[...new Map([...state.reports,...additions].map(item=>[item.id,item])).values()];
-    state.reportCursor=snapshot.docs.at(-1) || state.reportCursor;
-    state.reportHasMore=snapshot.size===200;
-    renderAll();
-  } catch(error) { toast(firebaseErrorMessage(error),'error'); }
-  finally { state.reportLoadingMore=false; renderReports(); }
+    // La consulta conserva todos los estados. Se recorren páginas hasta hallar
+    // un bloque de coincidencias, también cuando están detrás de las primeras 200.
+    while (current() && filterKey===reportFilterKey() && state.currentView==='reports' &&
+      state.reportHasMore && state.reportCursor && filteredReports().length < target) {
+      const snapshot=await getDocs(query(reportsQuery(),startAfter(state.reportCursor)));
+      if (!current() || filterKey!==reportFilterKey()) return;
+      const additions=snapshot.docs.map(item=>({id:item.id,...item.data()}));
+      state.reportExtraPages.push(...additions);
+      state.reports=[...new Map([...state.reports,...additions].map(item=>[item.id,item])).values()];
+      state.reportCursor=snapshot.docs.at(-1) || state.reportCursor;
+      state.reportHasMore=snapshot.size===200;
+      renderAll();
+    }
+  } catch(error) { if (current()) toast(firebaseErrorMessage(error),'error'); }
+  finally {
+    if (current()) {
+      state.reportLoadingMore=false;
+      renderReports();
+      if (filterKey!==reportFilterKey()) fillReportPage();
+    }
+  }
+}
+
+function applyReportFilters() {
+  renderReports();
+  if (state.currentView === 'map') renderMap();
+  fillReportPage();
+}
+
+function openReportStatus(status = 'all') {
+  state.status=status;
+  state.search='';
+  state.priority='all';
+  elements.statusFilter.value=status;
+  elements.reportSearch.value='';
+  elements.priorityFilter.value='all';
+  closeDrawer();
+  renderReports();
+  showView('reports');
+  elements.statusFilter.focus({ preventScroll: true });
+  window.scrollTo({ top: 0 });
 }
 
 function filteredReports() {
   const needle = state.search.trim().toLocaleLowerCase('es');
+  const now = Date.now();
   return geographicReports().filter((report) => {
-    if (state.status !== 'all' && report.status !== state.status) return false;
+    if (!matchesReportStatus(report, state.status, now)) return false;
     if (state.priority === 'high' && !isHigh(report)) return false;
-    if (state.priority === 'unassigned' && safeText(report.assignedTeamId)) return false;
+    if (state.priority === 'unassigned' && !matchesReportStatus(report, 'unassigned', now)) return false;
     if (!needle) return true;
     const haystack = [reportName(report), categoryLabel(report.category), reportLocation(report), report.description]
       .filter(Boolean).join(' ').toLocaleLowerCase('es');
@@ -1996,23 +2147,35 @@ function hotspotNodesFor(groups, origin) {
 
 function renderReports() {
   const more=document.getElementById('load-more-reports');
-  more.hidden=!state.reportHasMore;
+  const loading=state.reportInitialLoading || state.reportLoadingMore;
+  more.hidden=!state.reportHasMore && !state.reportLoadingMore;
   more.disabled=state.reportLoadingMore;
-  more.textContent=state.reportLoadingMore?'Cargando…':'Cargar 200 reportes más';
+  more.textContent=state.reportLoadingMore?'Buscando reportes…':'Cargar más reportes';
   const reports = filteredReports();
-  elements.reportCount.textContent = `${reports.length} de ${geographicReports().length} reportes en este ámbito`;
+  const scopedCount=geographicReports().length;
+  elements.reportCount.textContent = state.reportInitialLoading ? 'Cargando reportes…' :
+    `${reports.length} reporte${reports.length===1?'':'s'} · ${scopedCount} revisados en este ámbito${loading?' · Buscando en páginas anteriores…':state.reportHasMore?' · Hay más reportes por revisar.':''}`;
+  const active=state.status!=='all' || state.priority!=='all' || Boolean(state.search.trim());
+  document.getElementById('report-filter-summary').hidden=!active;
+  document.getElementById('report-filter-label').textContent = [
+    reportStatusLabel(state.status),
+    state.priority==='high'?'Alta prioridad':state.priority==='unassigned'?'Sin cuadrilla':'',
+    state.search.trim()?`Búsqueda: ${state.search.trim()}`:'',
+  ].filter(Boolean).join(' · ');
+  document.getElementById('reports-body').setAttribute('aria-busy', String(loading));
   elements.reportsBody.replaceChildren();
   reports.forEach((report) => {
     const tr = element('tr');
     const name = element('div', { className: 'report-name' });
     name.append(element('b', { text: reportName(report) }), element('small', { text: `${categoryLabel(report.category)} · ${reportLocation(report)}` }));
+    if (report.photoUploadStatus === 'pending') name.append(element('small', { className: 'evidence-pending', text: 'Evidencia subiendo…' }));
     const team = state.teams.find((item) => item.id === report.assignedTeamId);
     const action = element('button', { className: 'row-action', type: 'button', text: 'Gestionar', onClick: () => openReport(report.id) });
     [name, statusPill(report.status), priorityPill(report), element('span', { text: team?.name || 'Sin asignar' }), element('span', { text: formatDate(report.createdAt) }), action]
       .forEach((content) => { const td = element('td'); td.append(content); tr.append(td); });
     elements.reportsBody.append(tr);
   });
-  elements.reportsEmpty.hidden = reports.length > 0;
+  elements.reportsEmpty.hidden = reports.length > 0 || loading || state.reportHasMore;
 }
 
 function ensureMap() {
@@ -2166,7 +2329,7 @@ function focusHotspot(group) {
 
 function teamMatchesScope(team, scope = scopeParts()) {
   if (scope.type === 'all') return true;
-  if (scope.type === 'municipality' || scope.type === 'locality') return team.municipalityId === scope.municipalityId;
+  if (scope.type === 'municipality' || scope.type === 'locality') return sameMunicipality(team.municipalityId, scope.municipalityId);
   if (scope.type === 'province') {
     return municipalityChoices().some((municipality) => municipality.id === team.municipalityId && municipality.provinceId === scope.provinceId);
   }
@@ -2302,7 +2465,7 @@ function renderTeams() {
 function adMatchesScope(ad, scope = scopeParts()) {
   if (scope.type === 'all') return true;
   if (scope.type === 'municipality' || scope.type === 'locality') {
-    return ad.municipalityId === scope.municipalityId;
+    return sameMunicipality(ad.municipalityId, scope.municipalityId);
   }
   if (scope.type === 'province') {
     return municipalityChoices().some((municipality) =>
@@ -2667,6 +2830,7 @@ function showView(view) {
   if (view === 'usage' && state.usageScopeKey !== usageScopeKey()) loadUsageSummary();
   if (view === 'release') loadAppRelease();
   if (view === 'weather') { renderWeatherAdmin(); renderWxaEngine(); }
+  if (view === 'reports') fillReportPage();
 }
 
 function selectedReport() { return state.reports.find((report) => report.id === state.selectedReportId) || null; }
@@ -2756,10 +2920,11 @@ function renderDrawer() {
   const evidence = element('section', { className: 'photo-section' });
   evidence.append(element('h3', { text: 'Evidencia fotográfica' }));
   evidence.append(photoGroup('Reporte del vecino', report.photosReport), photoGroup('Llegada de la cuadrilla', report.photosBefore), photoGroup('Avances de trabajo', report.photosProgress), photoGroup('Trabajo finalizado', report.photosAfter));
+  if (report.photoUploadStatus === 'pending') evidence.append(element('p', { className: 'status-note', text: 'El reporte ya fue recibido. La foto continúa subiendo desde el dispositivo del vecino.' }));
   content.push(evidence);
 
   if (['pending', 'assigned'].includes(report.status)) {
-    const availableTeams = state.teams.filter((team) => team.municipalityId === report.municipalityId && team.active !== false);
+    const availableTeams = state.teams.filter((team) => sameMunicipality(team.municipalityId, report.municipalityId) && team.active !== false);
     const select = element('select', { ariaLabel: 'Asignar cuadrilla' });
     select.append(element('option', { value: '', text: 'Seleccionar cuadrilla' }));
     availableTeams.forEach((team) => select.append(element('option', { value: team.id, text: safeText(team.name, team.id) })));
@@ -2939,6 +3104,7 @@ function bindEvents() {
   });
   elements.releaseForm.addEventListener('submit', submitAppRelease);
   elements.refreshData.addEventListener('click', () => { subscribeOperationalData(); subscribeAds(); subscribeResidents(); subscribeWeatherAlerts(); loadUsageSummary(); loadManagementDashboard(); toast('Actualizando datos. Los indicadores declaran su fecha de corte.'); });
+  elements.incomingReports.addEventListener('click', openIncomingReport);
   document.getElementById('load-more-reports').addEventListener('click',loadMoreReports);
   elements.messageAudience.addEventListener('change', () => {
     state.messageAudience = elements.messageAudience.value;
@@ -2955,9 +3121,11 @@ function bindEvents() {
   elements.messageForm.addEventListener('submit', submitCustomMessage);
   elements.messageResidentSearch.addEventListener('input', () => { state.residentSearch = elements.messageResidentSearch.value; renderMessages(); });
   elements.messageResidentClear.addEventListener('click', () => { state.selectedResidentIds = new Set(); renderMessages(); });
-  elements.reportSearch.addEventListener('input', () => { state.search = elements.reportSearch.value; renderReports(); if (state.currentView === 'map') renderMap(); });
-  elements.statusFilter.addEventListener('change', () => { state.status = elements.statusFilter.value; renderReports(); if (state.currentView === 'map') renderMap(); });
-  elements.priorityFilter.addEventListener('change', () => { state.priority = elements.priorityFilter.value; renderReports(); if (state.currentView === 'map') renderMap(); });
+  elements.reportSearch.addEventListener('input', () => { state.search = elements.reportSearch.value; applyReportFilters(); });
+  elements.statusFilter.addEventListener('change', () => { state.status = elements.statusFilter.value; applyReportFilters(); });
+  elements.priorityFilter.addEventListener('change', () => { state.priority = elements.priorityFilter.value; applyReportFilters(); });
+  document.querySelectorAll('[data-report-status]').forEach((button) => button.addEventListener('click', () => openReportStatus(button.dataset.reportStatus)));
+  document.getElementById('clear-report-filters').addEventListener('click', () => openReportStatus('all'));
   elements.newTeam.addEventListener('click', () => openTeamEditor());
   elements.teamForm.addEventListener('submit', submitTeamForm);
   elements.cancelTeam.addEventListener('click', closeTeamEditor);
@@ -3006,6 +3174,12 @@ onAuthStateChanged(auth, async (user) => {
   state.selectedResidentIds = new Set();
   state.messageResult = null;
   state.selectedReportId = null;
+  state.incomingSeeded = false;
+  state.incomingKnownIds = new Set();
+  state.incomingReports = [];
+  state.lastReportLatencyMs = null;
+  state.pendingOpenReportId = null;
+  renderIncomingReports();
   closeDrawer();
   closeTeamEditor();
   closeAdEditor();
@@ -3033,6 +3207,7 @@ onAuthStateChanged(auth, async (user) => {
     subscribeMunicipalities();
     renderMunicipalityPicker();
     subscribeOperationalData();
+    subscribeIncomingReports();
     subscribeAds();
     subscribeResidents();
     subscribeWeatherAlerts();

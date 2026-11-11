@@ -31,6 +31,33 @@ void main() {
     expect(data['location']['isManualAddress'], true);
     expect(data['photosReport'], hasLength(1));
     expect(data['createdAt'], isA<Timestamp>());
+    expect(data['homeMunicipalityId'], 'la-plata');
+    expect(data['reportedAwayFromHome'], false);
+  });
+
+  test('distingue municipio habitual y municipio del reporte', () {
+    final report = ReportModel(
+      id: 'qa-away',
+      userId: 'citizen-1',
+      municipalityId: 'georef_060707',
+      municipalityName: 'Saladillo',
+      homeMunicipalityId: 'georef_06441',
+      reportedAwayFromHome: true,
+      title: 'Luminaria apagada',
+      description: '',
+      category: ReportCategory.lighting,
+      location: const ReportLocation(
+        lat: -35.64,
+        lng: -59.78,
+        geohash: '69u',
+      ),
+      createdAt: instant,
+      updatedAt: instant,
+    );
+    final data = report.toFirestore();
+    expect(data['municipalityId'], 'georef_060707');
+    expect(data['homeMunicipalityId'], 'georef_06441');
+    expect(data['reportedAwayFromHome'], true);
   });
 
   test('interpreta estados y fechas de Firestore', () {

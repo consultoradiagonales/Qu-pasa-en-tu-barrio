@@ -61,6 +61,12 @@ class ReportsRepository {
     return ReportModel.fromFirestore(doc);
   }
 
+  /// El detalle permanece sincronizado con cambios del municipio mientras
+  /// la pantalla está abierta.
+  Stream<ReportModel?> watchReport(String id) => _col.doc(id).snapshots().map(
+        (doc) => doc.exists ? ReportModel.fromFirestore(doc) : null,
+      );
+
   Future<int> countUserReportsToday(String userId) async {
     final since = DateTime.now().subtract(const Duration(hours: 24));
     final snap = await _col
@@ -74,11 +80,20 @@ class ReportsRepository {
 
   // ─── Escritura ────────────────────────────────────────────────────────────
 
-  Future<String> createReport(ReportModel report) async {
+  Future<String> createReport(
+    ReportModel report, {
+    String? pendingPhotoPath,
+  }) async {
     final reportRef = _col.doc(report.id);
     final quotaRef =
         _db.collection('reportSubmissionQuotas').doc(report.userId);
     final proposed = report.toFirestore();
+    if (pendingPhotoPath != null) {
+      proposed
+        ..['photosReport'] = <String>[]
+        ..['photoUploadStatus'] = 'pending'
+        ..['photoStoragePath'] = pendingPhotoPath;
+    }
     var quotaWasFull = false;
     final bool created;
     try {
@@ -138,6 +153,36 @@ class ReportsRepository {
       });
     } catch (_) {}
     return report.id;
+  }
+
+  /// Completa la evidencia después de que el alta operativa ya llegó al
+  /// municipio. Esto evita que una conexión móvil lenta demore el aviso.
+  Future<void> completeReportPhoto({
+    required String reportId,
+    required String storagePath,
+    required String downloadUrl,
+  }) async {
+    final ref = _col.doc(reportId);
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      if (!snapshot.exists) {
+        throw StateError('El reporte todavía no está disponible.');
+      }
+      final data = snapshot.data()!;
+      final status = data['photoUploadStatus'];
+      final photos =
+          List<String>.from(data['photosReport'] as List? ?? const []);
+      if (status == 'ready' && photos.contains(downloadUrl)) return;
+      if (status != 'pending' || data['photoStoragePath'] != storagePath) {
+        throw StateError('La evidencia no corresponde a este reporte.');
+      }
+      transaction.update(ref, {
+        'photosReport': [downloadUrl],
+        'photoUploadStatus': 'ready',
+        'photoUploadedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   Future<void> updateReport(String id, Map<String, dynamic> fields) async {

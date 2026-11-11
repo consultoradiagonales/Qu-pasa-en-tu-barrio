@@ -3,6 +3,19 @@ export function identityKey(value) {
     .replace(/^georef[_-]/,'').replace(/^municipalidad de /,'').replace(/[^a-z0-9]/g,'');
 }
 
+export function municipalityAliases(value) {
+  const id = String(value || '').trim();
+  if (!id) return [];
+  if (/^georef_\d+$/.test(id)) return [id, id.slice(7)];
+  if (/^\d+$/.test(id)) return [id, `georef_${id}`];
+  return [id];
+}
+
+export function sameMunicipality(left, right) {
+  const leftKey = identityKey(left);
+  return Boolean(leftKey && leftKey === identityKey(right));
+}
+
 export function findMunicipalityIdentity(catalog, id, name) {
   const candidates = catalog?.municipalities || [];
   const idKey = identityKey(id);

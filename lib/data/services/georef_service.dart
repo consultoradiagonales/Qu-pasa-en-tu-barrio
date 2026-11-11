@@ -219,6 +219,28 @@ class GeoRefService {
     return rankMunicipalitySuggestions(text, found).take(12).toList();
   }
 
+  /// Devuelve la identidad completa de un municipio por su código oficial.
+  /// Se usa para dirigir un reporte al lugar donde ocurrió sin modificar el
+  /// municipio habitual guardado en el perfil de la persona.
+  Future<MunicipalitySuggestion?> municipalityById(String municipalityId) async {
+    final id = municipalityId.replaceFirst('georef_', '').trim();
+    if (id.isEmpty || !RegExp(r'^\d+$').hasMatch(id)) return null;
+    try {
+      final item = await _firstOf(
+        'municipios?id=${Uri.encodeQueryComponent(id)}'
+        '&campos=id,nombre,provincia.id,provincia.nombre&max=1',
+        'municipios',
+      );
+      if (item == null) return null;
+      final municipality = MunicipalitySuggestion.fromJson(item);
+      return municipality.id.isEmpty || municipality.name.isEmpty
+          ? null
+          : municipality;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Busca ciudades/localidades en todo el país. Incluye el centroide solo
   /// para abrir el reporte en la ciudad elegida cuando no hay GPS; nunca
   /// pretende geocodificar una calle a partir de esos datos.

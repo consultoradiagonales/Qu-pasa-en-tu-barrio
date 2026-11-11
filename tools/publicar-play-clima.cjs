@@ -8,7 +8,7 @@ const req = createRequire(path.join(root, 'functions/package.json'));
 const {GoogleAuth} = req('google-auth-library');
 process.env.GOOGLE_APPLICATION_CREDENTIALS = path.join(root, 'tools/private/google-auth/application_default_credentials.json');
 const base = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/ar.com.consultoradiagonales.condi';
-const out = path.join(root, 'output/clima-2026-11-06');
+const out = path.join(root, 'output/comunicacion-2026-11-10');
 
 async function main() {
   fs.mkdirSync(out, {recursive:true});
@@ -32,18 +32,18 @@ async function main() {
       console.log(JSON.stringify(summary));
       return;
     }
-    const expected = 26;
-    const bytes = fs.readFileSync(path.join(root,'dist/ConDi-1.0.25+26-clima.aab'));
+    const expected = 28;
+    const bytes = fs.readFileSync(path.join(root,'dist/ConDi-1.0.27+28/ConDi-1.0.27+28.aab'));
     const hash = createHash('sha256').update(bytes).digest('hex');
     const existing = (bundles.bundles||[]).find(b=>b.versionCode===expected);
     const bundle = existing || await call(`https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/ar.com.consultoradiagonales.condi/edits/${edit.id}/bundles?uploadType=media`,'POST',bytes,true);
     if(bundle.versionCode!==expected || bundle.sha256!==hash) throw new Error('Versión o firma de contenido no coincide.');
-    const notes=[{language:'es-419',text:'Nueva sección Clima y prevención en Mi perfil: pronóstico de tu municipio para 24, 48 y 72 horas, alertas oficiales del SMN y avisos de ríos y arroyos.'}];
-    await call(`${base}/edits/${edit.id}/tracks/internal`,'PUT',{track:'internal',releases:[{name:'ConDi 1.0.25 — clima y prevención',versionCodes:['26'],status:'completed',releaseNotes:notes}]});
+    const notes=[{language:'es-419',text:'Los reportes llegan al municipio antes de terminar la carga de la foto. Corrige la vinculación entre municipios GeoRef y el panel de gestión.'}];
+    await call(`${base}/edits/${edit.id}/tracks/internal`,'PUT',{track:'internal',releases:[{name:'ConDi 1.0.27 — comunicación en tiempo real',versionCodes:['28'],status:'completed',releaseNotes:notes}]});
     await call(`${base}/edits/${edit.id}:validate`,'POST',{});
     await call(`${base}/edits/${edit.id}:commit`,'POST',{});
     committed=true;
-    const result={version:'1.0.25+26',bundle,track:'internal',status:'completed',internalLink:'https://play.google.com/apps/internaltest/4701647237677047143'};
+    const result={version:'1.0.27+28',bundle,track:'internal',status:'completed',internalLink:'https://play.google.com/apps/internaltest/4701647237677047143'};
     fs.writeFileSync(path.join(out,'publicacion-android.json'),JSON.stringify(result,null,2));
     console.log(JSON.stringify(result));
   } finally {
