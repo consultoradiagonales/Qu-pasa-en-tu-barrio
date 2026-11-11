@@ -230,3 +230,17 @@ visto,desde,hasta,fenomeno,nivel,titulo,provincias,partidos_pba
 2026-11-11T15:19:24Z,2026-11-11T15:39:51Z,2026-11-11T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes|Misiones,
 2026-11-11T15:19:24Z,2026-11-11T15:39:53Z,2026-11-11T23:59:59Z,viento,YELLOW,Viento,Tierra del Fuego,
 2026-11-11T15:19:24Z,2026-11-11T15:39:53Z,2026-11-11T23:59:59Z,viento,YELLOW,Viento,Santa Cruz,
+2026-11-11T22:06:58Z,2026-11-14T00:00:00Z,2026-11-14T11:59:59Z,tormenta,YELLOW,Tormentas,Córdoba|Santa Fe,
+2026-11-11T22:06:58Z,2026-11-14T00:00:00Z,2026-11-14T11:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires,25 de Mayo|9 de Julio|Alberti|Bragado|Chivilcoy|General Viamonte
+2026-11-11T22:06:58Z,2026-11-14T00:00:00Z,2026-11-14T11:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires|Córdoba|Santa Fe,
+2026-11-11T22:06:58Z,2026-11-14T00:00:00Z,2026-11-14T11:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires|Santa Fe,Arrecifes|Capitán Sarmiento|Carmen de Areco|Chacabuco|Colón|General Arenales|General Pinto|Junín|Leandro N. Alem|Lincoln|Pergamino|Rojas|Salto
+2026-11-11T22:06:58Z,2026-11-14T12:00:00Z,2026-11-14T17:59:59Z,tormenta,YELLOW,Tormentas,Catamarca|Córdoba,
+2026-11-11T22:06:58Z,2026-11-14T12:00:00Z,2026-11-14T17:59:59Z,tormenta,YELLOW,Tormentas,Córdoba|Santiago del Estero,
+2026-11-11T22:06:58Z,2026-11-12T18:00:00Z,2026-11-13T05:59:59Z,tormenta,YELLOW,Tormentas,Jujuy|Salta,
+2026-11-11T22:06:58Z,2026-11-12T18:00:00Z,2026-11-13T05:59:59Z,viento,YELLOW,Viento,La Pampa,
+2026-11-11T22:06:58Z,2026-11-12T18:00:00Z,2026-11-13T05:59:59Z,viento,YELLOW,Viento,Buenos Aires|Río Negro,
+2026-11-11T22:06:58Z,2026-11-12T18:00:00Z,2026-11-13T05:59:59Z,viento,YELLOW,Viento,Chubut|Río Negro,
+2026-11-11T22:06:58Z,2026-11-12T18:00:00Z,2026-11-13T05:59:59Z,viento,YELLOW,Viento,Río Negro,
+2026-11-11T22:06:58Z,2026-11-11T23:55:14Z,2026-11-11T23:59:59Z,viento,YELLOW,Viento,Tierra del Fuego,
+2026-11-11T22:06:58Z,2026-11-11T23:55:14Z,2026-11-11T23:59:59Z,viento,YELLOW,Viento,Santa Cruz,
+2026-11-11T22:06:58Z,2026-11-12T18:00:00Z,2026-11-12T23:59:59Z,viento,YELLOW,Viento,Buenos Aires,Lobería|Necochea|San Cayetano|Tres Arroyos
