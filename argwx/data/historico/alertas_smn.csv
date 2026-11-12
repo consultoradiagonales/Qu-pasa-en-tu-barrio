@@ -244,3 +244,6 @@ visto,desde,hasta,fenomeno,nivel,titulo,provincias,partidos_pba
 2026-11-11T22:06:58Z,2026-11-11T23:55:14Z,2026-11-11T23:59:59Z,viento,YELLOW,Viento,Tierra del Fuego,
 2026-11-11T22:06:58Z,2026-11-11T23:55:14Z,2026-11-11T23:59:59Z,viento,YELLOW,Viento,Santa Cruz,
 2026-11-11T22:06:58Z,2026-11-12T18:00:00Z,2026-11-12T23:59:59Z,viento,YELLOW,Viento,Buenos Aires,Lobería|Necochea|San Cayetano|Tres Arroyos
+2026-11-12T11:24:13Z,2026-11-14T12:00:00Z,2026-11-14T17:59:59Z,tormenta,YELLOW,Tormentas,Córdoba,
+2026-11-12T11:24:13Z,2026-11-14T12:00:00Z,2026-11-14T17:59:59Z,tormenta,YELLOW,Tormentas,Córdoba|San Luis,
+2026-11-12T11:24:13Z,2026-11-12T18:00:00Z,2026-11-12T23:59:59Z,viento,YELLOW,Viento,Chubut,
