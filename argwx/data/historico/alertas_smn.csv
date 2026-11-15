@@ -557,3 +557,6 @@ visto,desde,hasta,fenomeno,nivel,titulo,provincias,partidos_pba
 2026-11-14T22:30:58Z,2026-11-17T12:00:00Z,2026-11-17T17:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Corrientes|Santa Fe,
 2026-11-14T22:30:58Z,2026-11-17T12:00:00Z,2026-11-17T17:59:59Z,tormenta,YELLOW,Tormentas,Corrientes,
 2026-11-14T22:30:58Z,2026-11-17T12:00:00Z,2026-11-17T17:59:59Z,tormenta,YELLOW,Tormentas,Corrientes|Misiones,
+2026-11-15T11:02:54Z,2026-11-17T00:00:00Z,2026-11-17T05:59:59Z,tormenta,YELLOW,Tormentas,Santiago del Estero,
+2026-11-15T11:02:54Z,2026-11-17T00:00:00Z,2026-11-17T05:59:59Z,tormenta,YELLOW,Tormentas,Salta|Santiago del Estero|Tucumán,
+2026-11-15T11:02:54Z,2026-11-17T00:00:00Z,2026-11-17T05:59:59Z,tormenta,YELLOW,Tormentas,Santiago del Estero|Tucumán,
