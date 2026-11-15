@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-14T22:31:27Z",
+ "generated_at": "2026-11-15T02:46:33Z",
  "tablas": [
   {
    "tabla": "lluvia_era5_diaria.csv",
@@ -69,10 +69,10 @@
    ],
    "descripcion": "Alturas de los ríos observadas en escalas de la provincia, con los niveles oficiales de alerta y evacuación.",
    "fuente": "Prefectura Naval Argentina y Red Hidrológica Nacional, vía API pública del INA",
-   "registros": 4488,
+   "registros": 4534,
    "desde": "2026-10-05",
-   "hasta": "2026-11-14",
-   "bytes": 365081
+   "hasta": "2026-11-15",
+   "bytes": 368959
   },
   {
    "tabla": "climatologia_lluvia.json",
