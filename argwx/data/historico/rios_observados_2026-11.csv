@@ -4094,5 +4094,49 @@ fecha,estacion,rio,altura_m,alerta_m,evacuacion_m,red
 2026-11-15T20:45,INTA Delta,Paraná de las Palmas,1.74,,,red INA Delta y AMBA
 2026-11-15T20:45,Puerto Belgrano,,0.42,,,Mareógrafos SHN
 2026-11-15T20:45,San Fernando,LUJAN,0.97,3,3.5,escalas Prefectura Nacional
+2026-11-15T21:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.21,,,red INA Delta y AMBA
+2026-11-15T21:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.09,2,2.2,RHN - SAT
+2026-11-15T21:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
+2026-11-15T21:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
+2026-11-15T21:45,Arroyo Carapachay,Arroyo Carapachay,2.04,,,red INA Delta y AMBA
+2026-11-15T21:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
 2026-11-15T21:45,Buenos Aires,RIODELAPLATA,0.83,3.3,3.9,escalas Prefectura Nacional
+2026-11-15T21:45,Canal Seoane,Canal Seoane,2.23,,,red INA Delta y AMBA
+2026-11-15T21:45,INTA Delta,Paraná de las Palmas,1.67,,,red INA Delta y AMBA
+2026-11-15T21:45,Puerto Belgrano,,1.46,,,Mareógrafos SHN
 2026-11-15T21:45,San Fernando,LUJAN,0.82,3,3.5,escalas Prefectura Nacional
+2026-11-15T22:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
+2026-11-15T22:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.05,2,2.2,RHN - SAT
+2026-11-15T22:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
+2026-11-15T22:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
+2026-11-15T22:45,Arroyo Carapachay,Arroyo Carapachay,1.95,,,red INA Delta y AMBA
+2026-11-15T22:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
+2026-11-15T22:45,Buenos Aires,RIODELAPLATA,1.19,3.3,3.9,escalas Prefectura Nacional
+2026-11-15T22:45,Canal Seoane,Canal Seoane,2.18,,,red INA Delta y AMBA
+2026-11-15T22:45,INTA Delta,Paraná de las Palmas,1.61,,,red INA Delta y AMBA
+2026-11-15T22:45,Puerto Belgrano,,2.51,,,Mareógrafos SHN
+2026-11-15T22:45,San Fernando,LUJAN,0.89,3,3.5,escalas Prefectura Nacional
+2026-11-15T23:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
+2026-11-15T23:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,1.01,2,2.2,RHN - SAT
+2026-11-15T23:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
+2026-11-15T23:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-15T23:45,Arroyo Carapachay,Arroyo Carapachay,1.9,,,red INA Delta y AMBA
+2026-11-15T23:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-15T23:45,Buenos Aires,RIODELAPLATA,1.47,3.3,3.9,escalas Prefectura Nacional
+2026-11-15T23:45,Canal Seoane,Canal Seoane,2.15,,,red INA Delta y AMBA
+2026-11-15T23:45,INTA Delta,Paraná de las Palmas,1.58,,,red INA Delta y AMBA
+2026-11-15T23:45,Puerto Belgrano,,3.49,,,Mareógrafos SHN
+2026-11-15T23:45,San Fernando,LUJAN,1.37,3,3.5,escalas Prefectura Nacional
+2026-11-16T00:00,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.2,,,red INA Delta y AMBA
+2026-11-16T00:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.97,2,2.2,RHN - SAT
+2026-11-16T00:15,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-16T00:30,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-16T00:45,Arroyo Carapachay,Arroyo Carapachay,2.14,,,red INA Delta y AMBA
+2026-11-16T00:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.18,,,red INA Delta y AMBA
+2026-11-16T00:45,Buenos Aires,RIODELAPLATA,1.63,3.3,3.9,escalas Prefectura Nacional
+2026-11-16T00:45,Canal Seoane,Canal Seoane,2.18,,,red INA Delta y AMBA
+2026-11-16T00:45,INTA Delta,Paraná de las Palmas,1.66,,,red INA Delta y AMBA
+2026-11-16T00:45,Puerto Belgrano,,3.93,,,Mareógrafos SHN
+2026-11-16T00:45,San Fernando,LUJAN,1.64,3,3.5,escalas Prefectura Nacional
+2026-11-16T01:45,Buenos Aires,RIODELAPLATA,1.68,3.3,3.9,escalas Prefectura Nacional
+2026-11-16T01:45,San Fernando,LUJAN,1.73,3,3.5,escalas Prefectura Nacional
