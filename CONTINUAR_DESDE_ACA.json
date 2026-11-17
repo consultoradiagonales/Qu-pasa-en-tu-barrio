@@ -1,4 +1,10 @@
 {
+  "sin_ia_app_2026_11_17": {
+    "decision": "El titular no quiere IA en la app ciudadana (no aporta y por privacidad). Quiere IA en el panel de gestión (zonas calientes, análisis de reportes) y en el motor meteorológico ARGWX (ríos, arroyos, hidrografía, vientos, tormentas con las APIs gratuitas integradas).",
+    "hecho": "Commit ecd104b3 (push): sin interruptor de IA ni tarjetas de interpretación; aiRequested siempre false; interpretCitizenReport no se exporta. Hosting republicado y verificado sin el texto de IA. Android: entra en la próxima versión.",
+    "panel_existente": "generateMunicipalityReport (Gemini, cuenta condi-ai, solo admin/coordinador/moderador) y reportZones (capa Calor de reportes, cuadrícula de 500 m, sin IA).",
+    "aviso": "custom_update_2026_11_17 enviado solo a despuesnodiganque@gmail.com (push, verificado). yanisolanna@gmail.com no tiene cuenta en ConDi: no se le pudo avisar. Script tools/send-update-2026-11-17-validadores.cjs."
+  },
   "despliegue_2026_11_17": {
     "autor": "Claude Code, autorizado por el titular (\"commitea y desplega\")",
     "commit": "eaa7c784 en master (local, sin push)",
