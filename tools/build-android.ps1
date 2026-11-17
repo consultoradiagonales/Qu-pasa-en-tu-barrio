@@ -9,39 +9,46 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "environment.ps1")
 $PROJECT = $env:CONDI_PROJECT
 $FLUTTER = Join-Path $env:FLUTTER_ROOT "bin\flutter.bat"
-$buildDrive = @('Q:', 'R:', 'S:') |
+# Se monta el directorio padre, no el proyecto: Gradle necesita que éste tenga
+# padre y Java no soporta correctamente la ruta Unicode larga del workspace.
+$availableDrives = @('Q:', 'R:', 'S:') |
     Where-Object { -not (Test-Path -LiteralPath "$($_)\") } |
-    Select-Object -First 1
-if (-not $buildDrive) {
-    throw 'No hay una letra de unidad temporal disponible para compilar.'
+    Select-Object -First 2
+if ($availableDrives.Count -lt 2) {
+    throw 'No hay dos letras de unidad temporales disponibles para compilar.'
 }
-
+$buildDrive = $availableDrives[0]
+$sourceDrive = $availableDrives[1]
+$projectParent = Split-Path -Parent $PROJECT
+$projectShortName = (& cmd.exe /d /c 'for %I in ("%CONDI_PROJECT%") do @echo %~snxI').Trim()
 & "$env:SystemRoot\System32\subst.exe" $buildDrive $PROJECT
 if ($LASTEXITCODE -ne 0) {
     throw 'No se pudo crear la unidad temporal de compilación.'
 }
+& "$env:SystemRoot\System32\subst.exe" $sourceDrive $projectParent
+if ($LASTEXITCODE -ne 0) {
+    & "$env:SystemRoot\System32\subst.exe" $buildDrive /D | Out-Null
+    throw 'No se pudo crear la unidad temporal del proyecto.'
+}
+$buildRoot = "$sourceDrive\$projectShortName"
 $originalJdk = $env:JAVA_HOME
 $localPropertiesPath = Join-Path $PROJECT 'android\local.properties'
 $localPropertiesOriginal = [System.IO.File]::ReadAllText($localPropertiesPath)
 
 try {
-    $buildFlutter = "$buildDrive\dev\flutter\bin\flutter.bat"
-    $env:JAVA_HOME = "$buildDrive\dev\jdk17"
+    $buildFlutter = "$buildRoot\dev\flutter\bin\flutter.bat"
+    $env:JAVA_HOME = "$buildRoot\dev\jdk17"
     $env:GRADLE_USER_HOME = "$buildDrive\gradle"
     $env:PUB_CACHE = "$buildDrive\pub-cache"
     $env:ANDROID_USER_HOME = "$buildDrive\dev\android-user"
     $env:TEMP = "$buildDrive\dev\temp"
     $env:TMP = $env:TEMP
     $localPropertiesBuild = @(
-        "flutter.sdk=$($buildDrive.Replace(':', '\:'))\\dev\\flutter"
-        "sdk.dir=$($buildDrive.Replace(':', '\:'))\\dev\\android-sdk"
+        "flutter.sdk=$($buildRoot.Replace(':', '\:'))\\dev\\flutter"
+        "sdk.dir=$($buildRoot.Replace(':', '\:'))\\dev\\android-sdk"
     ) -join [Environment]::NewLine
     [System.IO.File]::WriteAllText($localPropertiesPath, $localPropertiesBuild, [System.Text.UTF8Encoding]::new($false))
-    & $buildFlutter config --jdk-dir "$buildDrive\dev\jdk17" | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        throw 'No se pudo preparar Java para la unidad temporal.'
-    }
-    Push-Location "$buildDrive\"
+    Push-Location $buildRoot
     try {
         if ($debug) {
             Write-Host "==> APK debug..." -ForegroundColor Cyan
@@ -68,7 +75,7 @@ try {
     }
 } finally {
     [System.IO.File]::WriteAllText($localPropertiesPath, $localPropertiesOriginal, [System.Text.UTF8Encoding]::new($false))
-    & $FLUTTER config --jdk-dir $originalJdk | Out-Null
+    & "$env:SystemRoot\System32\subst.exe" $sourceDrive /D | Out-Null
     & "$env:SystemRoot\System32\subst.exe" $buildDrive /D | Out-Null
     $env:JAVA_HOME = $originalJdk
     $env:GRADLE_USER_HOME = Join-Path $PROJECT 'gradle'

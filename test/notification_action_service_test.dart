@@ -4,6 +4,23 @@ import 'package:que_pasa_en_tu_barrio/core/services/notification_action_service.
 
 void main() {
   group('notification action', () {
+    test('alerta meteorológica abre su detalle y rechaza IDs inseguros',
+        () async {
+      expect(
+          trustedNotificationInternalRoute(
+              {'type': 'weather_alert', 'notificationId': 'weather_123_u1'}),
+          '/notifications?open=weather_123_u1');
+      expect(
+          trustedNotificationInternalRoute(
+              {'type': 'weather_alert', 'notificationId': '../bad'}),
+          isNull);
+      expect(
+          await resolveNotificationInternalRoute(
+            {'notificationId': 'weather_123_u1'},
+            lookupById: (_) async => {'type': 'weather_alert'},
+          ),
+          '/notifications?open=weather_123_u1');
+    });
     test('acepta únicamente las URLs oficiales de actualización', () {
       expect(
         trustedNotificationActionUri({'actionUrl': androidPlayStoreUrl}),
@@ -30,6 +47,38 @@ void main() {
           isNull,
         );
       }
+    });
+
+    test('acepta sólo rutas internas operativas seguras', () async {
+      expect(
+        trustedNotificationInternalRoute(
+          {'actionUrl': '/field/task/report_123'},
+        ),
+        '/field/task/report_123',
+      );
+      expect(
+        trustedNotificationInternalRoute(
+          {'actionUrl': '/field/task/report_123/work'},
+        ),
+        '/field/task/report_123/work',
+      );
+      expect(
+        trustedNotificationInternalRoute({'actionUrl': '/admin'}),
+        isNull,
+      );
+      expect(
+        trustedNotificationInternalRoute(
+          {'actionUrl': '/field/task/../../admin'},
+        ),
+        isNull,
+      );
+      expect(
+        await resolveNotificationInternalRoute(
+          {'notificationId': 'field_assignment_123_u1'},
+          lookupById: (_) async => {'actionUrl': '/field/task/report_123'},
+        ),
+        '/field/task/report_123',
+      );
     });
 
     test('abre la acción recibida al tocar el push desde background', () async {

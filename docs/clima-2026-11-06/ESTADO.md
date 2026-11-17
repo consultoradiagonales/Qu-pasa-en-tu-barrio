@@ -29,3 +29,10 @@ Nota de compilación: `E:\condi` ya no es un alias del proyecto. Usar `tools/bui
 - Commit 3a934e06 en master (no subido a GitHub).
 - No usar `tools/build-web.ps1`: borra todo gh-pages salvo maqueta/assets, incluido `argwx/`.
 - Recordatorio de actualización enviado el 6/11 (`recordatorio_v26_20261106`): 17 cuentas, 4 push, 13 bandeja. La app no registra la versión instalada por usuario, así que no se puede filtrar a quienes ya actualizaron.
+
+## Verificador agregado (15/11/2026)
+
+- Por pedido del usuario se agregó `elbiofabiansalguero@gmail.com` (el pedido venía sin ".com"; se asumió gmail.com) a las listas de Play Console **ConDi Alpha** (6 → 7) y **ConDi internos** (7 → 8). Las listas ya existentes no se modificaron.
+- La API de Play (`edits.testers`) sólo expone Google Groups, así que se hizo desde Play Console con la sesión del usuario en Chrome.
+- La lista "ConDi Alpha" es la de la prueba cerrada (cuenta para los 12 verificadores); "ConDi internos" da acceso al canal interno (versión 1.0.25).
+- No se envió invitación ni mensaje: la persona debe abrir el enlace con esa cuenta de Google.

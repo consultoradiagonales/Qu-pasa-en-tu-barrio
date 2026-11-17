@@ -84,18 +84,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isCitizenHome = target == '/home';
       // Photo capture is public. Authentication is requested only on send.
       if (!isLoggedIn && !isOnAuth && !isReport && !isCitizenHome) {
-        final next = isOnMunicipio ? 'report' : target;
+        final next = isOnMunicipio
+            ? 'report'
+            : target == '/notifications' ||
+                    target == '/field/notifications' ||
+                    target == '/clima'
+                ? state.uri.toString()
+                : target;
         return '/auth/login?next=${Uri.encodeComponent(next)}';
       }
+      final roleResolved = !ref.read(authStateProvider).isLoading &&
+          ref.read(userRoleResolvedProvider);
       if (isLoggedIn && isOnAuth) {
-        if (ref.read(currentUserRoleProvider) == null) return null;
+        if (!roleResolved) return null;
         return signedInDestination(state.uri.queryParameters['next']);
       }
+      final role = ref.read(currentUserRoleProvider);
+      if (isLoggedIn &&
+          target == citizenStartLocation &&
+          (role == 'field_worker' || role == 'field_manager')) {
+        return '/field';
+      }
       if (isOperationsPath(target)) {
-        if (!(kIsWeb || operationsBuild)) return citizenStartLocation;
-        if (ref.read(userRoleResolvedProvider) &&
-            !canOpenOperations(target, ref.read(currentUserRoleProvider),
-                enabled: true)) {
+        // Mantener el enlace de la asignación hasta resolver el perfil.
+        if (!roleResolved) return null;
+        final nativeFieldUser = target.startsWith('/field') &&
+            (role == 'field_worker' || role == 'field_manager');
+        if (!(kIsWeb || operationsBuild || nativeFieldUser)) {
+          return citizenStartLocation;
+        }
+        if (!canOpenOperations(target, role, enabled: true)) {
           return citizenStartLocation;
         }
       }
@@ -148,7 +166,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/notifications',
-            builder: (context, state) => const NotificationsScreen(),
+            builder: (context, state) => NotificationsScreen(
+              openNotificationId: state.uri.queryParameters['open'],
+            ),
+          ),
+          GoRoute(
+            path: '/clima',
+            builder: (context, state) => WeatherScreen(
+              openMap: state.uri.queryParameters['view'] == 'map',
+            ),
           ),
           GoRoute(
             path: '/profile',
@@ -201,8 +227,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/field/notifications',
-            builder: (context, state) =>
-                const NotificationsScreen(forFieldWorker: true),
+            builder: (context, state) => NotificationsScreen(
+              forFieldWorker: true,
+              openNotificationId: state.uri.queryParameters['open'],
+            ),
           ),
           GoRoute(
             path: '/field/task/:id',

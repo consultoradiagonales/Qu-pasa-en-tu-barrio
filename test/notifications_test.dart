@@ -6,9 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:que_pasa_en_tu_barrio/data/models/notification_model.dart';
 import 'package:que_pasa_en_tu_barrio/data/repositories/notifications_repository.dart';
 import 'package:que_pasa_en_tu_barrio/data/services/auth_service.dart';
+import 'package:que_pasa_en_tu_barrio/core/services/notification_action_service.dart';
 import 'package:que_pasa_en_tu_barrio/features/notifications/screens/notifications_screen.dart';
 import 'package:que_pasa_en_tu_barrio/features/notifications/screens/notification_message_detail_screen.dart';
 
+// Firebase sella la interfaz en producción; este doble se limita a pruebas.
+// ignore: subtype_of_sealed_class
 class _FakeDoc implements DocumentSnapshot {
   _FakeDoc(this.id, this._data);
   @override
@@ -28,8 +31,13 @@ class _FakeUser implements User {
 }
 
 class _FakeRepo implements NotificationsRepository {
+  NotificationModel? selected;
   final List<String> marked = [];
   final List<String> deleted = [];
+  @override
+  Future<NotificationModel?> getOwnedNotification(
+          String userId, String notificationId) async =>
+      selected?.id == notificationId ? selected : null;
   @override
   Future<void> markRead(String userId, String notifId) async =>
       marked.add(notifId);
@@ -138,6 +146,19 @@ void main() {
       expect(_n('c', NotificationType.reportResolved, reportId: 'r1').hasReport,
           isTrue);
     });
+
+    test('reconoce una asignación operativa de cuadrilla', () {
+      final notification = NotificationModel.fromFirestore(_FakeDoc('field', {
+        'userId': 'u1',
+        'type': 'field_assignment',
+        'reportId': 'r1',
+        'title': 'Nueva tarea',
+        'body': 'Trabajo asignado',
+        'actionUrl': '/field/task/r1',
+      }));
+      expect(notification.type, NotificationType.fieldAssignment);
+      expect(notification.actionUrl, '/field/task/r1');
+    });
   });
 
   group('NotificationsScreen', () {
@@ -145,8 +166,11 @@ void main() {
       WidgetTester tester, {
       List<NotificationModel>? notifications,
       Future<bool> Function(Uri uri)? actionLauncher,
+      String? openNotificationId,
+      NotificationModel? remoteNotification,
     }) async {
       final repo = _FakeRepo();
+      repo.selected = remoteNotification;
       final items = notifications ??
           [
             _n('w', NotificationType.weatherAlert),
@@ -161,9 +185,10 @@ void main() {
           notificationsProvider('u1').overrideWith((_) => Stream.value(items)),
         ],
         child: MaterialApp(
-          home: actionLauncher == null
-              ? const NotificationsScreen()
-              : NotificationsScreen(actionLauncher: actionLauncher),
+          home: NotificationsScreen(
+            actionLauncher: actionLauncher ?? launchTrustedNotificationAction,
+            openNotificationId: openNotificationId,
+          ),
         ),
       ));
       await tester.pump();
@@ -178,6 +203,21 @@ void main() {
       expect(find.text('Cuerpo m'), findsOneWidget);
       expect(find.byIcon(Icons.cloud_outlined), findsOneWidget);
       expect(find.byIcon(Icons.campaign_outlined), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('un enlace profundo recupera una alerta antigua y la marca leída',
+        (tester) async {
+      final repo = await pump(
+        tester,
+        notifications: const [],
+        openNotificationId: 'old-alert',
+        remoteNotification: _n('old-alert', NotificationType.weatherAlert),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Cuerpo old-alert'), findsOneWidget);
+      expect(find.byType(AppBar), findsOneWidget);
+      expect(repo.marked, ['old-alert']);
       expect(tester.takeException(), isNull);
     });
 

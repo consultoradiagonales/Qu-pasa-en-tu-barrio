@@ -46,11 +46,33 @@ class ReportsRepository {
         .map((snap) => snap.docs.map(ReportModel.fromFirestore).toList());
   }
 
-  Stream<List<ReportModel>> watchTeamReports(String teamId) {
+  Stream<List<ReportModel>> watchTeamReports(
+      String teamId, String municipalityId) {
+    final municipalityIds = fieldMunicipalityAliases(municipalityId);
+    if (municipalityIds.isEmpty) {
+      return Stream.error(StateError('El equipo no tiene municipio asignado.'));
+    }
     return _col
-        .where('assignedTeamId', isEqualTo: teamId)
         .where('hidden', isEqualTo: false)
-        .orderBy('priority', descending: true)
+        .where('municipalityId', whereIn: municipalityIds)
+        .snapshots()
+        .map((snap) {
+      final reports = snap.docs
+          .map(ReportModel.fromFirestore)
+          .where((report) => report.assignedTeamId == teamId)
+          .toList();
+      reports.sort((a, b) => b.priority.compareTo(a.priority));
+      return reports;
+    });
+  }
+
+  /// La lista operativa filtra el estado en servidor y conserva todas las
+  /// asignaciones vigentes, aunque haya más de 200 reportes recientes.
+  Stream<List<ReportModel>> watchFieldReports(ReportStatus status) {
+    return _col
+        .where('hidden', isEqualTo: false)
+        .where('status', isEqualTo: status.value)
+        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map(ReportModel.fromFirestore).toList());
   }
@@ -100,7 +122,15 @@ class ReportsRepository {
       created = await _db.runTransaction<bool>((transaction) async {
         final existing = await transaction.get(reportRef);
         if (existing.exists) {
-          if (!matchesReportSubmission(existing.data()!, proposed)) {
+          final saved = existing.data()!;
+          if (saved['userId'] == report.userId &&
+              saved['photoUploadStatus'] == 'pending' &&
+              saved['photoStoragePath'] == pendingPhotoPath) {
+            // El alta pudo confirmarse antes de fallar la carga. Conservar
+            // los datos originales y permitir completar la misma evidencia.
+            return false;
+          }
+          if (!matchesReportSubmission(saved, proposed)) {
             throw StateError(
                 'Este número ya corresponde a otro envío. Iniciá un nuevo reporte.');
           }
@@ -197,6 +227,16 @@ class ReportsRepository {
     await _functions.httpsCallable('assignReportTeam').call({
       'reportId': reportId,
       'teamId': teamId,
+    });
+  }
+
+  Future<void> sendReportUpdate(String reportId, String message) async {
+    final requestId =
+        '${DateTime.now().microsecondsSinceEpoch}${message.hashCode.abs()}';
+    await _functions.httpsCallable('sendReportUpdate').call({
+      'reportId': reportId,
+      'message': message.trim(),
+      'requestId': requestId,
     });
   }
 
@@ -305,6 +345,11 @@ final municipalityReportsProvider =
       );
 });
 
+final globalFieldReportsProvider =
+    StreamProvider.family<List<ReportModel>, ReportStatus>((ref, status) {
+  return ref.read(reportsRepositoryProvider).watchFieldReports(status);
+});
+
 /// Stream de reportes del usuario para "Mis reportes"
 final myReportsProvider =
     StreamProvider.family<List<ReportModel>, String>((ref, userId) {
@@ -312,9 +357,21 @@ final myReportsProvider =
 });
 
 /// Stream de reportes del equipo de campo
+List<String> fieldMunicipalityAliases(String municipalityId) {
+  final id = municipalityId.trim();
+  if (id.isEmpty) return const [];
+  final base = id.startsWith('georef_') ? id.substring(7) : id;
+  if (base.isEmpty) return [id];
+  return [base, 'georef_$base'];
+}
+
+typedef TeamReportsScope = ({String teamId, String municipalityId});
+
 final teamReportsProvider =
-    StreamProvider.family<List<ReportModel>, String>((ref, teamId) {
-  return ref.read(reportsRepositoryProvider).watchTeamReports(teamId);
+    StreamProvider.family<List<ReportModel>, TeamReportsScope>((ref, scope) {
+  return ref
+      .read(reportsRepositoryProvider)
+      .watchTeamReports(scope.teamId, scope.municipalityId);
 });
 
 final adminMunicipalityReportsProvider =

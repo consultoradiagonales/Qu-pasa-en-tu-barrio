@@ -3,17 +3,20 @@ import 'dart:typed_data';
 import '../../../core/services/device_profile_service.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/config/municipality_branding.dart';
 import '../../../core/services/report_permissions.dart';
 import '../../../core/utils/error_text.dart';
 import '../../../core/utils/platform_support.dart';
 import '../../../core/widgets/locality_autocomplete.dart';
 import '../../../core/widgets/municipality_autocomplete.dart';
 import '../../../data/models/user_model.dart';
+import '../../../data/repositories/reports_repository.dart';
 import '../report_flow.dart';
 import '../report_insight.dart';
 import '../../../data/services/georef_service.dart';
@@ -78,6 +81,9 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
 
   ReportDraft get _draft => ref.read(reportDraftProvider);
   bool get _photoConfirmed => _draft.photoConfirmed;
+
+  /// Persistido en el borrador para sobrevivir a reinicios de la app.
+  bool get _photoPending => _draft.photoPending;
   void _update(ReportDraft draft) =>
       ref.read(reportDraftProvider.notifier).update(draft);
 
@@ -86,9 +92,12 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       : _profile?.municipalityId ?? '';
 
   String get _municipalityLabel {
-    final name = _draft.reportsAwayFromHome
+    final savedName = _draft.reportsAwayFromHome
         ? _draft.reportMunicipalityName
         : _profile?.municipalityName;
+    final name = savedName?.trim().isNotEmpty == true
+        ? savedName
+        : MunicipalityBranding.resolve(municipalityId: _municipalityId).name;
     final province =
         _draft.reportsAwayFromHome ? _draft.reportProvince : _profile?.province;
     return [name, province]
@@ -320,7 +329,7 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       }
       if (_draft.hasPhoto) {
         setState(() => _step = _draft.locationConfirmed ? 2 : 1);
-      } else if (widget.startWithCamera) {
+      } else if (widget.startWithCamera && !kIsWeb) {
         await _camera();
       }
       if (mounted) await DeviceProfileService.askIfNeeded(context);
@@ -383,27 +392,12 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   }
 
   void _useManualAddress() {
-    final address = _manualAddress.text.trim();
-    if (_draft.territory.trim().isEmpty) {
-      _showMissing('locality', 'Elegí una ciudad o localidad de la lista.',
-          step: 1);
-      return;
-    }
-    if (address.length < 2) {
-      _showMissing(
-          'address', 'Completá la dirección o una referencia del lugar.',
-          step: 1);
-      return;
-    }
     _update(_draft.copyWith(
-      address: address,
+      address: _manualAddress.text.trim(),
       usesManualAddress: true,
-      locationConfirmed: _draft.location != null,
+      locationConfirmed: false,
     ));
-    setState(() {
-      _error = null;
-      _missingField = null;
-    });
+    _confirmLocation();
   }
 
   void _syncManualAddress(String value) {
@@ -413,7 +407,11 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
 
   void _selectLocality(LocalitySuggestion? locality) {
     if (locality == null) {
-      _update(_draft.copyWith(territory: ''));
+      _update(_draft.copyWith(
+        territory: '',
+        clearLocation: true,
+        usesManualAddress: true,
+      ));
       return;
     }
     _update(_draft.copyWith(
@@ -622,6 +620,14 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       }
     } on MunicipalityRequired {
       if (mounted) context.go('/auth/municipio?next=report');
+    } on ReportSubmissionException catch (error) {
+      if (mounted) {
+        // Una vez creado el reporte remoto, el estado pendiente no se pierde
+        // aunque un reintento falle por otro motivo.
+        _update(_draft.copyWith(
+            photoPending: error.photoPending || _draft.photoPending));
+        setState(() => _error = error.message.toString());
+      }
     } catch (e) {
       if (mounted) setState(() => _error = mensajeDeError(e));
     } finally {
@@ -645,6 +651,63 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
     await _camera();
   }
 
+  Future<void> _discardDraft() async {
+    if (_sending) return;
+    final hasPendingPhoto = _photoPending;
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(hasPendingPhoto
+            ? 'Desistir del reporte pendiente'
+            : 'Descartar reporte inconcluso'),
+        content: Text(hasPendingPhoto
+            ? 'El reporte ya fue recibido. Se ocultará antes de borrar el borrador de este dispositivo. La evidencia ya enviada no se borra.'
+            : 'Se borrará el borrador de este dispositivo. Si ya se envió, podrás desistir desde Mis reportes.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Conservar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Descartar')),
+        ],
+      ),
+    );
+    if (discard != true || !mounted) return;
+    if (hasPendingPhoto) {
+      setState(() {
+        _sending = true;
+        _error = null;
+      });
+      try {
+        await ref.read(reportsRepositoryProvider).updateReport(
+          _draft.id,
+          {'hidden': true},
+        );
+      } catch (error) {
+        if (mounted) {
+          setState(() {
+            _sending = false;
+            _error =
+                'No se pudo desistir del reporte. Conservamos el borrador para reintentar la foto o volver a intentar el descarte. ${mensajeDeError(error)}';
+          });
+        }
+        return;
+      }
+    }
+    await ref.read(reportDraftProvider.notifier).clear();
+    if (!mounted) return;
+    _comment.clear();
+    _manualAddress.clear();
+    setState(() {
+      _step = 0;
+      _preview = null;
+      _error = null;
+      _sentId = null;
+      _sending = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<AsyncValue<UserModel?>>(reportProfileProvider, (_, next) {
@@ -662,7 +725,20 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
       appBar: AppBar(
         title: const Text('ConDi'),
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Volver',
+          onPressed: () =>
+              _step > 0 ? setState(() => _step--) : context.go('/home'),
+        ),
         actions: [
+          if (_sentId == null)
+            IconButton(
+              key: const Key('discard-report-draft'),
+              tooltip: 'Descartar borrador',
+              onPressed: _sending ? null : _discardDraft,
+              icon: const Icon(Icons.delete_outline),
+            ),
           PopupMenuButton<String>(
             tooltip: 'Mis reportes y mapa',
             onSelected: (path) => context.go(path),
@@ -816,9 +892,15 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
                                             strokeWidth: 2,
                                           ),
                                         )
-                                      : const Icon(Icons.send_outlined),
+                                      : Icon(_photoPending
+                                          ? Icons.refresh
+                                          : Icons.send_outlined),
                                   label: Text(
-                                    _sending ? 'Enviando…' : 'Enviar reporte',
+                                    _sending
+                                        ? 'Enviando…'
+                                        : _photoPending
+                                            ? 'Reintentar foto'
+                                            : 'Enviar reporte',
                                   ),
                                 ),
                               ),
@@ -974,7 +1056,9 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
           alignment: Alignment.centerLeft,
           child: FilledButton.tonalIcon(
             key: const Key('use-manual-address'),
-            onPressed: _useManualAddress,
+            onPressed: _locating || _loadingMunicipalityCenter
+                ? null
+                : _useManualAddress,
             icon: const Icon(Icons.location_searching_outlined),
             label: const Text('Usar dirección manual'),
           ),

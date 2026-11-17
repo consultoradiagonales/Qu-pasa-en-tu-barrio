@@ -10,7 +10,8 @@ enum NotificationType {
   officialComment,
   newSupport,
   weatherAlert,
-  municipalityMessage;
+  municipalityMessage,
+  fieldAssignment;
 
   String get value {
     switch (this) {
@@ -34,6 +35,8 @@ enum NotificationType {
         return 'weather_alert';
       case NotificationType.municipalityMessage:
         return 'municipality_message';
+      case NotificationType.fieldAssignment:
+        return 'field_assignment';
     }
   }
 
@@ -59,6 +62,8 @@ enum NotificationType {
         return NotificationType.weatherAlert;
       case 'municipality_message':
         return NotificationType.municipalityMessage;
+      case 'field_assignment':
+        return NotificationType.fieldAssignment;
       default:
         return NotificationType.reportAssigned;
     }

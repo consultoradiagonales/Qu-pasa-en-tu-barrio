@@ -7,6 +7,7 @@ const {
   validId,
   evidenceFor,
   canManage,
+  canSendUpdate,
 } = require('./admin-notifications');
 
 test('manual notification text is bounded and does not preserve links', () => {
@@ -35,4 +36,14 @@ test('only enabled municipal staff can manage a report', () => {
   assert.equal(canManage({ role: 'admin', municipalityId: 'm2', disabled: false }, report), false);
   assert.equal(canManage({ role: 'admin', municipalityId: 'm1', disabled: false }, report), true);
   assert.equal(canManage({ role: 'admin', municipalityId: 'm1', disabled: true }, report), false);
+  assert.equal(canManage({ role: 'field_manager', organizationId: 'diagonales', disabled: false }, report), true);
+  assert.equal(canManage({ role: 'field_manager', organizationId: 'otra', municipalityId: 'm2', disabled: false }, report), false);
+});
+
+test('una cuadrilla sólo puede avisar sobre reportes abiertos de su propio equipo', () => {
+  const report = { municipalityId: 'm1', assignedTeamId: 'team-1', status: 'in_progress' };
+  const worker = { role: 'field_worker', municipalityId: 'm1', teamId: 'team-1', disabled: false };
+  assert.equal(canSendUpdate(worker, report), true);
+  assert.equal(canSendUpdate({ ...worker, teamId: 'team-2' }, report), false);
+  assert.equal(canSendUpdate(worker, { ...report, status: 'resolved' }), false);
 });

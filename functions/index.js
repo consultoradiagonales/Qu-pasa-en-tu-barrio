@@ -8,7 +8,7 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 
 initializeApp();
 const db = getFirestore();
-const { isCentralAdmin } = require('./management-access');
+const { hasGlobalOperationsAccess, isCentralAdmin } = require('./management-access');
 exports.interpretCitizenReport = require('./ai-trigger').interpretCitizenReport;
 exports.generateMunicipalityReport = require('./dashboard-ai').generateMunicipalityReport;
 exports.getManagementDashboard = require('./management-dashboard').getManagementDashboard;
@@ -33,7 +33,7 @@ const appRelease = require('./app-release');
 exports.getAppRelease = appRelease.getAppRelease;
 exports.saveAppRelease = appRelease.saveAppRelease;
 
-const ROLES_GESTION = ['coordinator', 'admin', 'moderator'];
+const ROLES_GESTION = ['coordinator', 'admin', 'moderator', 'field_manager'];
 const { assignReportTeamHandler } = require('./report-assignment');
 const OWNER_EMAIL = 'info.consultoradiagonales@gmail.com';
 const REGION = 'southamerica-east1';
@@ -256,7 +256,7 @@ exports.saveTeam = onCall({ region: REGION }, async (request) => {
     throw new HttpsError('not-found', 'La cuadrilla no existe.');
   }
   const existing = existingSnap?.data() || null;
-  const isAdmin = isCentralAdmin(profile);
+  const isAdmin = hasGlobalOperationsAccess(profile);
   const municipalityId = isAdmin
     ? cleanTeamText(data.municipalityId, 120)
     : cleanTeamText(profile.municipalityId, 120);

@@ -6,11 +6,13 @@ const assert = require('node:assert/strict');
 const { initializeApp, deleteApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const { assignReportTeamHandler } = require('./report-assignment');
+const { notifyAssignedWorkers } = require('./report-notifications');
 const { getManagementDashboardHandler } = require('./management-dashboard');
 
 const projectId = 'demo-condi-audit';
 assert.match(process.env.FIRESTORE_EMULATOR_HOST || '', /^(127\.0\.0\.1|localhost):\d+$/);
 assert.match(process.env.FIREBASE_AUTH_EMULATOR_HOST || '', /^(127\.0\.0\.1|localhost):\d+$/);
+assert.match(process.env.FIREBASE_STORAGE_EMULATOR_HOST || '', /^(127\.0\.0\.1|localhost):\d+$/);
 const app = initializeApp({ projectId }, 'municipal-security-audit');
 const db = getFirestore(app);
 const base = `http://${process.env.FIRESTORE_EMULATOR_HOST}/v1/projects/${projectId}/databases/(default)/documents`;
@@ -46,6 +48,20 @@ async function readAs(actor, path) {
   return response.status;
 }
 
+async function uploadAs(actor, path) {
+  return fetch(
+    `http://${process.env.FIREBASE_STORAGE_EMULATOR_HOST}/v0/b/${projectId}.appspot.com/o?uploadType=media&name=${encodeURIComponent(path)}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${actors[actor].idToken}`,
+        'Content-Type': 'image/jpeg',
+      },
+      body: Buffer.from([0xff, 0xd8, 0xff, 0xd9]),
+    },
+  );
+}
+
 function comment(overrides = {}) {
   return { reportId: 'case-a', userId: actors.citizenA.localId, displayName: 'Vecino de prueba', text: 'Sigue pendiente',
     isOfficialResponse: false, hidden: false, flaggedCount: 0, createdAt: new Date(), ...overrides };
@@ -56,6 +72,9 @@ test.before(async () => {
     ['citizenA', 'citizen', 'a', false], ['citizenB', 'citizen', 'b', false],
     ['coordinatorA', 'coordinator', 'a', false], ['coordinatorB', 'coordinator', 'b', false],
     ['disabled', 'citizen', 'a', true], ['admin', 'admin', 'b', false],
+    ['fieldManager', 'field_manager', 'a', false],
+    ['fieldWorkerA', 'field_worker', 'a', false],
+    ['fakeFieldManager', 'field_manager', 'b', false],
     ['schema', 'citizen', 'a', false], ['quota', 'citizen', 'a', false],
     ['awayValidation', 'citizen', 'a', false],
     ['localAdminA', 'admin', 'a', false], ['localAdminB', 'admin', 'b', false],
@@ -66,12 +85,38 @@ test.before(async () => {
     });
     assert.equal(response.status, 200);
     actors[name] = await response.json();
-    await db.collection('users').doc(actors[name].localId).set({ role, municipalityId, disabled, ...(name==='admin'?{organizationId:'diagonales'}:{}) });
+    await db.collection('users').doc(actors[name].localId).set({
+      role,
+      municipalityId,
+      disabled,
+      ...(name === 'fieldWorkerA' ? { teamId: 'team-a' } : {}),
+      ...(['admin', 'fieldManager'].includes(name)
+        ? { organizationId: 'diagonales' }
+        : {}),
+    });
   }
   await db.doc('reports/case-a').set({ municipalityId: 'a', userId: actors.citizenA.localId, hidden: false, status: 'pending' });
   await db.doc('reports/case-a-georef').set({ municipalityId: 'georef_a', userId: actors.citizenA.localId, hidden: false, status: 'pending', createdAt: new Date() });
+  await db.doc('reports/field-task-a').set({ municipalityId: 'a', userId: actors.citizenA.localId, hidden: false, status: 'assigned', assignedTeamId: 'team-a', priority: 3 });
+  await db.doc('reports/field-task-georef').set({ municipalityId: 'georef_a', userId: actors.citizenA.localId, hidden: false, status: 'assigned', assignedTeamId: 'team-a', priority: 2 });
   await db.doc('reports/private-a').set({ municipalityId: 'a', userId: actors.coordinatorA.localId, hidden: true, status: 'pending' });
   await db.doc('reports/case-b').set({ municipalityId:'b', userId:actors.citizenB.localId, hidden:false, status:'pending', flaggedCount:0 });
+  await db.doc('reports/manager-case-b').set({
+    municipalityId: 'b',
+    userId: actors.citizenB.localId,
+    hidden: false,
+    status: 'pending',
+    flaggedCount: 0,
+    photosBefore: [],
+    photosProgress: [],
+    photosAfter: [],
+    assignedWorkerId: null,
+    workerArrivedAt: null,
+    workStartedAt: null,
+    workFinishedAt: null,
+    resolvedAt: null,
+    workerNotes: null,
+  });
   await db.doc('reports/case-a/comments/existing').set(comment());
   for (const id of ['team-a', 'team-a2']) await db.doc(`teams/${id}`).set({ municipalityId: 'a', active: true });
   await db.doc('teams/team-b').set({ municipalityId: 'b', active: true });
@@ -82,6 +127,129 @@ test.before(async () => {
 });
 
 test.after(async () => { await db.terminate(); await deleteApp(app); });
+
+test('catálogo municipal: gerencia central puede listar; coordinación local no', async () => {
+  await db.doc('municipalities/catalog-a').set({ name: 'Catálogo A' });
+  await db.doc('municipalities/catalog-b').set({ name: 'Catálogo B' });
+  async function listAs(actor) {
+    const response = await fetch(`${base}/municipalities`, {
+      headers: { Authorization: `Bearer ${actors[actor].idToken}` },
+    });
+    return response.status;
+  }
+  assert.equal(await listAs('fieldManager'), 200);
+  assert.equal(await listAs('coordinatorA'), 403);
+});
+
+test('gerencia de cuadrillas: sólo Diagonales opera globalmente', async () => {
+  assert.equal(await readAs('fieldManager', 'reports/case-a'), 200);
+  assert.equal(await readAs('fieldManager', 'reports/case-b'), 200);
+  assert.equal(await readAs('fakeFieldManager', 'reports/case-a'), 403);
+  const request = (actor, reportId, teamId) => ({
+    auth: { uid: actors[actor].localId },
+    data: { reportId, teamId },
+  });
+  await assert.rejects(assignReportTeamHandler(
+    request('fakeFieldManager', 'case-a', 'team-a'), db,
+  ), {
+    code: 'permission-denied',
+  });
+  const assigned = await assignReportTeamHandler(
+    request('fieldManager', 'manager-case-b', 'team-b'), db,
+  );
+  assert.equal(assigned.teamId, 'team-b');
+  assert.equal((await uploadAs(
+    'fakeFieldManager',
+    'reports/manager-case-b/before/denied.jpg',
+  )).status, 403);
+  assert.equal((await uploadAs(
+    'fieldManager',
+    'reports/manager-case-b/before/allowed.jpg',
+  )).status, 200);
+  const after = (await db.doc('reports/manager-case-b').get()).data();
+  const delivery = await notifyAssignedWorkers({
+    params: { reportId: 'manager-case-b' },
+    data: {
+      before: { data: () => ({ municipalityId: 'b', status: 'pending' }) },
+      after: { data: () => after },
+    },
+  }, db);
+  assert.equal(delivery.total, 1);
+  const notifications = await db.collection('notifications')
+    .where('userId', '==', actors.fieldManager.localId)
+    .where('type', '==', 'field_assignment')
+    .get();
+  assert.equal(notifications.size, 1);
+  assert.equal(notifications.docs[0].data().reportId, 'manager-case-b');
+
+  const started = await writeAs('fieldManager', 'reports/manager-case-b', {
+    status: 'in_progress',
+    assignedWorkerId: actors.fieldManager.localId,
+    photosBefore: ['https://storage.example/before.jpg'],
+  }, ['workerArrivedAt', 'workStartedAt', 'updatedAt']);
+  assert.equal(started.status, 200, JSON.stringify(started.body));
+  assert.equal((await uploadAs(
+    'fieldManager',
+    'reports/manager-case-b/progress/progress.jpg',
+  )).status, 200);
+
+  const progress = await writeAs('fieldManager', 'reports/manager-case-b', {
+    photosProgress: ['https://storage.example/progress.jpg'],
+  }, ['updatedAt']);
+  assert.equal(progress.status, 200, JSON.stringify(progress.body));
+  const replacedProgress = await writeAs('fieldManager', 'reports/manager-case-b', {
+    photosProgress: ['https://storage.example/otra.jpg'],
+  }, ['updatedAt']);
+  assert.equal(replacedProgress.status, 403, JSON.stringify(replacedProgress.body));
+  const clearedProgress = await writeAs('fieldManager', 'reports/manager-case-b', {
+    photosProgress: [],
+  }, ['updatedAt']);
+  assert.equal(clearedProgress.status, 403, JSON.stringify(clearedProgress.body));
+  const appendedProgress = await writeAs('fieldManager', 'reports/manager-case-b', {
+    photosProgress: [
+      'https://storage.example/progress.jpg',
+      'https://storage.example/progress-2.jpg',
+    ],
+  }, ['updatedAt']);
+  assert.equal(appendedProgress.status, 200, JSON.stringify(appendedProgress.body));
+  assert.equal((await uploadAs(
+    'fieldManager',
+    'reports/manager-case-b/after/solution.jpg',
+  )).status, 200);
+
+  const resolved = await writeAs('fieldManager', 'reports/manager-case-b', {
+    status: 'resolved',
+    photosAfter: ['https://storage.example/after.jpg'],
+    workerNotes: 'Luminaria reparada y verificada.',
+  }, ['workFinishedAt', 'resolvedAt', 'updatedAt']);
+  assert.equal(resolved.status, 200, JSON.stringify(resolved.body));
+
+  const officialComment = comment({
+    reportId: 'manager-case-b',
+    userId: actors.fieldManager.localId,
+    displayName: 'Fernando Genazzini',
+    text: 'Trabajo finalizado.',
+    isOfficialResponse: true,
+  });
+  assert.equal((await writeAs(
+    'fieldManager',
+    'reports/manager-case-b/comments/field-manager-update',
+    officialComment,
+  )).status, 200);
+});
+
+test('fotos de reporte: propietario puede cargar una vez; otro usuario y reemplazo se rechazan', async () => {
+  // El vecino sólo carga la foto declarada por un alta pendiente
+  // (photoStoragePath); un nombre libre sobre un caso existente se rechaza.
+  const photo = 'reports/photo-pending-a/citizen/photo.jpg';
+  await db.doc('reports/photo-pending-a').set({ municipalityId: 'a', userId: actors.citizenA.localId, hidden: false,
+    status: 'pending', photoUploadStatus: 'pending', photoStoragePath: photo, photosReport: [] });
+  assert.equal((await uploadAs('citizenA', 'reports/case-a/citizen/evidence.jpg')).status, 403);
+  assert.equal((await uploadAs('citizenB', photo)).status, 403);
+  assert.equal((await uploadAs('citizenA', photo)).status, 200);
+  assert.equal((await uploadAs('citizenA', photo)).status, 403);
+  assert.equal((await uploadAs('disabled', 'reports/case-a/citizen/disabled.jpg')).status, 403);
+});
 
 test('comentarios: acepta vecino del ámbito y rechaza otro municipio, padre ausente, caso privado y cuenta deshabilitada', async () => {
   assert.equal((await writeAs('citizenA', 'reports/case-a/comments/allowed', comment())).status, 200);
@@ -103,6 +271,31 @@ test('municipio: el código histórico y su alias GeoRef comparten acceso y cons
     body: JSON.stringify({ structuredQuery }),
   });
   assert.equal(response.status, 200, await response.text());
+});
+
+test('operario: la lista acotada por municipio admite ambos alias y no abre otros ámbitos', async () => {
+  assert.equal(await readAs('fieldWorkerA', 'reports/field-task-a'), 200);
+  assert.equal(await readAs('fieldWorkerA', 'reports/case-b'), 403);
+  const filters = [
+    { fieldFilter: { field: { fieldPath: 'hidden' }, op: 'EQUAL', value: { booleanValue: false } } },
+    { fieldFilter: { field: { fieldPath: 'municipalityId' }, op: 'IN',
+      value: { arrayValue: { values: [{ stringValue: 'a' }, { stringValue: 'georef_a' }] } } } },
+  ];
+  const query = async (where) => fetch(`${base}:runQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${actors.fieldWorkerA.idToken}` },
+    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'reports' }], where } }),
+  });
+  const unscoped = await query(filters[0]);
+  assert.equal(unscoped.status, 403);
+  const scoped = await query({ compositeFilter: { op: 'AND', filters } });
+  const body = await scoped.text();
+  assert.equal(scoped.status, 200, body);
+  const rows = JSON.parse(body);
+  const ids = rows.map((row) => row.document?.name.split('/').at(-1));
+  assert.ok(ids.includes('field-task-a'));
+  assert.ok(ids.includes('field-task-georef'));
+  assert.ok(!ids.includes('case-b'));
 });
 
 test('comentarios: impide respuesta oficial falsa, texto excesivo y claves ajenas al esquema', async () => {

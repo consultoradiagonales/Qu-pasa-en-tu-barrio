@@ -11,6 +11,8 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
+    - .claude/worktrees/**
+    - workspace-local/**
     - dev/**
     - gradle/**
     - pub-cache/**

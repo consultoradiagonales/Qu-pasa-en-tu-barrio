@@ -12,15 +12,34 @@ import 'package:que_pasa_en_tu_barrio/features/report/report_insight.dart';
 import 'package:que_pasa_en_tu_barrio/features/report/screens/new_report_screen.dart';
 import 'package:que_pasa_en_tu_barrio/core/router/navigation_policy.dart';
 import 'package:que_pasa_en_tu_barrio/data/models/user_model.dart';
+import 'package:que_pasa_en_tu_barrio/data/repositories/reports_repository.dart';
 import 'package:que_pasa_en_tu_barrio/data/services/georef_service.dart';
 
 class FakeReportGeoRef extends GeoRefService {
+  FakeReportGeoRef({this.hasCenter = true});
+  final bool hasCenter;
+
   @override
   Future<({double lat, double lng, double zoom})?> municipalityCenter(
           String id) async =>
-      id == 'georef_060707'
-          ? (lat: -35.6384, lng: -59.7779, zoom: 13.0)
-          : (lat: -34.92145, lng: -57.95453, zoom: 13.0);
+      !hasCenter
+          ? null
+          : id == 'georef_060707'
+              ? (lat: -35.6384, lng: -59.7779, zoom: 13.0)
+              : (lat: -34.92145, lng: -57.95453, zoom: 13.0);
+
+  @override
+  Future<List<LocalitySuggestion>> searchLocalities(String query) async =>
+      const [
+        LocalitySuggestion(
+          id: '06441010',
+          name: 'La Plata',
+          provinceId: '06',
+          province: 'Buenos Aires',
+          latitude: -34.92145,
+          longitude: -57.95453,
+        ),
+      ];
 
   @override
   Future<List<MunicipalitySuggestion>> searchMunicipalities(
@@ -77,14 +96,37 @@ class FakeSubmit extends ReportSubmitService {
   int calls = 0;
   ReportDraft? submitted;
   Completer<String>? pending;
+  Object? failOnce;
   @override
   bool get signedIn => true;
   @override
   Future<String> submit(ReportDraft draft) async {
     calls++;
     submitted = draft;
+    if (failOnce != null) {
+      final error = failOnce!;
+      failOnce = null;
+      throw error;
+    }
     return pending == null ? 'report-confirmed' : await pending!.future;
   }
+}
+
+class FakeReportsRepository implements ReportsRepository {
+  final updates = <(String, Map<String, dynamic>)>[];
+  Object? failOnce;
+
+  @override
+  Future<void> updateReport(String id, Map<String, dynamic> fields) async {
+    updates.add((id, fields));
+    if (failOnce case final error?) {
+      failOnce = null;
+      throw error;
+    }
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -114,6 +156,8 @@ void main() {
     bool dark = false,
     double scale = 1,
     UserModel? profile,
+    GeoRefService? geoRef,
+    FakeReportsRepository? reports,
   }) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     late FakeSubmit submit;
@@ -125,7 +169,9 @@ void main() {
           reportDraftStorageProvider.overrideWithValue(storage),
           reportSubmitProvider.overrideWith((ref) => submit = FakeSubmit(ref)),
           reportProfileProvider.overrideWithValue(AsyncData(profile)),
-          reportGeoRefProvider.overrideWithValue(FakeReportGeoRef()),
+          reportGeoRefProvider.overrideWithValue(geoRef ?? FakeReportGeoRef()),
+          if (reports != null)
+            reportsRepositoryProvider.overrideWithValue(reports),
         ],
         child: MaterialApp(
           theme: ThemeData(
@@ -237,6 +283,90 @@ void main() {
       expect(find.text('Enviar reporte'), findsNothing);
     },
   );
+  testWidgets('la foto pendiente conserva el borrador y permite reintentar',
+      (tester) async {
+    final storage = MemoryStorage();
+    final submit = await mount(tester, FakeCapture(photo, <String>[]), storage);
+    await tapRevealed(tester, find.text('Usar mi ubicación'));
+    await tapRevealed(tester, find.text('Usar esta ubicación'));
+    await tapRevealed(
+        tester, find.byKey(const Key('photo-evidence-confirmed')));
+    await selectCategory(tester, 'Bache');
+    submit.failOnce = ReportSubmissionException(
+      'La foto quedó pendiente.',
+      photoPending: true,
+    );
+    await tester.tap(find.text('Enviar reporte'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reintentar foto'), findsOneWidget);
+    expect(storage.value, isNotNull);
+    await tester.tap(find.text('Reintentar foto'));
+    await tester.pumpAndSettle();
+    expect(submit.calls, 2);
+    expect(find.text('Reporte recibido'), findsOneWidget);
+    expect(storage.value, isNull);
+  });
+  testWidgets(
+      'descartar foto pendiente oculta primero el reporte y conserva el borrador si falla',
+      (tester) async {
+    final storage = MemoryStorage();
+    final reports = FakeReportsRepository();
+    final submit = await mount(tester, FakeCapture(photo, <String>[]), storage,
+        reports: reports);
+    await tapRevealed(tester, find.text('Usar mi ubicación'));
+    await tapRevealed(tester, find.text('Usar esta ubicación'));
+    await tapRevealed(
+        tester, find.byKey(const Key('photo-evidence-confirmed')));
+    await selectCategory(tester, 'Bache');
+    submit.failOnce = ReportSubmissionException(
+      'La foto quedó pendiente.',
+      photoPending: true,
+    );
+    await tester.tap(find.text('Enviar reporte'));
+    await tester.pumpAndSettle();
+    final pendingId = storage.value!.id;
+
+    reports.failOnce = StateError('Sin conexión');
+    await tester.tap(find.byKey(const Key('discard-report-draft')));
+    await tester.pumpAndSettle();
+    expect(find.text('Desistir del reporte pendiente'), findsOneWidget);
+    await tester.tap(find.text('Descartar'));
+    await tester.pumpAndSettle();
+    expect(reports.updates, hasLength(1));
+    expect(reports.updates.single.$1, pendingId);
+    expect(reports.updates.single.$2, {'hidden': true});
+    expect(storage.value!.id, pendingId);
+    expect(find.text('Reintentar foto'), findsOneWidget);
+    expect(find.textContaining('Conservamos el borrador'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('discard-report-draft')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Descartar'));
+    await tester.pumpAndSettle();
+    expect(reports.updates, hasLength(2));
+    expect(reports.updates.last.$1, pendingId);
+    expect(reports.updates.last.$2, {'hidden': true});
+    expect(storage.value, isNull);
+    expect(find.text('Reintentar foto'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('descartar un borrador sin enviar no toca el reporte remoto',
+      (tester) async {
+    final storage = MemoryStorage();
+    final reports = FakeReportsRepository();
+    await mount(tester, FakeCapture(photo, <String>[]), storage,
+        reports: reports);
+    expect(storage.value, isNotNull);
+    await tester.tap(find.byKey(const Key('discard-report-draft')));
+    await tester.pumpAndSettle();
+    expect(find.text('Descartar reporte inconcluso'), findsOneWidget);
+    await tester.tap(find.text('Descartar'));
+    await tester.pumpAndSettle();
+    expect(reports.updates, isEmpty);
+    expect(storage.value, isNull);
+    expect(find.text('Sacar foto'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('Denied GPS does not invent a location or enable sending', (
     tester,
   ) async {
@@ -282,6 +412,107 @@ void main() {
     );
     expect(button.onPressed, isNotNull);
     expect(submit.calls, 0);
+  });
+
+  testWidgets('Manual address button advances with the municipality reference',
+      (tester) async {
+    final events = <String>[];
+    final storage = MemoryStorage();
+    await mount(tester, FakeCapture(photo, events), storage,
+        profile: homeProfile);
+    await tester.enterText(find.byKey(const Key('manual-address')), '7 y 48');
+    await tapRevealed(tester, find.byKey(const Key('use-manual-address')));
+
+    expect(find.text('Listo para enviar'), findsOneWidget);
+    expect(storage.value!.locationConfirmed, true);
+    expect(storage.value!.usesManualAddress, true);
+    expect(storage.value!.location, const LatLng(-34.92145, -57.95453));
+    expect(storage.value!.territory, 'La Plata, Buenos Aires');
+    expect(storage.value!.reportsAwayFromHome, false);
+    expect(events, ['camera']);
+  });
+
+  testWidgets('Legacy municipality without a name accepts its manual address',
+      (tester) async {
+    final legacyProfile = UserModel(
+      uid: 'legacy-citizen',
+      displayName: 'Vecino',
+      realName: 'Vecino de prueba',
+      email: 'vecino@example.test',
+      role: UserRole.citizen,
+      municipalityId: 'la-plata',
+      createdAt: DateTime(2026, 1, 1),
+    );
+    final events = <String>[];
+    final storage = MemoryStorage();
+    await mount(tester, FakeCapture(photo, events), storage,
+        profile: legacyProfile);
+    await tester.enterText(
+        find.byKey(const Key('manual-address')), '46 N 1236');
+    await tapRevealed(tester, find.byKey(const Key('use-manual-address')));
+
+    expect(find.text('Listo para enviar'), findsOneWidget);
+    expect(storage.value!.territory, 'La Plata');
+    expect(storage.value!.location, const LatLng(-34.92145, -57.95453));
+    expect(storage.value!.locationConfirmed, true);
+    expect(storage.value!.usesManualAddress, true);
+    expect(storage.value!.reportMunicipalityId, isNull);
+    expect(legacyProfile.municipalityId, 'la-plata');
+    expect(events, ['camera']);
+  });
+
+  testWidgets('Manual address advances with a selected locality without GPS',
+      (tester) async {
+    final events = <String>[];
+    final storage = MemoryStorage();
+    await mount(tester, FakeCapture(photo, events), storage);
+    await tester.enterText(find.byKey(const Key('locality-input')), 'La Plata');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('La Plata, Buenos Aires').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('manual-address')), '7 y 48');
+    await tapRevealed(tester, find.byKey(const Key('use-manual-address')));
+
+    expect(find.text('Listo para enviar'), findsOneWidget);
+    expect(storage.value!.locationConfirmed, true);
+    expect(storage.value!.usesManualAddress, true);
+    expect(storage.value!.location, const LatLng(-34.92145, -57.95453));
+    expect(storage.value!.territory, 'La Plata, Buenos Aires');
+    expect(events, ['camera']);
+  });
+
+  testWidgets('Clearing a selected locality invalidates its old coordinates',
+      (tester) async {
+    final storage = MemoryStorage();
+    await mount(tester, FakeCapture(photo, <String>[]), storage);
+    await tester.enterText(find.byKey(const Key('locality-input')), 'La Plata');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('La Plata, Buenos Aires').last);
+    await tester.pumpAndSettle();
+    expect(storage.value!.location, isNotNull);
+
+    await tester.enterText(
+        find.byKey(const Key('locality-input')), 'Otra ciudad');
+    await tester.pumpAndSettle();
+    expect(storage.value!.territory, isEmpty);
+    expect(storage.value!.location, isNull);
+    expect(storage.value!.locationConfirmed, false);
+  });
+
+  testWidgets('Manual address never invents a missing municipality reference',
+      (tester) async {
+    final storage = MemoryStorage();
+    await mount(tester, FakeCapture(photo, <String>[]), storage,
+        profile: homeProfile, geoRef: FakeReportGeoRef(hasCenter: false));
+    await tester.enterText(find.byKey(const Key('manual-address')), '7 y 48');
+    await tapRevealed(tester, find.byKey(const Key('use-manual-address')));
+
+    expect(find.text('Listo para enviar'), findsNothing);
+    expect(storage.value!.location, isNull);
+    expect(storage.value!.locationConfirmed, false);
+    expect(storage.value!.territory, 'La Plata, Buenos Aires');
   });
 
   testWidgets('A category must be selected before sending', (tester) async {

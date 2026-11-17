@@ -6,6 +6,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/report_model.dart';
+import '../../../data/models/user_model.dart';
 import '../../../data/repositories/reports_repository.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
@@ -60,18 +61,23 @@ class _FieldHomeScreenState extends ConsumerState<FieldHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).valueOrNull;
+    final authAsync = ref.watch(authStateProvider);
+    if (authAsync.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (authAsync.hasError) {
+      return Scaffold(
+          body: Center(child: Text(mensajeDeError(authAsync.error!))));
+    }
+    final user = authAsync.valueOrNull;
     if (user == null) return const SizedBox.shrink();
 
-    final userAsync = ref.watch(
-      StreamProvider(
-          (ref) => ref.read(userRepositoryProvider).watchUser(user.uid)),
-    );
-    final teamId = userAsync.valueOrNull?.teamId;
+    final userAsync = ref.watch(currentUserProfileProvider(user.uid));
+    final isFieldManager = userAsync.valueOrNull?.isCentralFieldManager == true;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mis tareas'),
+        title: Text(isFieldManager ? 'Operación de cuadrillas' : 'Mis tareas'),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -93,50 +99,102 @@ class _FieldHomeScreenState extends ConsumerState<FieldHomeScreen>
           ],
         ),
       ),
-      body: teamId == null
-          ? const Center(child: Text('Sin equipo asignado.'))
-          : TabBarView(
-              controller: _tabs,
-              children: [
-                _TaskList(
-                    teamId: teamId,
-                    status: ReportStatus.assigned,
-                    distanceFn: _distance),
-                _TaskList(
-                    teamId: teamId,
-                    status: ReportStatus.inProgress,
-                    distanceFn: _distance),
-                _TaskList(
-                    teamId: teamId,
-                    status: ReportStatus.resolved,
-                    distanceFn: _distance,
-                    todayOnly: true),
-              ],
+      body: userAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(mensajeDeError(e)),
+            TextButton(
+              onPressed: () =>
+                  ref.invalidate(currentUserProfileProvider(user.uid)),
+              child: const Text('Reintentar'),
             ),
+          ]),
+        ),
+        data: (profile) {
+          if (profile == null) {
+            return const Center(child: Text('Perfil no encontrado.'));
+          }
+          if (profile.disabled ||
+              (profile.role == UserRole.fieldManager &&
+                  !profile.isCentralFieldManager)) {
+            return const Center(
+                child: Text('Sin acceso a tareas de cuadrilla.'));
+          }
+          final teamId = profile.teamId?.trim();
+          if (!isFieldManager && (teamId == null || teamId.isEmpty)) {
+            return const Center(child: Text('Sin equipo asignado.'));
+          }
+          if (!isFieldManager && profile.municipalityId.trim().isEmpty) {
+            return const Center(child: Text('Sin municipio asignado.'));
+          }
+          return TabBarView(
+            controller: _tabs,
+            children: [
+              _TaskList(
+                  teamId: teamId,
+                  municipalityId: profile.municipalityId,
+                  global: isFieldManager,
+                  status: ReportStatus.assigned,
+                  distanceFn: _distance),
+              _TaskList(
+                  teamId: teamId,
+                  municipalityId: profile.municipalityId,
+                  global: isFieldManager,
+                  status: ReportStatus.inProgress,
+                  distanceFn: _distance),
+              _TaskList(
+                  teamId: teamId,
+                  municipalityId: profile.municipalityId,
+                  global: isFieldManager,
+                  status: ReportStatus.resolved,
+                  distanceFn: _distance,
+                  todayOnly: true),
+            ],
+          );
+        },
+      ),
     );
   }
 }
 
 class _TaskList extends ConsumerWidget {
-  final String teamId;
+  final String? teamId;
+  final String municipalityId;
   final ReportStatus status;
   final String Function(ReportModel) distanceFn;
   final bool todayOnly;
+  final bool global;
 
   const _TaskList({
     required this.teamId,
+    required this.municipalityId,
     required this.status,
     required this.distanceFn,
     this.todayOnly = false,
+    this.global = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reportsAsync = ref.watch(teamReportsProvider(teamId));
+    final scope = (teamId: teamId ?? '', municipalityId: municipalityId);
+    final reportsAsync = global
+        ? ref.watch(globalFieldReportsProvider(status))
+        : ref.watch(teamReportsProvider(scope));
 
     return reportsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text(mensajeDeError(e))),
+      error: (e, _) => Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(mensajeDeError(e)),
+          TextButton(
+            onPressed: () => global
+                ? ref.invalidate(globalFieldReportsProvider(status))
+                : ref.invalidate(teamReportsProvider(scope)),
+            child: const Text('Reintentar'),
+          ),
+        ]),
+      ),
       data: (allReports) {
         var reports = allReports.where((r) => r.status == status).toList();
         if (todayOnly) {
@@ -172,7 +230,9 @@ class _TaskList extends ConsumerWidget {
         }
 
         return RefreshIndicator(
-          onRefresh: () => ref.refresh(teamReportsProvider(teamId).future),
+          onRefresh: () => global
+              ? ref.refresh(globalFieldReportsProvider(status).future)
+              : ref.refresh(teamReportsProvider(scope).future),
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: reports.length,

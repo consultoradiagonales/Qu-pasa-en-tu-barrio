@@ -20,6 +20,7 @@ import '../../data/services/auth_service.dart';
 import '../../data/services/immutable_report_photo.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/georef_service.dart';
+import 'camera/web_camera_capture.dart';
 
 /// El municipio habitual se obtiene de la cuenta, nunca del último reporte.
 final reportProfileProvider = Provider<AsyncValue<UserModel?>>((ref) {
@@ -74,7 +75,8 @@ class ReportDraft {
       this.reportMunicipalityId,
       this.reportMunicipalityName,
       this.reportProvinceId,
-      this.reportProvince})
+      this.reportProvince,
+      this.photoPending = false})
       : id = id ?? const Uuid().v4();
   final String id;
   final String? photoPath;
@@ -100,6 +102,11 @@ class ReportDraft {
   final String? reportMunicipalityName;
   final String? reportProvinceId;
   final String? reportProvince;
+
+  /// El reporte remoto (con id == [id]) ya fue creado pero la foto no se
+  /// subió. Se persiste para que, tras reabrir la app, la pantalla siga
+  /// ofreciendo "Reintentar foto" y el descarte oculte el reporte remoto.
+  final bool photoPending;
   bool get reportsAwayFromHome =>
       reportMunicipalityId != null && reportMunicipalityId!.trim().isNotEmpty;
   bool get hasPhoto => photoPath != null && photoPath!.isNotEmpty;
@@ -126,6 +133,7 @@ class ReportDraft {
           String? reportMunicipalityName,
           String? reportProvinceId,
           String? reportProvince,
+          bool? photoPending,
           bool clearReportMunicipality = false,
           bool clearLocation = false}) =>
       ReportDraft(
@@ -154,7 +162,8 @@ class ReportDraft {
               : reportProvinceId ?? this.reportProvinceId,
           reportProvince: clearReportMunicipality
               ? null
-              : reportProvince ?? this.reportProvince);
+              : reportProvince ?? this.reportProvince,
+          photoPending: photoPending ?? this.photoPending);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -173,6 +182,7 @@ class ReportDraft {
         'reportMunicipalityName': reportMunicipalityName,
         'reportProvinceId': reportProvinceId,
         'reportProvince': reportProvince,
+        'photoPending': photoPending,
       };
   factory ReportDraft.fromJson(Map<String, dynamic> j) {
     final lat = j['lat'] as num?;
@@ -194,7 +204,9 @@ class ReportDraft {
         reportMunicipalityId: j['reportMunicipalityId'] as String?,
         reportMunicipalityName: j['reportMunicipalityName'] as String?,
         reportProvinceId: j['reportProvinceId'] as String?,
-        reportProvince: j['reportProvince'] as String?);
+        reportProvince: j['reportProvince'] as String?,
+        // Borradores anteriores no tienen la clave: se leen como false.
+        photoPending: j['photoPending'] == true);
   }
 }
 
@@ -255,7 +267,8 @@ class ReportCaptureService {
   final ImagePicker _picker = ImagePicker();
   Future<Uint8List> readPhoto(String path) => XFile(path).readAsBytes();
   Future<XFile?> camera() async {
-    if (!kIsWeb && !await ReportPermissions.requestCamera()) {
+    if (kIsWeb) return captureWebCameraPhoto();
+    if (!await ReportPermissions.requestCamera()) {
       throw StateError('Permití la cámara para fotografiar el problema.');
     }
     return _picker.pickImage(
@@ -293,7 +306,9 @@ final reportCaptureProvider = Provider((ref) => ReportCaptureService());
 class MunicipalityRequired implements Exception {}
 
 class ReportSubmissionException extends StateError {
-  ReportSubmissionException(super.message);
+  ReportSubmissionException(super.message, {this.photoPending = false});
+
+  final bool photoPending;
 }
 
 class ReportSubmitService {
@@ -410,9 +425,25 @@ class ReportSubmitService {
         },
         downloadUrl: photo.getDownloadURL,
       );
-    } catch (error) {
+    } on FirebaseException catch (error) {
+      final accessDenied = error.code == 'unauthorized' ||
+          error.code == 'permission-denied' ||
+          error.code == 'unauthenticated';
       throw ReportSubmissionException(
-        'El reporte ya fue recibido por el municipio, pero no pudimos adjuntar la foto. Revisá tu conexión y tocá “Enviar reporte” otra vez para completar el envío.',
+        accessDenied
+            ? 'El reporte ya fue recibido, pero el servicio de fotos rechazó la carga. Conservamos el borrador para reintentar cuando se restablezca el acceso.'
+            : 'El reporte ya fue recibido, pero la foto quedó pendiente. Revisá tu conexión y tocá “Reintentar foto”. No crees otro reporte.',
+        photoPending: true,
+      );
+    } on StateError catch (error) {
+      throw ReportSubmissionException(
+        'El reporte ya fue recibido, pero la foto quedó pendiente: ${error.message}',
+        photoPending: true,
+      );
+    } catch (_) {
+      throw ReportSubmissionException(
+        'El reporte ya fue recibido, pero la foto quedó pendiente. Tocá “Reintentar foto”. No crees otro reporte.',
+        photoPending: true,
       );
     }
     try {
@@ -423,7 +454,8 @@ class ReportSubmitService {
       );
     } catch (_) {
       throw ReportSubmissionException(
-        'El reporte ya fue recibido por el municipio, pero falta confirmar la foto. Tocá “Enviar reporte” otra vez para completar el envío.',
+        'El reporte ya fue recibido, pero falta confirmar la foto. Tocá “Reintentar foto” para completar el envío.',
+        photoPending: true,
       );
     }
     return draft.id;

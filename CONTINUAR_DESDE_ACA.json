@@ -1,4 +1,145 @@
 {
+  "correcciones_qa_claude_2026_11_17": {
+    "autor": "Claude Code con subagentes (Codex sin créditos)",
+    "estado": "Corregido en fuente; NADA desplegado ni commiteado. Reglas, Functions y Hosting requieren autorización explícita.",
+    "functions": "app-release.js: guardar iOS no pisa Android; versiones inválidas o solicitud vacía -> invalid-argument. report-notifications.js: clave de aviso sin assignmentVersion incluye hash de equipo. 4 tests *.lab.test.js + management-dashboard.test.js en script test. npm test 176/176.",
+    "reglas": "firestore.rules: field_manager solo es staff si es Diagonales; field_manager local lee solo field_worker de su municipio; validPhotoList; reportsCount opcional. storage.rules: fases before/progress/after con estado y asignación, vecino solo photoStoragePath exacto con pending y cuenta activa, sin SVG, lectura alineada con Firestore, borrado de evidencia propia del asignado 15 min. Emulador (ruta ASCII): municipal-security 24/24, rules-gaps 9/9 (61 casos). Decisión del titular 2026-11-17: la lectura global de users por la gerencia de Diagonales es intencional; F1a/F1b esperan 200 y el emulador da 0 brechas de 61 (suites separadas; juntas interfieren por datos sembrados). Emulador: usar tools/firebase-cli local y FIREBASE_EMULATORS_PATH con los jar en ruta ASCII. Riesgo deploy: apps viejas con alta legacy de fotos quedan rechazadas; requiere IAM de Storage para firestore.get.",
+    "flutter": "photoPending persistido en ReportDraft; deep link de cualquier notificación; /field/notifications con open y regreso a /field; diálogo de tarea con controller propio; iframe ARGWX registrado una vez; imports js_interop. flutter test 148 ok / 1 omitida. Pendiente: 'Ver más' en notificaciones (contador vs 50).",
+    "panel": "web/admin/field-workflow.js nuevo: acciones solo para assignedWorkerId; verificación previa y borrado best-effort de foto si falla Firestore. test/web 40/40.",
+    "apk_prueba": "dist/ConDi-1.0.34+35-qa-2026-11-17-arm64.apk, SHA-256 d181f2d6388493112d9ca819f4285778baddc8f519eb1e4abd15e3d796500fe8, firmada con clave de carga (no instala encima de la versión de Play; desinstalar primero). No incluye reglas/Functions (servidor).",
+    "nota_tooling": "flutter analyze y emulador Firestore fallan por '→' y 'é' en la ruta; usar dart analyze y copia ASCII. build-android.ps1 falla en PowerShell 5.1 si se redirige stderr (avisos KGP)."
+  },
+  "clima_predicciones_argwx_2026_11_17": {
+    "autor": "Claude Code (Codex sin créditos)",
+    "estado": "Implementado en fuente; NO publicado ni desplegado",
+    "alcance": "Atajo de Inicio Key('home-weather') renombrado 'Clima y predicciones' y abre /clima?view=map (motor ARGWX https://consultoradiagonales.github.io/Qu-pasa-en-tu-barrio/argwx/). El login conserva ?view=map (app_router.dart next con state.uri para /clima; navigation_policy.dart acepta /clima y /clima?view=map).",
+    "pruebas": "flutter test citizen_home_screen_test + citizen_photo_flow_test + field_task_access_test: 37 aprobadas (2 nuevas). dart analyze de archivos tocados sin problemas. flutter analyze se cae por la ruta con '→' y 'é' (usar dart analyze o ruta ASCII).",
+    "qa_claude": "Informes de pruebas y tests propuestos en el scratchpad de Claude: functions-lab (55 tests, 3 bugs en app-release.js/report-notifications.js), rules-lab (emulador 24/24 + 42 casos, 18 brechas), web-lab (capturas ARGWX)."
+  },
+  "mantenimiento_2026_11_17": {
+    "estado": "Android 1.0.34+35 publicado en prueba interna; cambio posterior de mapa meteorológico en fuente local; el usuario pidió esperar antes de cualquier nuevo despliegue",
+    "alcance": "Alertas meteorológicas abren su mensaje; clima integrado accesible desde Inicio; regreso visible; descarte de borrador y desistimiento de reportes pendientes; reintento de foto pendiente; detalle de tarea con futuro estable, límite de espera y reintento",
+    "pruebas": "Suite Flutter: 116 aprobadas, 1 web omitida; Functions: 115 aprobadas; web Node: 34 aprobadas; npm run check correcto; emuladores Auth/Firestore/Storage: 22 aprobadas, incluida propiedad y no reemplazo de fotos. Flutter analyze completo no concluyó; análisis dirigido sin errores. AAB firmado (jarsigner: jar verified), SHA-256 7756c49b7f9bc30d32e2d2773ea76c57789000979d5b011f696de83f38f31796. APK arm64 local dist/ConDi-1.0.34+35-arm64.apk, SHA-256 f1d5bddfd3d999a07ad085e43b253834726baa33d6acd4b3ede5771351a1cd1e. Web 1.0.34+35 compilada.",
+    "comunicacion": "Play interno 1.0.34+35 confirmado como completed. Aviso release_1_0_34_build_35 enviado a las 47 cuentas activas: 45 vecinos (4 push, 41 bandeja) y 2 cuentas de gestión (2 bandeja); registros verificados.",
+    "validadores": "lic.oliveralucia@gmail.com y despuesnodiganque@gmail.com agregados y verificados en ConDi Alpha (9 correos) y ConDi internos (10 correos) desde Play Console autenticado con info.consultoradiagonales@gmail.com. No se publicó el segmento Alpha.",
+    "cambio_mapa_pendiente_publicacion": "La sección Clima y prevención incluye ahora pestaña Mapa meteorológico que integra el tablero ARGWX en la misma pantalla de Flutter mediante WebView (Android/iOS) o iframe (web). Análisis Dart sin errores, 8 pruebas meteorológicas aprobadas, web release y APK Android debug compilados. Falta validación visual en teléfono; no hay Android conectado. El código posterior a 1.0.34+35 no está publicado.",
+    "pendientes": [
+      "Verificar en teléfono real carga de foto y tarea del jefe de cuadrilla",
+      "El usuario autorizó reglas de Firestore/Storage, Hosting y tres funciones, pero pidió expresamente esperar antes de desplegar porque detectó cambios adicionales. No desplegar hasta una nueva indicación clara.",
+      "Validar en teléfono real la versión 1.0.34+35, fotos y asignaciones; generar artefacto iOS con firma cuando haya entorno Mac"
+    ]
+  },
+  "correccion_cuadrilla_android_2026_11_13": {
+    "fecha": "2026-11-13",
+    "version": "1.0.31+32",
+    "estado": "Publicada en Google Play, segmento de prueba interna",
+    "alcance": [
+      "Las asignaciones operativas abren la ruta interna de tarea y no el detalle ciudadano",
+      "El detalle ciudadano y las pantallas de cuadrilla tienen regreso visible y control del botón nativo de Android",
+      "La cuadrilla puede informar novedades, adjuntar fotos de proceso y finalizar con evidencia para el vecino"
+    ],
+    "calidad": {
+      "flutter_analyze": "0 errores y 0 advertencias; 49 avisos informativos preexistentes",
+      "flutter_test": "112 aprobadas, 1 prueba Chrome omitida por requerir plataforma web",
+      "pruebas_dirigidas": "23 aprobadas",
+      "aab": "dist/ConDi-1.0.31+32/ConDi-1.0.31+32.aab",
+      "sha256": "b245dacc61661bb949e7988da13562542b00284d050fcba0aae5ec647efca87d",
+      "firma": "AAB firmado y aceptado por Google Play; certificado de carga autofirmado esperado"
+    },
+    "publicacion": {
+      "track": "internal",
+      "versionCode": 32,
+      "editId": "04366213273133359631",
+      "enlace": "https://play.google.com/apps/internaltest/4701647237677047143",
+      "autorizacion": "El usuario indicó go antes de la publicación"
+    },
+    "compatibilidad": {
+      "android": "Publicado para prueba interna",
+      "web": "La misma fuente funcional está disponible en el repositorio; el panel de cuadrilla ya había sido publicado",
+      "ios": "La fuente es multiplataforma y queda lista; generar un nuevo IPA requiere el flujo privado de Codemagic y firma/instalación posterior"
+    },
+    "verificacion_pendiente": [
+      "Instalar o actualizar desde el enlace de prueba interna en el teléfono de Fernando",
+      "Probar una asignación real, foto de proceso, comentario, foto final y resolución",
+      "Generar y validar el artefacto iOS equivalente"
+    ],
+    "documentacion": "docs/field-workflow-2026-11-13/ESTADO.md"
+  },
+  "ios_prueba_gratis_2026_11_11": {
+    "equipo_usuario": "Windows e iPhone; sin membresia Apple Developer paga",
+    "autorizacion": "El usuario autorizo aplicar la fuente actual en privado en Codemagic y rechazo publicar codigo nuevo en GitHub.",
+    "metodo_activo": "Codemagic Workflow Editor - Default Workflow; configuracion privada guardada en la cuenta",
+    "codemagic_settings": "https://codemagic.io/app/6af4b8f6c56ca95a24b96f51/workflow/6af4b8f6c56ca95a24b96f50/settings",
+    "repositorio_base": "consultoradiagonales/Qu-pasa-en-tu-barrio",
+    "rama": "master; main contiene ARGWX, no la app Flutter",
+    "commit_base": "749d55166d39c6ac528165496549b960a470bc66",
+    "version_fuente_privada": "1.0.30+31",
+    "parche_privado": {
+      "variable_secreta": "CONDI_SOURCE_PATCH_B64 (valor solo en Codemagic; no guardar aqui)",
+      "alcance": "13 archivos Dart y pubspec.yaml; sin publicar commit nuevo de fuente",
+      "sha256_gzip": "4682deb80b2ed6108b77e088e105c9c15dda092b1c3d7dd767e737cced13f559",
+      "validacion": "Base y hashes verificados; git apply --check y resultado comparado con snapshot; version y dos atajos de inicio comprobados"
+    },
+    "scripts_privados": {
+      "post_clone": "output/ios-prueba-gratis-2026-11-11/private-prebuild.sh",
+      "post_build": "output/ios-prueba-gratis-2026-11-11/private-postbuild.sh"
+    },
+    "build_configurado": {
+      "flutter": "3.47.7",
+      "maquina": "Mac mini M2",
+      "plataforma": "iOS Release",
+      "argumentos": "--no-codesign --no-tree-shake-icons",
+      "dependencias": "pub get --enforce-lockfile; CocoaPods; Swift Package Manager desactivado"
+    },
+    "workflow_yaml_local": "codemagic.yaml / ios-prueba-gratis es una alternativa local preparada; no esta activo en el flujo privado",
+    "estado": "IPA 1.0.30+31 generado, descargado y validado; sin firmar y listo para AltStore Classic. Instalacion y prueba en iPhone pendientes.",
+    "instalacion": "AltStore Classic firma local con cuenta Apple gratuita; renovar cada 7 dias. No valida APNs ni TestFlight.",
+    "guia": "plataformas/iOS/PRUEBA_GRATIS_WINDOWS.md",
+    "web_actual": {
+      "url": "https://project-5fc9024a-e961-42b7-9ee.web.app/",
+      "version": "1.0.30+31",
+      "verificacion": "Version y bundle remoto HTTP 200; hash remoto igual al local. Chrome autenticado muestra camara mas Alertas y Mapa.",
+      "evidencia": "output/qa-web-current/verificacion-publicada.json"
+    },
+    "pendientes": [
+      "Firmar e instalar el IPA con AltStore Classic",
+      "Validar la app en el iPhone"
+    ],
+    "fecha_estado": "2026-11-11",
+    "build_finalizado": {
+      "indice": 1,
+      "url": "https://codemagic.io/app/6af4b8f6c56ca95a24b96f51/build/6af4bc049679c85ac0aec372",
+      "commit": "749d55166d39c6ac528165496549b960a470bc66",
+      "configuracion": "Mac mini M2; Flutter 3.47.7; iOS Release; fuente actual aplicada en post-clone desde variable secreta",
+      "resultado": "finished; compilacion completada en 13 min 14 s",
+      "duracion": "13m 14s"
+    },
+    "artefactos_generados": [
+      "ConDi-1.0.30+31-sin-firmar.ipa",
+      "ConDi-version.txt"
+    ],
+    "ipa_validado": {
+      "archivo": "dist/ConDi-1.0.30+31-prueba-gratis.ipa",
+      "bytes": 26600208,
+      "sha256": "229cbe8d504af2f9847baa854573ef892e201dd82df183a8c37226e623cec39d",
+      "version": "1.0.30+31",
+      "nombre": "ConDi",
+      "bundle_id": "ar.com.consultoradiagonales.condi",
+      "ios_minimo": "15.0",
+      "entradas_zip": 575,
+      "crc_zip": "passed",
+      "firmado": false,
+      "instalado_en_iphone": false,
+      "push_apns_validado": false,
+      "evidencia": "output/ios-prueba-gratis-2026-11-11/ipa-verificado.json",
+      "commit_publico_con_fuente_nueva_creado": false
+    },
+    "publicacion_fuente": {
+      "resultado": "No se creo ningun commit publico con fuente nueva.",
+      "preflight_anterior": "Se aceptaron 3 blobs sueltos antes del rechazo de otros; no se creo tree, commit ni ref nuevo de fuente. La rama Codex solo apunta a la base preexistente.",
+      "tras_rechazo_usuario": "No hubo mas uploads de fuente; el build actual uso el parche mediante variable secreta privada de Codemagic."
+    }
+  },
   "estado_actual_2026_10_31": {
     "version": "1.0.25+26",
     "documentacion": "docs/clima-2026-11-06/ESTADO.md",
@@ -1134,5 +1275,100 @@
       "fecha": "2026-10-23",
       "bloqueo_corregido": "integration_test direct dependency allows Android release compilation."
     }
+  },
+  "web_reporte_camara_2026_11_11": {
+    "fecha": "2026-11-11",
+    "version_preparada": "1.0.31+32",
+    "version_publicada": "1.0.31+32",
+    "alcance": "Correccion de la web de ConDi compilada y publicada exclusivamente en Firebase Hosting. No incluye una nueva compilacion de iOS.",
+    "url_reporte": "https://project-5fc9024a-e961-42b7-9ee.web.app/#/report/new?mode=camera",
+    "causas_y_correcciones": [
+      "El boton Usar direccion manual confirmaba el borrador pero no avanzaba al paso de envio; ahora reutiliza la confirmacion que avanza y valida direccion y coordenadas.",
+      "El perfil legacy la-plata sin nombre no obtenia centro ni etiqueta municipal; GeoRef resuelve alias y usa un centro real del catalogo, y la pantalla resuelve La Plata sin cambiar el ID del perfil ni su ambito municipal.",
+      "image_picker en navegador de escritorio no garantizaba acceso a la webcam; se implemento captura web con getUserMedia, vista previa y controles de capturar, repetir o cancelar. Cuatro pruebas Chrome aprobadas; la validacion de la webcam fisica en la sesion real queda pendiente de root."
+    ],
+    "protecciones": "No se inventan coordenadas 0,0; al invalidar la localidad se descartan coordenadas anteriores. La camara web se abre con gesto explicito del usuario.",
+    "pruebas_confirmadas": {
+      "manual_y_georef": "23 pruebas aprobadas: citizen_photo_flow_test.dart y georef_legacy_center_test.dart",
+      "analyze_manual": "Sin problemas en new_report_screen.dart y citizen_photo_flow_test.dart",
+      "camara_web": "4 pruebas Chrome aprobadas en test/web_camera_capture_test.dart: gesto explicito, JPEG y ruta blob legibles, repetir/cancelar y liberacion de tracks, permiso denegado y stream recibido despues de cancelar. Usa canvas.captureStream sin webcam fisica.",
+      "analyze_camara": "Sin problemas en camera/, report_flow.dart y los archivos de prueba de camara.",
+      "harness_chrome_windows": "El harness Flutter devolvia HTTP404 para CanvasKit. Se cargaron los mismos archivos originales del SDK local mediante route Playwright en el navegador aislado, sin modificar SDK ni omitir assertions. Detalle en output/qa-web-current/camara-1.0.31-validation.json.",
+      "publicacion_remota": "GET version.json?build=32 y main.dart.js?build=32: HTTP200. Version 1.0.31+32 y SHA256 remoto identico al bundle local; evidencia en output/qa-report-camera-2026-11-11/verificacion-publicada.json.",
+      "entorno": "Flutter local 3.47.7; unidad temporal Y al mismo workspace; pub get --offline --enforce-lockfile; ejecucion autorizada fuera del sandbox para resolver acceso al directorio temporal"
+    },
+    "pendientes": [
+      "Validar en la URL real direccion manual y webcam con permisos del usuario"
+    ],
+    "publicado": true,
+    "sha256_main_dart_js": "89FA10D984E96202FAB90FCCC7CA83588C2E01B4605DFEEB5795D8EAA176A4AF",
+    "evidencia_publicacion": "output/qa-report-camera-2026-11-11/verificacion-publicada.json",
+    "navegacion_real": "Cámara física verificada en Chrome con permiso concedido por el usuario; vista en vivo 1600x1080, sin capturar ni enviar fotos. Avance manual verificado en 23 tests y QA E2E sin GPS.",
+    "permiso_camara": {
+      "autorizado_por_usuario": true,
+      "origen_exacto": "https://project-5fc9024a-e961-42b7-9ee.web.app",
+      "validacion": "Root verificara el flujo y el permiso en la UI; autorizacion limitada a este origen."
+    },
+    "fuente_github": "No se crearon commits publicos con fuente nueva en esta tarea.",
+    "ipa_existente": {
+      "archivo": "dist/ConDi-1.0.30+31-prueba-gratis.ipa",
+      "version": "1.0.30+31",
+      "incluye_correcciones_1_0_31": false,
+      "nota": "El IPA generado antes conserva la version 1.0.30+31; las correcciones actuales son solo para la web. Instalacion y prueba nativa en iPhone siguen pendientes."
+    },
+    "camara_real": {
+      "permiso": "concedido por el usuario en Chrome",
+      "preview": "activo, 1600x1080, readyState=4",
+      "foto_tomada_por_agente": false,
+      "reporte_enviado": false
+    },
+    "qa_e2e": {
+      "escenarios_aprobados": 4,
+      "errores_javascript": 0,
+      "escrituras_productivas": 0,
+      "evidencia": "output/qa-report-camera-2026-11-11/verification.json",
+      "nota": "Prueba de dirección manual con localidad ya seleccionada; autocomplete no automatizado."
+    }
+  },
+  "acceso_cuadrilla_y_fotos_2026_11_15": {
+    "estado": "Publicada en Google Play (prueba interna) como 1.0.32+33; reglas de Storage publicadas.",
+    "alcance": [
+      "El perfil de jefe de cuadrillas y de equipo de campo incorpora acceso directo a sus operaciones.",
+      "La carga de foto fallida se diagnostica como reglas de Firebase Storage sin publicar; la aplicación ya conserva el reporte y permite reintentar el adjunto."
+    ],
+    "calidad": "113 pruebas Flutter aprobadas y 1 omitida por requerir Chrome. Análisis dirigido sin errores (5 avisos preexistentes).",
+    "publicacion": {
+      "version": "1.0.32+33",
+      "track": "internal",
+      "editId": "03077129867641194766",
+      "sha256_aab": "8e11fd215906ab9ffe05cc2428c4fff0b8997aa988ffa1bf1e6390c5ab5f10a7",
+      "enlace": "https://play.google.com/apps/internaltest/4701647237677047143",
+      "storage_rules": "Publicadas el 2026-11-15; Firebase confirmó compilación y liberación."
+    },
+    "avisos": {
+      "usuarios_activos": "42 vecinos: 3 push y 39 bandeja, verificados.",
+      "jefe_cuadrillas": "fernandogenazzini@gmail.com: 1 push, verificado."
+    },
+    "pendientes_externos": [
+      "Instalar 1.0.32+33 desde el enlace interno y validar en dispositivo una tarea, fotos y resolución."
+    ]
+  },
+  "cobertura_cuadrillas_2026_11_15": {
+    "estado": "Corregido y publicado en prueba interna como 1.0.33+34.",
+    "causa": "Las cuadrillas se consultaban por igualdad exacta y algunos reportes usan el prefijo georef_; además, la provisión anterior sólo tomaba municipios catalogados y omitía municipios presentes en reportes.",
+    "correccion": [
+      "La app resuelve ambos formatos de identificador municipal al listar cuadrillas.",
+      "La provisión de Fernando incorpora municipios existentes en reportes además del catálogo.",
+      "Fernando quedó como jefe activo y miembro de cuadrilla en los 4 municipios con reportes; no queda ninguno sin cobertura."
+    ],
+    "calidad": "18 pruebas dirigidas Flutter aprobadas; comprobación de sintaxis Node aprobada.",
+    "publicacion": {
+      "version": "1.0.33+34",
+      "track": "internal",
+      "editId": "05815749666650503335",
+      "sha256_aab": "a1280f441714f0436276362e010c31c99f396f701529a1fd63e9e2db05d956b8",
+      "enlace": "https://play.google.com/apps/internaltest/4701647237677047143"
+    },
+    "pendiente": "Instalar 1.0.33+34 en el teléfono de Fernando y probar asignar, iniciar, comunicar avance, adjuntar evidencia y resolver una tarea."
   }
 }

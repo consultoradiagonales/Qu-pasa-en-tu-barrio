@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/argwx_service.dart';
 import '../../../data/services/auth_service.dart';
+import '../widgets/argwx_dashboard_mobile.dart'
+    if (dart.library.js_interop) '../widgets/argwx_dashboard_web.dart';
 
 String _when(DateTime? date) {
   if (date == null) return 'sin fecha';
@@ -17,10 +20,12 @@ String _when(DateTime? date) {
 Color _onLevel(ArgwxLevel level) =>
     level == ArgwxLevel.yellow ? const Color(0xFF14283F) : Colors.white;
 
-/// Perfil → Clima y prevención. Consulta voluntaria del motor ARGWX para el
+/// Inicio → Clima y prevención. Consulta voluntaria del motor ARGWX para el
 /// municipio de la cuenta. No activa notificaciones ni pide ubicación.
 class WeatherScreen extends ConsumerWidget {
-  const WeatherScreen({super.key});
+  const WeatherScreen({super.key, this.openMap = false});
+
+  final bool openMap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,7 +36,14 @@ class WeatherScreen extends ConsumerWidget {
     final argwxId = ArgwxService.argwxIdFor(profile?.municipalityId);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Clima y prevención')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Volver al inicio',
+          onPressed: () => context.go('/home'),
+        ),
+        title: const Text('Clima y prevención'),
+      ),
       body: profile == null
           ? const Center(child: CircularProgressIndicator())
           : argwxId == null
@@ -39,6 +51,7 @@ class WeatherScreen extends ConsumerWidget {
               : WeatherBody(
                   argwxId: argwxId,
                   municipalityName: profile.municipalityName ?? 'Tu municipio',
+                  initialMap: openMap,
                 ),
     );
   }
@@ -74,10 +87,12 @@ class WeatherBody extends ConsumerStatefulWidget {
     super.key,
     required this.argwxId,
     required this.municipalityName,
+    this.initialMap = false,
   });
 
   final String argwxId;
   final String municipalityName;
+  final bool initialMap;
 
   @override
   ConsumerState<WeatherBody> createState() => _WeatherBodyState();
@@ -86,12 +101,63 @@ class WeatherBody extends ConsumerStatefulWidget {
 class _WeatherBodyState extends ConsumerState<WeatherBody> {
   int _hours = 24;
   Future<ArgwxFloods>? _floods;
+  late bool _showMap;
+
+  @override
+  void initState() {
+    super.initState();
+    _showMap = widget.initialMap;
+  }
+
+  @override
+  void didUpdateWidget(covariant WeatherBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialMap != oldWidget.initialMap) {
+      _showMap = widget.initialMap;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          child: SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(Icons.cloud_outlined),
+                  label: Text('Clima'),
+                ),
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(Icons.map_outlined),
+                  label: Text('Mapa meteorológico'),
+                ),
+              ],
+              selected: {_showMap},
+              onSelectionChanged: (selection) =>
+                  setState(() => _showMap = selection.first),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _showMap
+              ? const ArgwxDashboard(key: Key('argwx-map'))
+              : _forecastList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _forecastList() {
     final async = ref.watch(argwxForecastProvider(widget.argwxId));
     return RefreshIndicator(
-      onRefresh: () => ref.refresh(argwxForecastProvider(widget.argwxId).future),
+      onRefresh: () =>
+          ref.refresh(argwxForecastProvider(widget.argwxId).future),
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -115,9 +181,11 @@ class _WeatherBodyState extends ConsumerState<WeatherBody> {
               child: Center(child: CircularProgressIndicator()),
             ),
             error: (_, __) => _Unavailable(
-              onRetry: () => ref.invalidate(argwxForecastProvider(widget.argwxId)),
+              onRetry: () =>
+                  ref.invalidate(argwxForecastProvider(widget.argwxId)),
             ),
-            data: (forecast) => _ForecastView(forecast: forecast, hours: _hours),
+            data: (forecast) =>
+                _ForecastView(forecast: forecast, hours: _hours),
           ),
           const Divider(height: 40),
           _FloodsSection(
@@ -189,7 +257,8 @@ class _ForecastView extends StatelessWidget {
         if (window == null || m == null)
           const _Notice(
             icon: Icons.help_outline,
-            text: 'Sin dato para este período. No significa ausencia de riesgo.',
+            text:
+                'Sin dato para este período. No significa ausencia de riesgo.',
           )
         else ...[
           Text(
@@ -240,7 +309,8 @@ class _ForecastView extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.water_drop_outlined),
-              title: Text('Lluvia estimada: ${m.rainMm!.toStringAsFixed(1)} mm'),
+              title:
+                  Text('Lluvia estimada: ${m.rainMm!.toStringAsFixed(1)} mm'),
               subtitle: m.rainOver10mmPercent == null
                   ? null
                   : Text('Probabilidad de superar 10 mm: '
@@ -261,8 +331,8 @@ class _ForecastView extends StatelessWidget {
           Text(
             'Actualizado: ${_when(forecast.generatedAt)} · '
             '${forecast.modelCount} modelos',
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.textSecondary),
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ],
       ],
@@ -285,8 +355,7 @@ class _FloodsSection extends StatelessWidget {
         children: [
           title,
           const SizedBox(height: 8),
-          const Text(
-              'Consultá si hay cursos de agua con aviso en tu partido. '
+          const Text('Consultá si hay cursos de agua con aviso en tu partido. '
               'La consulta descarga unos 4 MB.'),
           const SizedBox(height: 8),
           OutlinedButton.icon(
@@ -308,7 +377,8 @@ class _FloodsSection extends StatelessWidget {
           children.add(const Text(
               'No se pudo consultar ahora. Esto no significa que no haya '
               'riesgo hídrico.'));
-          children.add(TextButton(onPressed: onLoad, child: const Text('Reintentar')));
+          children.add(
+              TextButton(onPressed: onLoad, child: const Text('Reintentar')));
         } else {
           final floods = snap.data!;
           if (floods.isStale) {
@@ -392,11 +462,6 @@ class _Disclaimer extends StatelessWidget {
               onPressed: () => launchUrl(Uri.parse('https://www.smn.gob.ar/'),
                   mode: LaunchMode.externalApplication),
               child: const Text('Alertas oficiales del SMN'),
-            ),
-            TextButton(
-              onPressed: () => launchUrl(Uri.parse(ArgwxService.dashboardUrl),
-                  mode: LaunchMode.externalApplication),
-              child: const Text('Tablero completo'),
             ),
           ],
         ),

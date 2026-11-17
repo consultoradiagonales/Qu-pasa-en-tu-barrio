@@ -7,6 +7,7 @@ Color notificationTypeColor(NotificationType type) {
   switch (type) {
     case NotificationType.newReport:
     case NotificationType.reportAssigned:
+    case NotificationType.fieldAssignment:
       return AppColors.primary;
     case NotificationType.reportResolved:
       return AppColors.statusResolved;
@@ -36,6 +37,7 @@ IconData notificationTypeIcon(NotificationType type) {
     case NotificationType.workerArrived:
       return Icons.engineering_outlined;
     case NotificationType.reportAssigned:
+    case NotificationType.fieldAssignment:
       return Icons.assignment_outlined;
     case NotificationType.officialComment:
       return Icons.record_voice_over_outlined;
@@ -54,6 +56,8 @@ String notificationTypeLabel(NotificationType type) {
       return 'Nuevo reporte';
     case NotificationType.reportAssigned:
       return 'Reporte asignado';
+    case NotificationType.fieldAssignment:
+      return 'Trabajo asignado';
     case NotificationType.workerArrived:
       return 'Cuadrilla en camino';
     case NotificationType.reportResolved:

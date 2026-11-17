@@ -3,6 +3,8 @@
 const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { createHash } = require('node:crypto');
+const { deliverToUsers } = require('./push-delivery');
 
 const REGION = 'southamerica-east1';
 
@@ -83,6 +85,61 @@ function isInvalidToken(error) {
     error?.code === 'messaging/invalid-registration-token';
 }
 
+function assignmentChange(before, after) {
+  if (!after || after.status !== 'assigned' || !clean(after.assignedTeamId, 128)) {
+    return false;
+  }
+  return before?.status !== 'assigned' ||
+    before?.assignedTeamId !== after.assignedTeamId ||
+    before?.assignmentVersion !== after.assignmentVersion;
+}
+
+function assignmentKey(reportId, version, teamId = '') {
+  const digest = createHash('sha256').update(String(reportId)).digest('hex').slice(0, 24);
+  if (Number.isSafeInteger(version) && version >= 0) {
+    return `field_assignment_${digest}_${version}`;
+  }
+  // Sin assignmentVersion (reportes legados): la clave incluye el equipo para
+  // que una reasignación a otro equipo vuelva a avisar a la gerencia central.
+  const teamDigest = createHash('sha256').update(String(teamId)).digest('hex').slice(0, 16);
+  return `field_assignment_${digest}_t${teamDigest}`;
+}
+
+async function notifyAssignedWorkers(event, database = getFirestore()) {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!assignmentChange(before, after)) return null;
+
+  const teamId = clean(after.assignedTeamId, 128);
+  const [teamWorkers, fieldManagers] = await Promise.all([
+    database.collection('users').where('teamId', '==', teamId).get(),
+    database.collection('users').where('role', '==', 'field_manager').get(),
+  ]);
+  const recipients = new Map();
+  for (const snapshot of [...teamWorkers.docs, ...fieldManagers.docs]) {
+    const profile = snapshot.data();
+    const isTeamWorker = profile.teamId === teamId && profile.role === 'field_worker';
+    const isGlobalManager = profile.role === 'field_manager' &&
+      profile.organizationId === 'diagonales';
+    if (profile.disabled !== true && (isTeamWorker || isGlobalManager)) {
+      recipients.set(snapshot.id, { uid: snapshot.id, fcmToken: profile.fcmToken });
+    }
+  }
+  if (!recipients.size) return { total: 0, pushed: 0, inApp: 0 };
+
+  return deliverToUsers(database, [...recipients.values()], {
+    key: assignmentKey(event.params.reportId, after.assignmentVersion, teamId),
+    type: 'field_assignment',
+    title: 'Nueva tarea asignada',
+    body: 'Tenés un nuevo trabajo municipal para revisar.',
+    data: {
+      reportId: event.params.reportId,
+      teamId,
+      actionUrl: `/field/task/${event.params.reportId}`,
+    },
+  });
+}
+
 async function notifyReportOwner(event) {
   const before = event.data?.before?.data();
   const after = event.data?.after?.data();
@@ -157,9 +214,17 @@ async function notifyReportOwner(event) {
   return null;
 }
 
+async function notifyReportChange(event) {
+  await Promise.all([
+    notifyReportOwner(event),
+    notifyAssignedWorkers(event),
+  ]);
+  return null;
+}
+
 const reportLifecycleNotifications = onDocumentUpdated(
   { document: 'reports/{reportId}', region: REGION, retry: true },
-  notifyReportOwner,
+  notifyReportChange,
 );
 
 module.exports = {
@@ -167,4 +232,8 @@ module.exports = {
   notificationForChange,
   isInvalidToken,
   notifyReportOwner,
+  notifyAssignedWorkers,
+  notifyReportChange,
+  assignmentChange,
+  assignmentKey,
 };

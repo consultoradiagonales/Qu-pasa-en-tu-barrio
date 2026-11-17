@@ -135,6 +135,7 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
+    expect(find.text('Mapa meteorológico'), findsOneWidget);
     expect(find.text('Alerta amarilla por tormenta'), findsOneWidget);
     expect(find.text('Fuente: alerta oficial del SMN'), findsOneWidget);
     expect(log.where((p) => p.endsWith('crecidas.json')), isEmpty);

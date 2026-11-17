@@ -20,3 +20,11 @@ functions/node_modules/
 dev/qa/*.apk
 
 dist/
+output/qa-device-lab/credentials.json
+output/ios-prueba-gratis-2026-11-11/
+tmp/ios-free-source-*/
+tmp/ios-private-apply-*/
+
+# Material local consolidado: conservar sólo su mapa.
+workspace-local/*
+!workspace-local/README.md

@@ -15,31 +15,48 @@ service cloud.firestore {
       return left is string && right is string && left.size() > 0 && right.size() > 0 &&
         (left == right || left == 'georef_' + right || 'georef_' + left == right);
     }
+    // Gestión municipal completa. La gerencia de cuadrillas sólo cuenta como
+    // gestión cuando la provisiona Diagonales (organizationId): una cuenta con
+    // rol field_manager sin esa marca no ve reportes ocultos ni modera.
     function staff() {
       return signedIn() && profile().disabled != true &&
-        profile().role in ['coordinator', 'admin', 'moderator'];
+        (profile().role in ['coordinator', 'admin', 'moderator'] || fieldManager());
+    }
+    // field_manager sin organización central: sólo consulta operarios de su
+    // propio municipio (lo que necesita para coordinar cuadrillas).
+    function localFieldManagerFor(data) {
+      return signedIn() && profile().disabled != true &&
+        profile().role == 'field_manager' &&
+        profile().get('organizationId', '') != 'diagonales' &&
+        data.role == 'field_worker' &&
+        sameMunicipality(profile().municipalityId, data.municipalityId);
     }
     function admin() {
       return signedIn() && profile().disabled != true && profile().role == 'admin' &&
         profile().get('organizationId', '') == 'diagonales';
     }
+    function fieldManager() {
+      return signedIn() && profile().disabled != true &&
+        profile().role == 'field_manager' &&
+        profile().get('organizationId', '') == 'diagonales';
+    }
     function coordinatorFor(municipalityId) {
-      return staff() && (admin() ||
+      return staff() && (admin() || fieldManager() ||
         (profile().municipalityId is string && profile().municipalityId.size() > 0 && sameMunicipality(profile().municipalityId, municipalityId)));
     }
     // Personal operativo del mismo municipio, o administración central.
     // Se usa para evitar que un municipio consulte perfiles de otro.
     function staffFor(data) {
-      return staff() && (admin() ||
+      return staff() && (admin() || fieldManager() ||
         (data.municipalityId is string && data.municipalityId.size() > 0 &&
           sameMunicipality(profile().municipalityId, data.municipalityId)));
     }
     function workerFor(report) {
-      return signedIn() && profile().disabled != true &&
+      return fieldManager() || (signedIn() && profile().disabled != true &&
         profile().role == 'field_worker' &&
         profile().teamId is string && profile().teamId.size() > 0 &&
         sameMunicipality(profile().municipalityId, report.municipalityId) &&
-        profile().teamId == report.assignedTeamId;
+        profile().teamId == report.assignedTeamId);
     }
     function canReadReport(report) {
       return signedIn() && profile().disabled != true &&
@@ -138,6 +155,15 @@ service cloud.firestore {
       // adjuntos. Esto limita el formato y tamaño del campo, no certifica fotos.
       return value is string && value.size() > 0 && value.size() <= 2048;
     }
+    // Lista de evidencia de cuadrilla: 1 a 5 referencias de texto válidas.
+    function validPhotoList(photos) {
+      return photos is list && photos.size() > 0 && photos.size() <= 5 &&
+        validPhotoReference(photos[0]) &&
+        (photos.size() < 2 || validPhotoReference(photos[1])) &&
+        (photos.size() < 3 || validPhotoReference(photos[2])) &&
+        (photos.size() < 4 || validPhotoReference(photos[3])) &&
+        (photos.size() < 5 || validPhotoReference(photos[4]));
+    }
     function quotaForReport(reportId) {
       let quota = getAfter(/databases/$(database)/documents/reportSubmissionQuotas/$(request.auth.uid)).data;
       return quota.lastReportId == reportId && quota.updatedAt == request.time;
@@ -167,7 +193,11 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get, list: if own(userId) || staffFor(resource.data);
+      // Decisión del titular (2026-11-17): la gerencia de cuadrillas de
+      // Diagonales lee perfiles de todos los municipios a través de staffFor.
+      // Es intencional; lo cubren F1a/F1b en rules-gaps.emulator.test.js.
+      allow get, list: if own(userId) || staffFor(resource.data) ||
+        localFieldManagerFor(resource.data);
       allow create: if own(userId) && request.resource.data.role == 'citizen' &&
         request.resource.data.disabled == false &&
         !request.resource.data.keys().hasAny(['organizationId', 'centralAdmin', 'isPlatformAdmin']);
@@ -178,7 +208,7 @@ service cloud.firestore {
           'provinceId', 'province', 'departmentId', 'department',
           'localityId', 'locality', 'settlementId', 'settlement'
         ]) &&
-        request.resource.data.reportsCount >= resource.data.reportsCount &&
+        request.resource.data.get('reportsCount', 0) >= resource.data.get('reportsCount', 0) &&
         // El municipio lo elige el vecino al registrarse y puede cambiarlo si
         // se muda. Para el personal municipal es distinto: su municipio define
         // qué reportes ve, así que dejarlo cambiarlo sería darle acceso a los
@@ -196,7 +226,8 @@ service cloud.firestore {
     }
 
     match /municipalities/{municipalityId} {
-      allow read: if admin() || (signedIn() && sameMunicipality(profile().municipalityId, municipalityId));
+      allow read: if admin() || fieldManager() ||
+        (signedIn() && sameMunicipality(profile().municipalityId, municipalityId));
       allow write: if admin();
     }
 
@@ -257,7 +288,7 @@ service cloud.firestore {
           (resource.data.status == 'assigned' &&
             request.resource.data.status == 'in_progress' &&
             request.resource.data.assignedWorkerId == request.auth.uid &&
-            request.resource.data.photosBefore.size() > 0 &&
+            validPhotoList(request.resource.data.photosBefore) &&
             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
               'status', 'workerArrivedAt', 'workStartedAt', 'assignedWorkerId',
               'photosBefore', 'updatedAt'
@@ -265,7 +296,7 @@ service cloud.firestore {
           (resource.data.status == 'in_progress' &&
             request.resource.data.status == 'resolved' &&
             resource.data.assignedWorkerId == request.auth.uid &&
-            request.resource.data.photosAfter.size() > 0 &&
+            validPhotoList(request.resource.data.photosAfter) &&
             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
               'status', 'photosAfter', 'workFinishedAt', 'resolvedAt',
               'workerNotes', 'updatedAt'
@@ -273,6 +304,11 @@ service cloud.firestore {
           (resource.data.status == 'in_progress' &&
             request.resource.data.status == 'in_progress' &&
             resource.data.assignedWorkerId == request.auth.uid &&
+            request.resource.data.photosProgress is list &&
+            resource.data.photosProgress is list &&
+            request.resource.data.photosProgress.size() == resource.data.photosProgress.size() + 1 &&
+            request.resource.data.photosProgress.hasAll(resource.data.photosProgress) &&
+            validPhotoReference(request.resource.data.photosProgress[request.resource.data.photosProgress.size() - 1]) &&
             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
               'photosProgress', 'updatedAt'
             ]))

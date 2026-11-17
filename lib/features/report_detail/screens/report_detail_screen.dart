@@ -127,83 +127,115 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     }
   }
 
+  String _fallbackRoute(String? role) {
+    if (role == 'field_worker' || role == 'field_manager') return '/field';
+    if (role == 'admin' || role == 'coordinator' || role == 'moderator') {
+      return '/coordinator';
+    }
+    return '/home';
+  }
+
+  void _goBack(String? role) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go(_fallbackRoute(role));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = ref.watch(authStateProvider).valueOrNull?.uid ?? '';
     final role = ref.watch(currentUserRoleProvider);
-    final isStaff =
-        role == 'admin' || role == 'coordinator' || role == 'moderator';
+    final isStaff = role == 'admin' ||
+        role == 'coordinator' ||
+        role == 'moderator' ||
+        role == 'field_manager';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detalle del reporte'),
-        actions: [
-          if (isStaff)
-            PopupMenuButton<String>(
-              tooltip: 'Navegación de gestión',
-              icon: const Icon(Icons.menu),
-              onSelected: (route) => context.go(route),
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                  value: '/admin',
-                  child: ListTile(
-                    leading: Icon(Icons.dashboard_outlined),
-                    title: Text('Centro de gestión'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: '/coordinator',
-                  child: ListTile(
-                    leading: Icon(Icons.assignment_outlined),
-                    title: Text('Reportes'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: '/profile',
-                  child: ListTile(
-                    leading: Icon(Icons.person_outline),
-                    title: Text('Perfil y contraseña'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
-            ),
-          StreamBuilder<ReportModel?>(
-            stream: _reportStream,
-            builder: (_, snapshot) {
-              final report = snapshot.data;
-              if (report == null) return const SizedBox.shrink();
-              return IconButton(
-                icon: _flagging
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.flag_outlined),
-                tooltip: 'Reportar contenido',
-                onPressed: () => _flagReport(report),
-              );
-            },
+    final canPop = Navigator.of(context).canPop();
+    return PopScope(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goBack(role);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            key: const Key('report-detail-back'),
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Volver',
+            onPressed: () => _goBack(role),
           ),
-        ],
-      ),
-      body: StreamBuilder<ReportModel?>(
-        stream: _reportStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text(mensajeDeError(snapshot.error!)));
-          }
-          final report = snapshot.data;
-          if (report == null) {
-            return const Center(child: Text('Reporte no encontrado.'));
-          }
-          return _buildBody(report, uid);
-        },
+          title: const Text('Detalle del reporte'),
+          actions: [
+            if (isStaff)
+              PopupMenuButton<String>(
+                tooltip: 'Navegación de gestión',
+                icon: const Icon(Icons.menu),
+                onSelected: (route) => context.go(route),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: '/admin',
+                    child: ListTile(
+                      leading: Icon(Icons.dashboard_outlined),
+                      title: Text('Centro de gestión'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: '/coordinator',
+                    child: ListTile(
+                      leading: Icon(Icons.assignment_outlined),
+                      title: Text('Reportes'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: '/profile',
+                    child: ListTile(
+                      leading: Icon(Icons.person_outline),
+                      title: Text('Perfil y contraseña'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+            StreamBuilder<ReportModel?>(
+              stream: _reportStream,
+              builder: (_, snapshot) {
+                final report = snapshot.data;
+                if (report == null) return const SizedBox.shrink();
+                return IconButton(
+                  icon: _flagging
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.flag_outlined),
+                  tooltip: 'Reportar contenido',
+                  onPressed: () => _flagReport(report),
+                );
+              },
+            ),
+          ],
+        ),
+        body: StreamBuilder<ReportModel?>(
+          stream: _reportStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text(mensajeDeError(snapshot.error!)));
+            }
+            final report = snapshot.data;
+            if (report == null) {
+              return const Center(child: Text('Reporte no encontrado.'));
+            }
+            return _buildBody(report, uid);
+          },
+        ),
       ),
     );
   }

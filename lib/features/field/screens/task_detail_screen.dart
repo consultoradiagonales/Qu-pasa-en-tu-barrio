@@ -24,6 +24,57 @@ class TaskDetailScreen extends ConsumerStatefulWidget {
 
 class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
   bool _uploading = false;
+  bool _sendingUpdate = false;
+  late Future<ReportModel?> _reportFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reportFuture = ref
+        .read(reportsRepositoryProvider)
+        .getReport(widget.reportId)
+        .timeout(const Duration(seconds: 20));
+  }
+
+  void _goBack() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go('/field');
+    }
+  }
+
+  Future<void> _sendUpdate(ReportModel report) async {
+    // El diálogo es dueño de su controlador y lo libera en su propio dispose,
+    // después de la animación de salida (antes se liberaba mientras el
+    // TextField seguía montado durante el cierre).
+    final message = (await showDialog<String>(
+          context: context,
+          builder: (_) => const _SendUpdateDialog(),
+        ))
+            ?.trim() ??
+        '';
+    if (message.length < 3 || !mounted) return;
+    setState(() => _sendingUpdate = true);
+    try {
+      await ref
+          .read(reportsRepositoryProvider)
+          .sendReportUpdate(report.id, message);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Novedad enviada al vecino.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mensajeDeError(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sendingUpdate = false);
+    }
+  }
 
   Future<void> _navigateToLocation(ReportModel r) async {
     final manualAddress = r.location.address?.trim() ?? '';
@@ -114,22 +165,52 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reportAsync = ref.watch(
-      FutureProvider((ref) =>
-          ref.read(reportsRepositoryProvider).getReport(widget.reportId)),
-    );
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Detalle de tarea')),
-      body: reportAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text(mensajeDeError(e))),
-        data: (report) {
-          if (report == null) {
-            return const Center(child: Text('Reporte no encontrado.'));
-          }
-          return _buildBody(report);
-        },
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            key: const Key('field-task-back'),
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Volver a tareas',
+            onPressed: _goBack,
+          ),
+          title: const Text('Detalle de tarea'),
+        ),
+        body: FutureBuilder<ReportModel?>(
+          future: _reportFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(
+                  child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(mensajeDeError(snapshot.error!)),
+                  TextButton(
+                      onPressed: () => setState(() {
+                            _reportFuture = ref
+                                .read(reportsRepositoryProvider)
+                                .getReport(widget.reportId)
+                                .timeout(const Duration(seconds: 20));
+                          }),
+                      child: const Text('Reintentar')),
+                ],
+              ));
+            }
+            final report = snapshot.data;
+            if (report == null) {
+              return const Center(child: Text('Reporte no encontrado.'));
+            }
+            return _buildBody(report);
+          },
+        ),
       ),
     );
   }
@@ -260,6 +341,21 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
           const SizedBox(height: 12),
 
           if (report.status == ReportStatus.assigned)
+            OutlinedButton.icon(
+              onPressed: _sendingUpdate ? null : () => _sendUpdate(report),
+              icon: _sendingUpdate
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.message_outlined),
+              label: const Text('Avisar una demora o novedad'),
+            ),
+
+          if (report.status == ReportStatus.assigned)
+            const SizedBox(height: 12),
+
+          if (report.status == ReportStatus.assigned)
             ElevatedButton.icon(
               onPressed: _uploading ? null : () => _arrivedOnSite(report),
               icon: _uploading
@@ -307,4 +403,44 @@ class _Chip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SendUpdateDialog extends StatefulWidget {
+  const _SendUpdateDialog();
+
+  @override
+  State<_SendUpdateDialog> createState() => _SendUpdateDialogState();
+}
+
+class _SendUpdateDialogState extends State<_SendUpdateDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Avisar al vecino'),
+        content: TextField(
+          controller: _controller,
+          maxLines: 3,
+          maxLength: 280,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText:
+                'Informá una demora, una complicación o cuándo irán al lugar',
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, _controller.text),
+              child: const Text('Enviar')),
+        ],
+      );
 }

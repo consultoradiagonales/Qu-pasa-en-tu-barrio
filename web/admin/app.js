@@ -1,6 +1,7 @@
-import { isCentralAdmin } from './management-access.js';
+import { hasGlobalOperationsAccess, isCentralAdmin } from './management-access.js';
 import { matchesReportStatus, reportStatusLabel } from './report-status.js';
 import { formatReceiptLatency, reportReceiptLatency } from './report-realtime.js';
+import { canActOnFieldTask, canStartFieldTask, runFieldEvidenceUpdate } from './field-workflow.js';
 import { findMunicipalityIdentity, municipalityAliases, sameMunicipality } from './municipality-branding.js';
 import { ARGWX_DASHBOARD, argwxIdFor, argwxPartidos, buildWeatherView, coverageFor, dashboardUrlFor, describe as describeWeather, levelInfo, loadArgwxBlindspots, loadArgwxData, partidoWindows } from './argwx-layer.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
@@ -28,6 +29,8 @@ import {
   serverTimestamp,
   setDoc,
   startAfter,
+  updateDoc,
+  arrayUnion,
   where,
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
 import {
@@ -35,6 +38,14 @@ import {
   getFunctions,
   httpsCallable,
 } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js';
+import {
+  connectStorageEmulator,
+  deleteObject,
+  getDownloadURL,
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+} from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAq8vtaTmwWkYaJGSdXj6wtbhGwWLZm00Y',
@@ -50,6 +61,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app, 'southamerica-east1');
+const storage = getStorage(app);
 
 // El panel usa los emuladores únicamente cuando se abre desde el servidor
 // local. En producción conserva Firebase real sin depender de parámetros.
@@ -62,6 +74,7 @@ if (useLocalEmulators) {
   });
   connectFirestoreEmulator(db, emulatorHost, 8080);
   connectFunctionsEmulator(functions, emulatorHost, 5001);
+  connectStorageEmulator(storage, emulatorHost, 9199);
   document.documentElement.dataset.backend = 'local';
 }
 const assignReportTeam = httpsCallable(functions, 'assignReportTeam');
@@ -86,7 +99,7 @@ const sendWeatherAlert = httpsCallable(functions, 'sendWeatherAlert');
 const correctWeatherAlert = httpsCallable(functions, 'correctWeatherAlert');
 
 const OWNER_EMAIL = 'info.consultoradiagonales@gmail.com';
-const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator']);
+const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator', 'field_manager']);
 const CLOSED_STATUSES = new Set(['resolved', 'closed', 'rejected']);
 const STATUS_LABELS = {
   pending: 'Pendiente',
@@ -106,7 +119,7 @@ const CATEGORY_LABELS = {
   environment: 'Ambiente',
   other: 'Otros',
 };
-const ROLE_LABELS = { admin: 'Administración', coordinator: 'Coordinación', moderator: 'Moderación' };
+const ROLE_LABELS = { admin: 'Administración', coordinator: 'Coordinación', moderator: 'Moderación', field_manager: 'Gerencia de cuadrillas' };
 const VIEW_TITLES = {
   overview: ['OPERACIÓN MUNICIPAL', 'Resumen operativo'],
   reports: ['SEGUIMIENTO DE SOLUCIONES', 'Reportes y evidencia'],
@@ -366,6 +379,9 @@ const state = {
   // Correo y nombre de vecinos completados desde Auth (función residentDirectory).
   residentDirectory: new Map(),
   residentDirectoryKey: null,
+  // Identidad privada del vecino, consultada sólo al abrir un reporte desde gestión.
+  reporterProfiles: new Map(),
+  reporterProfileRequests: new Set(),
   residentSearch: '',
   // Capa "Calor de reportes" (colección reportZones).
   zonesOn: false,
@@ -785,7 +801,7 @@ async function loadManagementDashboard() {
   state.managementDashboard=null;
   renderOverview();
   const scope=scopeParts();
-  const data=!isCentralAdmin(state.profile)?{}:
+  const data=!hasGlobalOperationsAccess(state.profile)?{}:
     ['municipality','locality'].includes(scope.type)?{municipalityId:scope.municipalityId}:
     scope.type==='province'?{provinceId:scope.provinceId}:{scope:'all'};
   try {
@@ -880,7 +896,7 @@ function municipalityChoices() {
   if (state.profile?.municipalityId && !knownIds.has(state.profile.municipalityId)) {
     source.push({ id: state.profile.municipalityId, name: state.profile.municipalityName || state.profile.municipalityId, province: state.profile.province || '', provinceId: state.profile.provinceId || '' });
   }
-  return source.filter(item => isCentralAdmin(state.profile) || item.id === state.profile?.municipalityId).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  return source.filter(item => hasGlobalOperationsAccess(state.profile) || item.id === state.profile?.municipalityId).sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }
 
 function territoryOptions() {
@@ -911,7 +927,7 @@ function territoryOptions() {
 }
 
 function renderMunicipalityPicker() {
-  const isAdmin = isCentralAdmin(state.profile);
+  const isAdmin = hasGlobalOperationsAccess(state.profile);
   elements.municipalityWrap.hidden = !isAdmin;
   if (!isAdmin) return;
   const previous = state.scope;
@@ -943,7 +959,7 @@ function renderMunicipalityPicker() {
 }
 
 function subscribeMunicipalities() {
-  const source = isCentralAdmin(state.profile) ? collection(db, 'municipalities') : query(collection(db, 'municipalities'), where(documentId(), 'in', municipalityAliases(state.profile.municipalityId)));
+  const source = hasGlobalOperationsAccess(state.profile) ? collection(db, 'municipalities') : query(collection(db, 'municipalities'), where(documentId(), 'in', municipalityAliases(state.profile.municipalityId)));
   state.unsubMunicipalities = onSnapshot(source, (snapshot) => {
     state.municipalities = snapshot.docs.map((item) => {
       const data = item.data();
@@ -974,7 +990,7 @@ function subscribeMunicipalities() {
 
 function reportsQuery() {
   const constraints = [where('hidden', '==', false)];
-  if (!isCentralAdmin(state.profile)) constraints.push(where('municipalityId', 'in', municipalityAliases(state.profile?.municipalityId)));
+  if (!hasGlobalOperationsAccess(state.profile)) constraints.push(where('municipalityId', 'in', municipalityAliases(state.profile?.municipalityId)));
   else {
     const scope=scopeParts();
     if(['municipality','locality'].includes(scope.type)) constraints.push(where('municipalityId','in',municipalityAliases(scope.municipalityId)));
@@ -985,7 +1001,7 @@ function reportsQuery() {
 
 function incomingReportsQuery() {
   const constraints = [where('hidden', '==', false)];
-  if (!isCentralAdmin(state.profile)) {
+  if (!hasGlobalOperationsAccess(state.profile)) {
     constraints.push(where('municipalityId', 'in', municipalityAliases(state.profile?.municipalityId)));
   }
   constraints.push(orderBy('createdAt', 'desc'), limit(25));
@@ -1041,7 +1057,7 @@ function openIncomingReport() {
   renderIncomingReports();
   state.pendingOpenReportId = report.id;
   const alreadyInScope = matchesScope(report);
-  if (isCentralAdmin(state.profile) && !alreadyInScope) {
+  if (hasGlobalOperationsAccess(state.profile) && !alreadyInScope) {
     state.scope = 'all';
     renderMunicipalityPicker();
     showView('reports');
@@ -1059,7 +1075,7 @@ function openIncomingReport() {
 }
 
 function teamsQuery() {
-  if (isCentralAdmin(state.profile)) return query(collection(db, 'teams'));
+  if (hasGlobalOperationsAccess(state.profile)) return query(collection(db, 'teams'));
   return query(collection(db, 'teams'), where('municipalityId', 'in', municipalityAliases(state.profile?.municipalityId)), where('active', '==', true));
 }
 
@@ -1185,6 +1201,30 @@ function residentMatches(resident, term) {
   if (!term) return true;
   const contact = residentContact(resident);
   return normalizedKey([contact.name, contact.email, resident.locality, resident.municipalityName, resident.id].filter(Boolean).join(' ')).includes(term);
+}
+
+function reporterContact(report) {
+  const profile = state.reporterProfiles.get(safeText(report.userId));
+  return {
+    name: safeText(profile?.realName, safeText(profile?.displayName)),
+    email: safeText(profile?.email),
+  };
+}
+
+async function loadReporterProfile(report) {
+  const userId = safeText(report.userId);
+  if (!userId || state.reporterProfiles.has(userId) || state.reporterProfileRequests.has(userId)) return;
+  state.reporterProfileRequests.add(userId);
+  try {
+    const snapshot = await getDoc(doc(db, 'users', userId));
+    state.reporterProfiles.set(userId, snapshot.exists() ? snapshot.data() : {});
+  } catch (_) {
+    // La regla de Firestore mantiene este dato privado fuera del ámbito municipal.
+    state.reporterProfiles.set(userId, {});
+  } finally {
+    state.reporterProfileRequests.delete(userId);
+    if (state.selectedReportId === report.id) renderDrawer();
+  }
 }
 
 /** Pide una vez por municipio el correo y nombre que falten en los perfiles. */
@@ -2170,8 +2210,12 @@ function renderReports() {
     name.append(element('b', { text: reportName(report) }), element('small', { text: `${categoryLabel(report.category)} · ${reportLocation(report)}` }));
     if (report.photoUploadStatus === 'pending') name.append(element('small', { className: 'evidence-pending', text: 'Evidencia subiendo…' }));
     const team = state.teams.find((item) => item.id === report.assignedTeamId);
-    const action = element('button', { className: 'row-action', type: 'button', text: 'Gestionar', onClick: () => openReport(report.id) });
-    [name, statusPill(report.status), priorityPill(report), element('span', { text: team?.name || 'Sin asignar' }), element('span', { text: formatDate(report.createdAt) }), action]
+    const actions = element('div', { className: 'table-actions' });
+    if (['pending', 'assigned'].includes(report.status)) {
+      actions.append(element('button', { className: 'row-action primary', type: 'button', text: report.assignedTeamId ? 'Cambiar cuadrilla' : 'Asignar cuadrilla', onClick: () => openReport(report.id) }));
+    }
+    actions.append(element('button', { className: 'row-action', type: 'button', text: 'Gestionar', onClick: () => openReport(report.id) }));
+    [name, statusPill(report.status), priorityPill(report), element('span', { text: team?.name || 'Sin asignar' }), element('span', { text: formatDate(report.createdAt) }), actions]
       .forEach((content) => { const td = element('td'); td.append(content); tr.append(td); });
     elements.reportsBody.append(tr);
   });
@@ -2905,9 +2949,150 @@ function openReport(reportId) {
   elements.drawer.setAttribute('aria-hidden', 'false');
 }
 
+async function uploadFieldEvidence(reportId, phase, file) {
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  if (!(file instanceof File) || !allowedTypes.has(file.type) || file.size <= 0 || file.size >= 8 * 1024 * 1024) {
+    throw new Error('Elegí una foto JPG, PNG o WebP de menos de 8 MB.');
+  }
+  const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+  const nonce = window.crypto?.randomUUID?.().replaceAll('-', '') || `${Date.now()}${Math.random().toString(16).slice(2)}`;
+  const reference = storageRef(storage, `reports/${reportId}/${phase}/${nonce}.${extension}`);
+  await uploadBytes(reference, file, { contentType: file.type });
+  return { url: await getDownloadURL(reference), reference };
+}
+
+// Lee el estado actual del reporte antes de subir la foto, para no dejar
+// archivos huérfanos cuando el trabajo cambió de manos o de estado.
+async function fieldTaskProblem(reportId, check) {
+  const snapshot = await getDoc(doc(db, 'reports', reportId));
+  if (!snapshot.exists()) return 'El reporte ya no existe.';
+  return check({ id: snapshot.id, ...snapshot.data() }, auth.currentUser?.uid);
+}
+
+function saveFieldEvidence(reportId, phase, file, buildUpdate, check) {
+  return runFieldEvidenceUpdate({
+    verify: () => fieldTaskProblem(reportId, check),
+    upload: () => uploadFieldEvidence(reportId, phase, file),
+    update: (uploaded) => updateDoc(doc(db, 'reports', reportId), buildUpdate(uploaded.url)),
+    cleanup: (uploaded) => deleteObject(uploaded.reference),
+  });
+}
+
+function requireOwnTask(current, uid) {
+  return canActOnFieldTask(current, uid)
+    ? null
+    : 'Este trabajo está a cargo de otra persona de la cuadrilla. No se subió ninguna foto.';
+}
+
+function requireStartableTask(current, uid) {
+  return canStartFieldTask(current, uid)
+    ? null
+    : 'Este trabajo ya fue iniciado o cambió de estado. No se subió ninguna foto.';
+}
+
+function cameraInput(label) {
+  const wrapper = element('label', { className: 'field-camera-input' });
+  wrapper.append(element('span', { text: label }));
+  const input = element('input', {
+    type: 'file',
+    accept: 'image/jpeg,image/png,image/webp',
+    capture: 'environment',
+  });
+  wrapper.append(input);
+  return { wrapper, input };
+}
+
+function fieldWorkflow(report) {
+  if (state.profile?.role !== 'field_manager' || !['assigned', 'in_progress'].includes(report.status)) return null;
+  const form = element('div', { className: 'drawer-form field-workflow' });
+
+  if (report.status === 'assigned') {
+    const before = cameraInput('Foto del estado antes de comenzar');
+    const start = element('button', {
+      className: 'button primary',
+      type: 'button',
+      text: 'Estoy en el lugar · iniciar trabajo',
+      onClick: async () => {
+        const file = before.input.files?.[0];
+        if (!file) { toast('Tomá o seleccioná la foto inicial.', 'error'); return; }
+        await withButton(start, async () => {
+          await saveFieldEvidence(report.id, 'before', file, (photoUrl) => ({
+            status: 'in_progress',
+            assignedWorkerId: auth.currentUser.uid,
+            photosBefore: [photoUrl],
+            workerArrivedAt: serverTimestamp(),
+            workStartedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }), requireStartableTask);
+          toast('Trabajo iniciado. El vecino ya puede ver el avance.', 'success');
+        });
+      },
+    });
+    form.append(before.wrapper, start);
+  }
+
+  if (report.status === 'in_progress' && !canActOnFieldTask(report, auth.currentUser?.uid)) {
+    form.append(element('p', {
+      className: 'muted',
+      text: report.assignedWorkerId
+        ? 'Este trabajo lo inició otra persona de la cuadrilla. Solo quien lo inició puede cargar avances o marcarlo como resuelto.'
+        : 'Este trabajo figura en curso sin responsable asignado. Pedí al municipio que lo revise.',
+    }));
+  }
+
+  if (canActOnFieldTask(report, auth.currentUser?.uid)) {
+    const progress = cameraInput('Foto de avance (opcional)');
+    const addProgress = element('button', {
+      className: 'button secondary',
+      type: 'button',
+      text: 'Guardar foto de avance',
+      onClick: async () => {
+        const file = progress.input.files?.[0];
+        if (!file) { toast('Tomá o seleccioná una foto de avance.', 'error'); return; }
+        await withButton(addProgress, async () => {
+          await saveFieldEvidence(report.id, 'progress', file, (photoUrl) => ({
+            photosProgress: arrayUnion(photoUrl),
+            updatedAt: serverTimestamp(),
+          }), requireOwnTask);
+          toast('Foto de avance guardada.', 'success');
+        });
+      },
+    });
+    const notes = element('textarea', {
+      placeholder: 'Describí brevemente la solución realizada.',
+      ariaLabel: 'Detalle del trabajo realizado',
+      maxlength: '200',
+    });
+    const after = cameraInput('Foto final para mostrar la solución al vecino');
+    const finish = element('button', {
+      className: 'button primary',
+      type: 'button',
+      text: 'Marcar como resuelto con foto',
+      onClick: async () => {
+        const file = after.input.files?.[0];
+        if (!file) { toast('La foto final es obligatoria para resolver el trabajo.', 'error'); return; }
+        await withButton(finish, async () => {
+          await saveFieldEvidence(report.id, 'after', file, (photoUrl) => ({
+            status: 'resolved',
+            photosAfter: [photoUrl],
+            workFinishedAt: serverTimestamp(),
+            resolvedAt: serverTimestamp(),
+            workerNotes: notes.value.trim(),
+            updatedAt: serverTimestamp(),
+          }), requireOwnTask);
+          toast('Trabajo resuelto. La foto final quedó visible para el vecino.', 'success');
+        });
+      },
+    });
+    form.append(progress.wrapper, addProgress, notes, after.wrapper, finish);
+  }
+  return detailSection('Trabajo de cuadrilla', form);
+}
+
 function renderDrawer() {
   const report = selectedReport();
   if (!report) { closeDrawer(); return; }
+  void loadReporterProfile(report);
   elements.drawerTitle.textContent = reportName(report);
   const content = [];
   const meta = element('div', { className: 'detail-meta' });
@@ -2917,6 +3102,13 @@ function renderDrawer() {
   const location = element('div', { className: 'detail-location' });
   location.append(element('span', { text: '⌖' }), element('p', { text: `${reportLocation(report)} · ${formatDate(report.createdAt, { hour: '2-digit', minute: '2-digit' })}` }));
   content.push(detailSection('Ubicación y registro', location));
+  const reporter = reporterContact(report);
+  const reporterId = safeText(report.userId);
+  const reporterLoading = reporterId && state.reporterProfileRequests.has(reporterId);
+  const reporterDetails = element('div', { className: 'detail-location' });
+  if (reporter.name) reporterDetails.append(element('p', { text: reporter.name }));
+  reporterDetails.append(element('p', { text: reporter.email || (reporterLoading ? 'Cargando correo de la cuenta…' : 'Correo no disponible para este reporte.') }));
+  content.push(detailSection('Cuenta que envió el reporte', reporterDetails));
   const evidence = element('section', { className: 'photo-section' });
   evidence.append(element('h3', { text: 'Evidencia fotográfica' }));
   evidence.append(photoGroup('Reporte del vecino', report.photosReport), photoGroup('Llegada de la cuadrilla', report.photosBefore), photoGroup('Avances de trabajo', report.photosProgress), photoGroup('Trabajo finalizado', report.photosAfter));
@@ -2960,6 +3152,9 @@ function renderDrawer() {
     content.push(detailSection('Priorización', priorityForm));
   }
 
+  const workflow = fieldWorkflow(report);
+  if (workflow) content.push(workflow);
+
   const message = element('textarea', { placeholder: 'Escribí una actualización clara para la persona que reportó el problema.', ariaLabel: 'Mensaje de actualización al vecino', maxlength: '280' });
   const notify = element('button', { className: 'button primary', type: 'button', text: 'Enviar actualización al vecino', onClick: async () => {
     if (message.value.trim().length < 3) { toast('Escribí un mensaje de al menos 3 caracteres.', 'error'); return; }
@@ -2978,7 +3173,7 @@ function renderDrawer() {
     });
   } });
   const updateForm = element('div', { className: 'drawer-form' });
-  updateForm.append(element('label', { text: 'Notificación al vecino' }), message, element('small', { text: 'Si la cuadrilla ya cargó evidencia de avance o finalización, la actualización adjunta la última foto automáticamente.' }), notify);
+  updateForm.append(element('label', { text: 'Comentario o actualización para el vecino' }), message, element('small', { text: 'Si la cuadrilla ya cargó evidencia de avance o finalización, la actualización adjunta la última foto automáticamente.' }), notify);
   content.push(detailSection('Comunicación de la solución', updateForm));
 
   const mapButton = element('button', { className: 'button secondary', type: 'button', text: 'Ver ubicación en el mapa', onClick: () => {
@@ -3162,6 +3357,8 @@ onAuthStateChanged(auth, async (user) => {
   state.teams = [];
   state.ads = [];
   state.residents = [];
+  state.reporterProfiles = new Map();
+  state.reporterProfileRequests = new Set();
   state.weatherAlerts = [];
   state.usage = null;
   state.usageLoading = false;
@@ -3188,7 +3385,7 @@ onAuthStateChanged(auth, async (user) => {
     await catalogReady;
     const profile = await resolveProfile(user);
     if (version !== state.authVersion) return;
-    if (!profile || profile.disabled === true || !MANAGEMENT_ROLES.has(profile.role) || (!isCentralAdmin(profile) && !safeText(profile.municipalityId))) {
+    if (!profile || profile.disabled === true || !MANAGEMENT_ROLES.has(profile.role) || (!hasGlobalOperationsAccess(profile) && !safeText(profile.municipalityId))) {
       elements.deniedCopy.textContent = !profile
         ? 'Esta cuenta todavía no tiene un perfil de gestión. Pedí que la habiliten desde la administración municipal.'
         : profile.disabled === true
@@ -3200,7 +3397,7 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
     state.profile = profile;
-    state.scope = isCentralAdmin(profile) ? 'all' : `municipality|${profile.municipalityId}`;
+    state.scope = hasGlobalOperationsAccess(profile) ? 'all' : `municipality|${profile.municipalityId}`;
     elements.adsNav.hidden = !isCentralAdmin(profile);
     setupUserHeader();
     showOnly('admin');

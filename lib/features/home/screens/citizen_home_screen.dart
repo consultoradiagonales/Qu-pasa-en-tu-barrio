@@ -7,9 +7,14 @@ import '../../../core/widgets/municipality_identity.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
+import '../../weather/widgets/argwx_dashboard_mobile.dart'
+    if (dart.library.js_interop) '../../weather/widgets/argwx_dashboard_web.dart';
 
 class CitizenHomeScreen extends ConsumerWidget {
-  const CitizenHomeScreen({super.key});
+  const CitizenHomeScreen({super.key, this.weatherMapPreview});
+
+  /// Permite sustituir el visor nativo en pruebas de interfaz.
+  final Widget? weatherMapPreview;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,11 +24,36 @@ class CitizenHomeScreen extends ConsumerWidget {
         child: Column(
           children: [
             Expanded(
+              flex: 6,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: KeyedSubtree(
+                      key: const Key('home-weather-map'),
+                      child: weatherMapPreview ?? const ArgwxDashboard(),
+                    ),
+                  ),
+                  Positioned(
+                    right: 12,
+                    bottom: 12,
+                    child: FilledButton.tonalIcon(
+                      key: const Key('home-weather-full'),
+                      onPressed: () => context.go('/clima?view=map'),
+                      icon: const Icon(Icons.open_in_full),
+                      label: const Text('Mapa completo'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 96,
               child: _CameraQuickAccess(
                 onTap: () => context.go('/report/new?mode=camera'),
               ),
             ),
             Expanded(
+              flex: 4,
               child: Container(
                 key: const Key('home-profile-panel'),
                 width: double.infinity,
@@ -83,7 +113,7 @@ class _CameraQuickAccess extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Material(
         key: const Key('home-camera-quick'),
         color: Colors.transparent,
@@ -100,12 +130,11 @@ class _CameraQuickAccess extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(18),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: const Color(0xFFDCEAFB),
                       shape: BoxShape.circle,
@@ -113,26 +142,34 @@ class _CameraQuickAccess extends StatelessWidget {
                     child: const Icon(
                       Icons.photo_camera_rounded,
                       color: AppColors.primary,
-                      size: 52,
+                      size: 30,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Reportar con la cámara',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.onSurface,
-                      fontSize: 23,
-                      fontWeight: FontWeight.w800,
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Reportar con la cámara',
+                          style: TextStyle(
+                            color: AppColors.onSurface,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          'Sacá una foto del problema',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Sacá una foto y cargá el reporte en pocos pasos',
-                    textAlign: TextAlign.center,
-                    style:
-                        TextStyle(color: AppColors.textSecondary, fontSize: 14),
-                  ),
+                  const Icon(Icons.chevron_right, color: AppColors.primary),
                 ],
               ),
             ),
@@ -298,6 +335,17 @@ class _ProfileShortcuts extends StatelessWidget {
                 onTap: () => context.go('/map'),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: _HomeShortcut(
+              key: const Key('home-weather'),
+              icon: Icons.cloud_outlined,
+              label: 'Clima y predicciones',
+              // Abre directamente el motor ARGWX (Mapa meteorológico).
+              onTap: () => context.go('/clima?view=map'),
+            ),
           ),
         ],
       ),

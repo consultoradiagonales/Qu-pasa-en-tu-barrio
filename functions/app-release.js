@@ -8,6 +8,7 @@ const REGION = 'southamerica-east1';
 const RELEASE_DOCUMENT = 'appConfiguration/mobileRelease';
 const ADMIN_ROLE = 'admin';
 const ANDROID_PLAY_URL = 'https://play.google.com/store/apps/details?id=ar.com.consultoradiagonales.condi';
+const ANDROID_PACKAGE_ID = 'ar.com.consultoradiagonales.condi';
 const MAX_BUILD = 2147483647;
 
 const DEFAULT_RELEASE = Object.freeze({
@@ -30,7 +31,11 @@ function validStoreUrl(value, platform) {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'https:') return '';
-    if (platform === 'android' && parsed.hostname !== 'play.google.com') return '';
+    if (platform === 'android') {
+      if (parsed.hostname !== 'play.google.com' || parsed.pathname !== '/store/apps/details' ||
+          parsed.searchParams.getAll('id').length !== 1 || parsed.searchParams.get('id') !== ANDROID_PACKAGE_ID) return '';
+      return ANDROID_PLAY_URL;
+    }
     if (platform === 'ios' && parsed.hostname !== 'apps.apple.com') return '';
     return parsed.toString();
   } catch (_) {
@@ -62,10 +67,10 @@ function publicRelease(data = {}) {
   };
 }
 
-async function requireAdmin(request) {
+async function requireAdmin(request, db = getFirestore()) {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
-  const profile = await getFirestore().collection('users').doc(uid).get();
+  const profile = await db.collection('users').doc(uid).get();
   if (!profile.exists || !isCentralAdmin(profile.data())) {
     throw new HttpsError('permission-denied', 'Solo la administración puede configurar actualizaciones.');
   }
@@ -76,28 +81,52 @@ async function getAppReleaseHandler() {
   return publicRelease(snapshot.exists ? snapshot.data() : {});
 }
 
-async function saveAppReleaseHandler(request) {
-  await requireAdmin(request);
-  const source = request.data || {};
-  const release = publicRelease({
-    minAndroidBuild: source.minAndroidBuild,
-    androidStoreUrl: source.androidStoreUrl,
-    minIosBuild: source.minIosBuild,
-    iosStoreUrl: source.iosStoreUrl,
-    androidMessage: source.androidMessage,
-    iosMessage: source.iosMessage,
-  });
-  const data = {
-    minAndroidBuild: release.android.minBuild,
-    androidStoreUrl: release.android.storeUrl,
-    minIosBuild: release.ios.minBuild,
-    iosStoreUrl: release.ios.storeUrl,
-    androidMessage: release.android.message,
-    iosMessage: release.ios.message,
-    updatedAt: FieldValue.serverTimestamp(),
-  };
-  await getFirestore().doc(RELEASE_DOCUMENT).set(data, { merge: true });
-  return { ok: true, ...publicRelease(data) };
+const PLATFORM_FIELDS = Object.freeze({
+  android: { build: 'minAndroidBuild', url: 'androidStoreUrl', message: 'androidMessage' },
+  ios: { build: 'minIosBuild', url: 'iosStoreUrl', message: 'iosMessage' },
+});
+
+function requestedBuild(source, field) {
+  const value = source[field];
+  if (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) {
+    const build = Number(value);
+    if (Number.isSafeInteger(build) && build >= 0 && build <= MAX_BUILD) return build;
+  }
+  throw new HttpsError('invalid-argument', `${field} debe ser un entero entre 0 y ${MAX_BUILD}.`);
+}
+
+// Sólo escribe los campos presentes en la solicitud: guardar una plataforma
+// nunca pisa la configuración guardada de la otra.
+function releaseUpdate(source) {
+  const data = {};
+  for (const [platform, fields] of Object.entries(PLATFORM_FIELDS)) {
+    if (Object.hasOwn(source, fields.build) && source[fields.build] !== undefined) {
+      data[fields.build] = requestedBuild(source, fields.build);
+    }
+    if (Object.hasOwn(source, fields.url) && source[fields.url] !== undefined) {
+      const url = validStoreUrl(source[fields.url], platform);
+      data[fields.url] = platform === 'android' ? (url || DEFAULT_RELEASE.androidStoreUrl) : url;
+    }
+    if (Object.hasOwn(source, fields.message) && source[fields.message] !== undefined) {
+      data[fields.message] = cleanText(source[fields.message], 240) || DEFAULT_RELEASE[fields.message];
+    }
+  }
+  return data;
+}
+
+async function saveAppReleaseHandler(request, deps = {}) {
+  const db = deps.db || getFirestore();
+  await requireAdmin(request, db);
+  const source = request.data && typeof request.data === 'object' ? request.data : {};
+  const data = releaseUpdate(source);
+  if (!Object.keys(data).length) {
+    throw new HttpsError('invalid-argument', 'No hay cambios de versión para guardar.');
+  }
+  data.updatedAt = FieldValue.serverTimestamp();
+  const releaseRef = db.doc(RELEASE_DOCUMENT);
+  await releaseRef.set(data, { merge: true });
+  const saved = await releaseRef.get();
+  return { ok: true, ...publicRelease(saved.exists === false ? {} : saved.data()) };
 }
 
 const getAppRelease = onCall({ region: REGION }, getAppReleaseHandler);
@@ -111,6 +140,7 @@ module.exports = {
   publicRelease,
   saveAppRelease,
   saveAppReleaseHandler,
+  releaseUpdate,
   validBuild,
   validStoreUrl,
 };

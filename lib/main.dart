@@ -10,6 +10,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -91,6 +92,7 @@ final _pushRegistrar = PushTokenRegistrar(
     }
   },
 );
+GoRouter? _notificationRouter;
 
 /// Guarda el token FCM de la persona con sesión iniciada. Se llama al abrir
 /// la app con sesión ya iniciada y en cada cambio de sesión; los errores se
@@ -115,6 +117,14 @@ Future<Map<String, dynamic>?> _notificationActionById(
 }
 
 Future<void> _handleNotificationAction(Map<String, dynamic> data) async {
+  final internalRoute = await resolveNotificationInternalRoute(
+    data,
+    lookupById: _notificationActionById,
+  );
+  if (internalRoute != null && _notificationRouter != null) {
+    _notificationRouter!.go(internalRoute);
+    return;
+  }
   final opened = await openNotificationAction(
     data,
     lookupById: _notificationActionById,
@@ -269,6 +279,7 @@ class QuePasaApp extends ConsumerWidget {
       );
     }
     final router = ref.watch(appRouterProvider);
+    _notificationRouter = router;
 
     return MaterialApp.router(
       title: 'ConDi',

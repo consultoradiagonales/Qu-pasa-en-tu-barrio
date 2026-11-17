@@ -223,3 +223,7 @@ input:focus, select:focus, textarea:focus { border-color: #478ce6; box-shadow: 0
 .bias-assumption { font-style: italic; color: #6b7280; }
 @media (max-width: 900px) { .wxa-focus-grid { grid-template-columns: 1fr; } .wx-heading-tools { flex-wrap: wrap; } .wxa-focus-select { width: 100%; } .wxa-focus-select select { flex: 1; } }
 .report-name .evidence-pending { color: #a45d00; font-weight: 750; }
+.field-workflow { gap: 12px; }
+.field-camera-input { display: grid; gap: 6px; padding: 12px; border: 1px dashed #b8c9dc; border-radius: 9px; background: #f5f9fd; }
+.field-camera-input input[type="file"] { width: 100%; color: #405670; font-size: 11px; }
+.field-workflow textarea { min-height: 86px; }

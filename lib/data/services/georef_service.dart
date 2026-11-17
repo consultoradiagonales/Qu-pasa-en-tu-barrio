@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart' show rootBundle;
 
+import '../../core/config/municipality_branding.dart';
 import '../../core/utils/search_text.dart';
 
 class GeoRefPlace {
@@ -165,20 +167,34 @@ class GeoRefService {
   Future<({double lat, double lng, double zoom})?> municipalityCenter(
     String municipalityId,
   ) async {
-    final id = municipalityId.replaceFirst('georef_', '');
+    final rawId =
+        municipalityId.trim().toLowerCase().replaceFirst('georef_', '');
+    final identity = MunicipalityBranding.resolve(municipalityId: rawId);
+    var id =
+        identity.key != 'generic' && identity.key != 'buenos_aires_province'
+            ? identity.municipalityId
+            : rawId;
+    // Los perfiles históricos conservan su ámbito: sólo se normaliza la
+    // consulta cartográfica, sin cambiar permisos ni el municipio del perfil.
+    if (identity.key != 'generic' && id.length == 5) {
+      id = '${id.substring(0, 2)}0${id.substring(2)}';
+    }
     if (id.isEmpty || !RegExp(r'^\d+$').hasMatch(id)) return null;
+    final fallback =
+        identity.key == 'generic' ? null : await _catalogCenter(id);
+    if (rawId != id && fallback != null) return fallback;
     try {
       final municipio = await _firstOf(
         'municipios?id=$id&campos=nombre,centroide&max=1',
         'municipios',
       );
-      if (municipio == null) return null;
+      if (municipio == null) return fallback;
 
       final name = municipio['nombre']?.toString() ?? '';
       if (name.isNotEmpty) {
         final localidad = await _firstOf(
           'localidades?municipio=$id&nombre=${Uri.encodeComponent(name)}'
-          '&exacto=true&campos=centroide&max=1',
+              '&exacto=true&campos=centroide&max=1',
           'localidades',
         );
         final point = _point(localidad?['centroide']);
@@ -186,11 +202,38 @@ class GeoRefService {
       }
 
       final point = _point(municipio['centroide']);
-      if (point == null) return null;
+      if (point == null) return fallback;
       return (lat: point.lat, lng: point.lng, zoom: 11.0);
     } catch (_) {
-      return null;
+      return fallback;
     }
+  }
+
+  /// Referencia aproximada ya incluida en la app para municipios conocidos.
+  /// Permite escribir una dirección sin GPS cuando GeoRef no está disponible.
+  Future<({double lat, double lng, double zoom})?> _catalogCenter(
+      String id) async {
+    try {
+      final catalog = jsonDecode(await rootBundle.loadString(
+          'assets/images/municipalities/catalog.json')) as Map<String, dynamic>;
+      for (final value in catalog['municipalities'] as List<dynamic>) {
+        final item = value as Map<String, dynamic>;
+        if (item['code'] != id) continue;
+        final center = item['center'] as Map<String, dynamic>;
+        final lat = (center['lat'] as num).toDouble();
+        final lng = (center['lng'] as num).toDouble();
+        if (!lat.isFinite ||
+            !lng.isFinite ||
+            lat.abs() > 90 ||
+            lng.abs() > 180) {
+          return null;
+        }
+        return (lat: lat, lng: lng, zoom: 11.0);
+      }
+    } catch (_) {
+      // Un ámbito desconocido nunca recibe coordenadas de otro municipio.
+    }
+    return null;
   }
 
   /// Municipios de todo el país cuyo nombre contiene [query], sin importar
@@ -222,13 +265,14 @@ class GeoRefService {
   /// Devuelve la identidad completa de un municipio por su código oficial.
   /// Se usa para dirigir un reporte al lugar donde ocurrió sin modificar el
   /// municipio habitual guardado en el perfil de la persona.
-  Future<MunicipalitySuggestion?> municipalityById(String municipalityId) async {
+  Future<MunicipalitySuggestion?> municipalityById(
+      String municipalityId) async {
     final id = municipalityId.replaceFirst('georef_', '').trim();
     if (id.isEmpty || !RegExp(r'^\d+$').hasMatch(id)) return null;
     try {
       final item = await _firstOf(
         'municipios?id=${Uri.encodeQueryComponent(id)}'
-        '&campos=id,nombre,provincia.id,provincia.nombre&max=1',
+            '&campos=id,nombre,provincia.id,provincia.nombre&max=1',
         'municipios',
       );
       if (item == null) return null;

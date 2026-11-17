@@ -6,7 +6,11 @@
 - Google Sign-In: cliente iOS y cliente servidor web configurados en `ios/Runner/Info.plist`
 - Google Maps: inicializado en `ios/Runner/AppDelegate.swift`
 
-La fuente nativa esta en `../../ios/`. Para compilar y firmar hace falta macOS con Xcode y una cuenta Apple Developer.
+La fuente nativa esta en `../../ios/`. La compilación requiere macOS con Xcode, que puede aportar Codemagic.
+
+Para probar con Windows e iPhone sin membresía paga, seguí
+[Prueba gratuita con Codemagic y AltStore Classic](PRUEBA_GRATIS_WINDOWS.md).
+Para distribuir por TestFlight, seguí [Subir ConDi a Apple](GUIA_SUBIR_A_APPLE.md).
 
 ## Compilacion en Mac
 

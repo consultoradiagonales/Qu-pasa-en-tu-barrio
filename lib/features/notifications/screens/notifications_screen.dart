@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/theme/app_theme.dart';
@@ -17,10 +20,12 @@ import 'notification_message_detail_screen.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   final bool forFieldWorker;
+  final String? openNotificationId;
   final NotificationActionLauncher actionLauncher;
   const NotificationsScreen({
     super.key,
     this.forFieldWorker = false,
+    this.openNotificationId,
     this.actionLauncher = launchTrustedNotificationAction,
   });
 
@@ -29,10 +34,38 @@ class NotificationsScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).valueOrNull;
     if (user == null) return const SizedBox.shrink();
 
+    final requestedId = openNotificationId;
+    if (requestedId != null &&
+        RegExp(r'^[A-Za-z0-9_-]{1,240}$').hasMatch(requestedId)) {
+      final requested = ref.watch(notificationByIdProvider(
+          (userId: user.uid, notificationId: requestedId)));
+      if (requested.isLoading) {
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+      // Cualquier tipo abre su detalle aunque no esté entre las 50 recientes;
+      // si no existe, no es del usuario o la lectura falla, cae a la lista.
+      final selected = requested.valueOrNull;
+      if (selected != null) {
+        return _DirectNotification(
+          notification: selected,
+          userId: user.uid,
+          forFieldWorker: forFieldWorker ||
+              selected.type == NotificationType.fieldAssignment,
+        );
+      }
+    }
+
     final notifAsync = ref.watch(notificationsProvider(user.uid));
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Volver al inicio',
+          onPressed: () => context.go(forFieldWorker ? '/field' : '/home'),
+        ),
         title: const Text('Notificaciones'),
         actions: [
           TextButton(
@@ -83,6 +116,52 @@ class NotificationsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _DirectNotification extends ConsumerStatefulWidget {
+  const _DirectNotification({
+    required this.notification,
+    required this.userId,
+    required this.forFieldWorker,
+  });
+
+  final NotificationModel notification;
+  final String userId;
+  final bool forFieldWorker;
+
+  @override
+  ConsumerState<_DirectNotification> createState() =>
+      _DirectNotificationState();
+}
+
+class _DirectNotificationState
+    extends ConsumerState<_DirectNotification> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !widget.notification.read) {
+        unawaited(_markRead());
+      }
+    });
+  }
+
+  Future<void> _markRead() async {
+    try {
+      await ref.read(notificationsRepositoryProvider).markRead(
+            widget.userId,
+            widget.notification.id,
+          );
+    } catch (_) {
+      // El mensaje debe seguir visible si falla la sincronización de lectura.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => NotificationMessageDetailScreen(
+        notification: widget.notification,
+        forFieldWorker: widget.forFieldWorker,
+      );
 }
 
 /// Permite recuperar la entrega push cuando se instaló una versión anterior o
@@ -365,6 +444,13 @@ class _NotifTile extends ConsumerWidget {
           }
           final actionUrl = notification.actionUrl;
           if (actionUrl != null) {
+            final internalRoute = trustedNotificationInternalRoute(
+              {'actionUrl': actionUrl},
+            );
+            if (internalRoute != null) {
+              if (context.mounted) context.go(internalRoute);
+              return;
+            }
             final opened = await openNotificationAction(
               {'actionUrl': actionUrl},
               launcher: actionLauncher,
@@ -376,7 +462,8 @@ class _NotifTile extends ConsumerWidget {
             MaterialPageRoute<void>(
               builder: (_) => NotificationMessageDetailScreen(
                 notification: notification,
-                forFieldWorker: forFieldWorker,
+                forFieldWorker: forFieldWorker ||
+                    notification.type == NotificationType.fieldAssignment,
               ),
             ),
           );

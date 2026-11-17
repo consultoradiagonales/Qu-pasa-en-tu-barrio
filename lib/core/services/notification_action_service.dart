@@ -10,6 +10,57 @@ typedef NotificationActionLookup = Future<Map<String, dynamic>?> Function(
 );
 typedef NotificationActionLauncher = Future<bool> Function(Uri uri);
 
+String? trustedNotificationInternalRoute(Map<String, dynamic> data) {
+  if (data['type'] == 'weather_alert' || data['type'] == 'weatherAlert') {
+    final notificationId = data['notificationId'];
+    if (notificationId is String &&
+        RegExp(r'^[A-Za-z0-9_-]{1,240}$').hasMatch(notificationId)) {
+      return '/notifications?open=$notificationId';
+    }
+  }
+  final value = data['actionUrl'];
+  if (value is! String) return null;
+  final route = value.trim();
+  if (RegExp(r'^/field/task/[A-Za-z0-9_-]{1,180}(/work)?$').hasMatch(route)) {
+    return route;
+  }
+  if (RegExp(r'^/report/[A-Za-z0-9_-]{1,180}$').hasMatch(route)) {
+    return route;
+  }
+  return null;
+}
+
+Future<String?> resolveNotificationInternalRoute(
+  Map<String, dynamic> data, {
+  NotificationActionLookup? lookupById,
+}) async {
+  var route = trustedNotificationInternalRoute(data);
+  if (route == null && data['notificationId'] is String && lookupById != null) {
+    final notificationId = data['notificationId'] as String;
+    if (RegExp(r'^[A-Za-z0-9_-]{1,240}$').hasMatch(notificationId)) {
+      try {
+        final stored = await lookupById(notificationId);
+        if (stored?['type'] == 'weather_alert') {
+          return '/notifications?open=$notificationId';
+        }
+      } catch (_) {}
+    }
+  }
+  if (route != null || lookupById == null) return route;
+  final notificationId = data['notificationId'];
+  if (notificationId is! String ||
+      !RegExp(r'^[A-Za-z0-9_-]{1,240}$').hasMatch(notificationId)) {
+    return null;
+  }
+  try {
+    final stored = await lookupById(notificationId);
+    if (stored != null) route = trustedNotificationInternalRoute(stored);
+  } catch (_) {
+    return null;
+  }
+  return route;
+}
+
 Uri? trustedNotificationActionUri(Map<String, dynamic> data) {
   final value = data['actionUrl'];
   if (value is! String) return null;

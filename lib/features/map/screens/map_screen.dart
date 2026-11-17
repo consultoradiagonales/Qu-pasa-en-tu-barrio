@@ -66,7 +66,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (center == null || !mounted) return;
     await _mapController?.animateCamera(
       CameraUpdate.newCameraPosition(
-        CameraPosition(target: LatLng(center.lat, center.lng), zoom: center.zoom),
+        CameraPosition(
+            target: LatLng(center.lat, center.lng), zoom: center.zoom),
       ),
     );
   }
@@ -146,10 +147,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (mounted) setState(() => _markers = {});
       return;
     }
-    _reportsSub = repo.watchReports(
+    _reportsSub = repo
+        .watchReports(
       municipalityId: scope,
       status: _activeFilter,
-    ).listen((reports) {
+    )
+        .listen((reports) {
       if (mounted) _buildMarkers(reports);
     });
   }
@@ -226,6 +229,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               _mapController = c;
               _centerOnMunicipality();
             },
+          ),
+          Positioned(
+            left: 16,
+            top: MediaQuery.of(context).padding.top + 16,
+            child: FloatingActionButton.small(
+              heroTag: 'back-map',
+              tooltip: 'Volver al inicio',
+              onPressed: () => context.go('/home'),
+              child: const Icon(Icons.arrow_back),
+            ),
           ),
           Positioned(
             right: 16,

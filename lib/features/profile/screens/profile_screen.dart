@@ -25,7 +25,14 @@ class ProfileScreen extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProfileProvider(user.uid));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mi perfil')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Volver al inicio',
+          onPressed: () => context.go('/home'),
+        ),
+        title: const Text('Mi perfil'),
+      ),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(mensajeDeError(e))),
@@ -93,19 +100,23 @@ class ProfileScreen extends ConsumerWidget {
             const Divider(height: 40),
 
             // Opciones
+            if (userModel?.role == UserRole.fieldManager ||
+                userModel?.role == UserRole.fieldWorker)
+              _MenuItem(
+                key: const Key('profile-open-field-operations'),
+                icon: Icons.engineering_outlined,
+                label: userModel?.role == UserRole.fieldManager
+                    ? 'Abrir operación de cuadrillas'
+                    : 'Abrir mis tareas de cuadrilla',
+                color: AppColors.brandBlue,
+                onTap: () => context.go('/field'),
+              ),
             if (userModel?.role == UserRole.citizen)
               _MenuItem(
                 key: const Key('profile-change-municipality'),
                 icon: Icons.location_city_outlined,
                 label: 'Municipio habitual y alertas climáticas',
                 onTap: () => context.go('/auth/municipio?next=profile'),
-              ),
-            if (userModel?.role == UserRole.citizen)
-              _MenuItem(
-                key: const Key('profile-weather'),
-                icon: Icons.thunderstorm_outlined,
-                label: 'Clima y prevención',
-                onTap: () => context.go('/profile/clima'),
               ),
             _MenuItem(
               icon: Icons.lock_outline,
@@ -367,6 +378,8 @@ class ProfileScreen extends ConsumerWidget {
     switch (role) {
       case 'field_worker':
         return 'Equipo de campo';
+      case 'field_manager':
+        return 'Jefe de cuadrillas';
       case 'coordinator':
         return 'Coordinador';
       case 'admin':

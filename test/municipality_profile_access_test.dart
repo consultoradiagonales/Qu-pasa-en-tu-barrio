@@ -72,4 +72,15 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('el jefe de cuadrillas puede abrir sus operaciones',
+      (tester) async {
+    await _pumpProfile(tester, UserRole.fieldManager);
+
+    expect(
+      find.byKey(const Key('profile-open-field-operations')),
+      findsOneWidget,
+    );
+    expect(find.text('Abrir operación de cuadrillas'), findsOneWidget);
+  });
 }

@@ -4,10 +4,10 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { pushPreview } = require('./push-delivery');
-const { canManageMunicipality } = require('./management-access');
+const { canManageMunicipality, sameMunicipality } = require('./management-access');
 
 const REGION = 'southamerica-east1';
-const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator']);
+const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator', 'field_manager']);
 const CLOSED_STATUSES = new Set(['resolved', 'closed', 'rejected']);
 const MAX_MESSAGE_LENGTH = 4000;
 
@@ -34,6 +34,15 @@ function canManage(profile, report) {
   return canManageMunicipality(profile, report.municipalityId);
 }
 
+function canSendUpdate(profile, report) {
+  if (canManage(profile, report)) return true;
+  return Boolean(profile && profile.disabled !== true &&
+    profile.role === 'field_worker' && typeof profile.teamId === 'string' &&
+    profile.teamId.length > 0 && profile.teamId === report.assignedTeamId &&
+    sameMunicipality(profile.municipalityId, report.municipalityId) &&
+    !CLOSED_STATUSES.has(report.status));
+}
+
 function evidenceFor(report) {
   const after = Array.isArray(report.photosAfter) ? report.photosAfter : [];
   const progress = Array.isArray(report.photosProgress) ? report.photosProgress : [];
@@ -46,7 +55,7 @@ function isInvalidToken(error) {
     error?.code === 'messaging/invalid-registration-token';
 }
 
-async function getAuthorizedReport(request) {
+async function getAuthorizedReport(request, { allowFieldUpdate = false } = {}) {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
   const reportId = request.data?.reportId;
@@ -61,10 +70,10 @@ async function getAuthorizedReport(request) {
   if (!reportSnap.exists) throw new HttpsError('not-found', 'El reporte no existe.');
   const profile = profileSnap.data();
   const report = reportSnap.data();
-  if (!canManage(profile, report)) {
+  if (!(allowFieldUpdate ? canSendUpdate(profile, report) : canManage(profile, report))) {
     throw new HttpsError('permission-denied', 'No podés gestionar este reporte.');
   }
-  return { db, uid, reportId, reportRef: reportSnap.ref, report };
+  return { db, uid, reportId, reportRef: reportSnap.ref, report, profile };
 }
 
 async function setReportPriorityHandler(request) {
@@ -81,7 +90,7 @@ async function setReportPriorityHandler(request) {
 }
 
 async function sendReportUpdateHandler(request) {
-  const { db, reportId, report } = await getAuthorizedReport(request);
+  const { db, reportId, report } = await getAuthorizedReport(request, { allowFieldUpdate: true });
   const message = cleanMessage(request.data?.message);
   const requestId = request.data?.requestId;
   if (message.length < 3) {
@@ -185,5 +194,6 @@ module.exports = {
   validId,
   evidenceFor,
   canManage,
+  canSendUpdate,
   isInvalidToken,
 };

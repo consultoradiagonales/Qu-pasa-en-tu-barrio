@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {isCentralAdmin,canManageMunicipality}=require('./management-access');
+const {isCentralAdmin,canManageMunicipality,sameMunicipality}=require('./management-access');
 const {aggregateManagementReports}=require('./management-dashboard');
 
 test('un administrador municipal no adquiere alcance global por su rol',()=>{
@@ -10,6 +10,18 @@ test('un administrador municipal no adquiere alcance global por su rol',()=>{
   assert.equal(canManageMunicipality(profile,'060441'),true);
   assert.equal(canManageMunicipality(profile,'georef_060441'),true);
   for(const scope of ['060707','georef_060707','',null])assert.equal(canManageMunicipality(profile,scope),false);
+});
+test('los alias GeoRef identifican el mismo municipio para asignar cuadrillas',()=>{
+  assert.equal(sameMunicipality('060441','georef_060441'),true);
+  assert.equal(sameMunicipality('georef_060441','060441'),true);
+  assert.equal(sameMunicipality('060441','060707'),false);
+});
+test('la gerencia de cuadrillas de Diagonales tiene alcance operativo global sin ser administración',()=>{
+  const manager={role:'field_manager',organizationId:'diagonales',disabled:false};
+  assert.equal(isCentralAdmin(manager),false);
+  assert.equal(canManageMunicipality(manager,'060441'),true);
+  assert.equal(canManageMunicipality(manager,'060707'),true);
+  assert.equal(canManageMunicipality({...manager,organizationId:'otra'},'060441'),false);
 });
 test('el acceso central requiere organización, rol y cuenta habilitada',()=>{
   const central={role:'admin',organizationId:'diagonales'};

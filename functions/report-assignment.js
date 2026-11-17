@@ -2,9 +2,9 @@
 
 const { HttpsError } = require('firebase-functions/v2/https');
 const { FieldValue } = require('firebase-admin/firestore');
-const { canManageMunicipality } = require('./management-access');
+const { canManageMunicipality, sameMunicipality } = require('./management-access');
 
-const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator']);
+const MANAGEMENT_ROLES = new Set(['admin', 'coordinator', 'moderator', 'field_manager']);
 const ASSIGNABLE_STATUSES = new Set(['pending', 'assigned']);
 
 function documentId(value) {
@@ -41,7 +41,7 @@ async function assignReportTeamHandler(request, db) {
     }
     if (!teamSnap.exists) throw new HttpsError('not-found', 'El equipo no existe.');
     const team = teamSnap.data();
-    if (team.municipalityId !== report.municipalityId || team.active === false) {
+    if (!sameMunicipality(team.municipalityId, report.municipalityId) || team.active === false) {
       throw new HttpsError('failed-precondition', 'El equipo debe estar activo y pertenecer al municipio.');
     }
     if (!ASSIGNABLE_STATUSES.has(report.status)) {

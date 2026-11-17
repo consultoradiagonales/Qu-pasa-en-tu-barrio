@@ -50,6 +50,18 @@ class NotificationsRepository {
         .map((snap) => _ordered(snap.docs));
   }
 
+  Future<NotificationModel?> getOwnedNotification(
+      String userId, String notificationId) async {
+    if (userId.isEmpty ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,240}$').hasMatch(notificationId)) {
+      return null;
+    }
+    final snapshot = await _col.doc(notificationId).get();
+    final data = snapshot.data();
+    if (data == null || data['userId'] != userId) return null;
+    return NotificationModel.fromFirestore(snapshot);
+  }
+
   Future<NotificationPage> fetchNotificationsPage(
     String userId, {
     DocumentSnapshot<Map<String, dynamic>>? after,
@@ -145,6 +157,13 @@ final notificationsRepositoryProvider = Provider<NotificationsRepository>(
 final notificationsProvider =
     StreamProvider.family<List<NotificationModel>, String>((ref, userId) {
   return ref.read(notificationsRepositoryProvider).watchNotifications(userId);
+});
+
+final notificationByIdProvider = FutureProvider.family<NotificationModel?,
+    ({String userId, String notificationId})>((ref, request) {
+  return ref
+      .read(notificationsRepositoryProvider)
+      .getOwnedNotification(request.userId, request.notificationId);
 });
 
 final unreadCountProvider = StreamProvider.family<int, String>((ref, userId) {

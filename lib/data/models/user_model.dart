@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 enum UserRole {
   citizen,
   fieldWorker,
+  fieldManager,
   coordinator,
   moderator,
   admin;
@@ -14,6 +15,8 @@ enum UserRole {
         return 'citizen';
       case UserRole.fieldWorker:
         return 'field_worker';
+      case UserRole.fieldManager:
+        return 'field_manager';
       case UserRole.coordinator:
         return 'coordinator';
       case UserRole.moderator:
@@ -27,6 +30,8 @@ enum UserRole {
     switch (value) {
       case 'field_worker':
         return UserRole.fieldWorker;
+      case 'field_manager':
+        return UserRole.fieldManager;
       case 'coordinator':
         return UserRole.coordinator;
       case 'moderator':
@@ -66,6 +71,11 @@ class UserModel {
 
   bool get isCentralAdmin =>
       !disabled && role == UserRole.admin && organizationId == 'diagonales';
+
+  bool get isCentralFieldManager =>
+      !disabled &&
+      role == UserRole.fieldManager &&
+      organizationId == 'diagonales';
 
   const UserModel({
     required this.uid,

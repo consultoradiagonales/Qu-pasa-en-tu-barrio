@@ -66,9 +66,24 @@ class NotificationMessageDetailScreen extends StatelessWidget {
         ? notification.affectedArea!.trim()
         : notification.affectedZones.join(', ');
     final hasLocation = city.isNotEmpty || affectedArea.isNotEmpty;
+    final fieldTask = forFieldWorker ||
+        notification.type == NotificationType.fieldAssignment ||
+        (notification.actionUrl?.startsWith('/field/task/') ?? false);
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Volver a alertas',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go(
+                  forFieldWorker ? '/field/notifications' : '/notifications');
+            }
+          },
+        ),
         title: Text(notification.type == NotificationType.weatherAlert
             ? 'Alerta meteorológica'
             : 'Mensaje'),
@@ -248,7 +263,7 @@ class NotificationMessageDetailScreen extends StatelessWidget {
                 child: FilledButton.icon(
                   key: const Key('notification-open-report'),
                   onPressed: () => context.go(
-                    forFieldWorker
+                    fieldTask
                         ? '/field/task/${notification.reportId}'
                         : '/report/${notification.reportId}',
                   ),

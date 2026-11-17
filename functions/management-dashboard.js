@@ -3,7 +3,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldPath, Timestamp } = require('firebase-admin/firestore');
 const { createHash, randomUUID } = require('node:crypto');
-const { isCentralAdmin, canManageMunicipality, municipalityAliases, sameMunicipality } = require('./management-access');
+const { hasGlobalOperationsAccess, canManageMunicipality, municipalityAliases, sameMunicipality } = require('./management-access');
 
 const PAGE_SIZE = 500;
 const MAX_REPORTS = 50000;
@@ -90,20 +90,25 @@ async function loadManagementReports(db, municipalityId) {
   return docs;
 }
 
+function resolveDashboardScope(profile, data = {}) {
+  const central=hasGlobalOperationsAccess(profile);
+  const requested=data?.municipalityId;
+  const provinceId=data?.provinceId || '';
+  if(typeof provinceId!=='string' || (provinceId && !/^\d{2}$/.test(provinceId))) throw new HttpsError('invalid-argument','La provincia no es válida.');
+  if(requested!==undefined && (typeof requested!=='string' || requested.length>128 || requested.includes('/'))) throw new HttpsError('invalid-argument','El ámbito no es válido.');
+  if(requested && provinceId) throw new HttpsError('invalid-argument','Elegí un municipio o una provincia.');
+  if(!central && (provinceId || data?.scope==='all' || (requested && !sameMunicipality(requested,profile?.municipalityId)))) throw new HttpsError('permission-denied','Sólo podés consultar tu municipio.');
+  const municipalityId=central ? requested || '' : profile?.municipalityId;
+  if(!central && !canManageMunicipality(profile,municipalityId)) throw new HttpsError('permission-denied','No tenés permisos de gestión.');
+  return { municipalityId, provinceId };
+}
+
 async function getManagementDashboardHandler(request, deps = {}) {
   const uid=request.auth?.uid;
   if(!uid) throw new HttpsError('unauthenticated','Tenés que iniciar sesión.');
   const db=deps.db || getFirestore();
   const profile=(await db.collection('users').doc(uid).get()).data();
-  const central=isCentralAdmin(profile);
-  const requested=request.data?.municipalityId;
-  const provinceId=request.data?.provinceId || '';
-  if(typeof provinceId!=='string' || (provinceId && !/^\d{2}$/.test(provinceId))) throw new HttpsError('invalid-argument','La provincia no es válida.');
-  if(requested!==undefined && (typeof requested!=='string' || requested.length>128 || requested.includes('/'))) throw new HttpsError('invalid-argument','El ámbito no es válido.');
-  if(requested && provinceId) throw new HttpsError('invalid-argument','Elegí un municipio o una provincia.');
-  if(!central && (provinceId || request.data?.scope==='all' || (requested && !sameMunicipality(requested,profile?.municipalityId)))) throw new HttpsError('permission-denied','Sólo podés consultar tu municipio.');
-  const municipalityId=central ? requested || '' : profile?.municipalityId;
-  if(!central && !canManageMunicipality(profile,municipalityId)) throw new HttpsError('permission-denied','No tenés permisos de gestión.');
+  const { municipalityId, provinceId }=resolveDashboardScope(profile, request.data);
   const now=deps.now || new Date();
   const key=createHash('sha256').update(`aliases-v2:${municipalityId || (provinceId ? `province:${provinceId}` : '__all__')}`).digest('hex');
   const ref=db.collection('managementDashboardCache').doc(key);
@@ -141,4 +146,4 @@ async function getManagementDashboardHandler(request, deps = {}) {
 }
 
 const getManagementDashboard=onCall({region:'southamerica-east1',timeoutSeconds:120,memory:'512MiB',maxInstances:2},getManagementDashboardHandler);
-module.exports={getManagementDashboard,getManagementDashboardHandler,aggregateManagementReports,loadManagementReports};
+module.exports={getManagementDashboard,getManagementDashboardHandler,resolveDashboardScope,aggregateManagementReports,loadManagementReports};

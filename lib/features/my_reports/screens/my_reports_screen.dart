@@ -20,11 +20,19 @@ class MyReportsScreen extends ConsumerWidget {
     final reportsAsync = ref.watch(myReportsProvider(user.uid));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis reportes')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Volver al inicio',
+          onPressed: () => context.go('/home'),
+        ),
+        title: const Text('Mis reportes'),
+      ),
       body: reportsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(mensajeDeError(e))),
-        data: (reports) {
+        data: (allReports) {
+          final reports = allReports.where((report) => !report.hidden).toList();
           if (reports.isEmpty) {
             return Center(
               child: Column(
@@ -59,12 +67,12 @@ class MyReportsScreen extends ConsumerWidget {
   }
 }
 
-class _ReportCard extends StatelessWidget {
+class _ReportCard extends ConsumerWidget {
   final ReportModel report;
   const _ReportCard({required this.report});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final color = statusColor(report.status.value);
     final label = statusLabel(report.status.value);
 
@@ -98,7 +106,8 @@ class _ReportCard extends StatelessWidget {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: categoryColor(report.category.value).withOpacity(0.15),
+                    color:
+                        categoryColor(report.category.value).withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -153,7 +162,44 @@ class _ReportCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+              if (report.status == ReportStatus.pending)
+                IconButton(
+                  key: Key('withdraw-report-${report.id}'),
+                  tooltip: 'Desistir del reporte',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Desistir del reporte'),
+                        content: const Text(
+                            'El reporte dejará de mostrarse. Esta acción no borra la evidencia ya enviada.'),
+                        actions: [
+                          TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, false),
+                              child: const Text('Conservar')),
+                          FilledButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, true),
+                              child: const Text('Desistir')),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true || !context.mounted) return;
+                    try {
+                      await ref
+                          .read(reportsRepositoryProvider)
+                          .updateReport(report.id, {'hidden': true});
+                    } catch (error) {
+                      if (context.mounted)
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(mensajeDeError(error))));
+                    }
+                  },
+                )
+              else
+                const Icon(Icons.chevron_right, color: AppColors.textSecondary),
             ],
           ),
         ),
