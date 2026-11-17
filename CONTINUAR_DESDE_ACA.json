@@ -1,4 +1,13 @@
 {
+  "despliegue_2026_11_17": {
+    "autor": "Claude Code, autorizado por el titular (\"commitea y desplega\")",
+    "commit": "eaa7c784 en master (local, sin push)",
+    "desplegado": "firestore:rules y storage (released); 22 Cloud Functions actualizadas en southamerica-east1; Hosting https://project-5fc9024a-e961-42b7-9ee.web.app con web compilada 19:09 (incluye Clima y predicciones y admin/field-workflow.js), verificado HTTP 200.",
+    "fallido": "interpretCitizenReport (nueva, nunca desplegada antes): 403 eventarc.events.receiveEvent. Usa serviceAccount condi-ai@project-5fc9024a-e961-42b7-9ee.iam.gserviceaccount.com, que no tiene roles/eventarc.eventReceiver. Requiere que el titular otorgue el rol y redesplegar solo esa función.",
+    "no_desplegado": "GitHub Pages (gh-pages) y Play Store; ningún aviso de versión enviado.",
+    "regla_avisos": "Antes de informar una versión nueva a usuarios activos, avisar solo a despuesnodiganque@gmail.com y yanisolanna@gmail.com.",
+    "tooling": "firebase-tools global ausente: usar node tools/firebase-cli/node_modules/firebase-tools/lib/bin/firebase.js. Web: compilar desde unidad subst por la ruta Unicode."
+  },
   "correcciones_qa_claude_2026_11_17": {
     "autor": "Claude Code con subagentes (Codex sin créditos)",
     "estado": "Corregido en fuente; NADA desplegado ni commiteado. Reglas, Functions y Hosting requieren autorización explícita.",

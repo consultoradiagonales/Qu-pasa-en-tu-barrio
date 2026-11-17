@@ -68,7 +68,8 @@ class ReportDraft {
       this.usesManualAddress = false,
       this.photoConfirmed = false,
       this.presetId,
-      this.aiRequested = true,
+      // La IA quedó fuera de la app ciudadana (decisión 2026-11-17).
+      this.aiRequested = false,
       this.comment = '',
       this.address = '',
       this.territory = '',
@@ -197,7 +198,7 @@ class ReportDraft {
         usesManualAddress: j['usesManualAddress'] == true,
         photoConfirmed: j['photoConfirmed'] == true,
         presetId: j['presetId'] as String?,
-        aiRequested: j['aiRequested'] != false,
+        aiRequested: false,
         comment: j['comment'] as String? ?? '',
         address: j['address'] as String? ?? '',
         territory: j['territory'] as String? ?? '',
@@ -390,7 +391,7 @@ class ReportSubmitService {
         title: draft.preset.label,
         description: draft.comment.trim(),
         category: draft.preset.category,
-        aiRequested: draft.aiRequested,
+        aiRequested: false,
         location: ReportLocation(
             lat: location.latitude,
             lng: location.longitude,

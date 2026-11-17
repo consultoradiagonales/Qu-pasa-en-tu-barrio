@@ -9,7 +9,8 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 initializeApp();
 const db = getFirestore();
 const { hasGlobalOperationsAccess, isCentralAdmin } = require('./management-access');
-exports.interpretCitizenReport = require('./ai-trigger').interpretCitizenReport;
+// interpretCitizenReport (IA sobre reportes ciudadanos) quedó desactivada por
+// decisión del titular (2026-11-17): sin IA en la app, por privacidad.
 exports.generateMunicipalityReport = require('./dashboard-ai').generateMunicipalityReport;
 exports.getManagementDashboard = require('./management-dashboard').getManagementDashboard;
 exports.reportLifecycleNotifications = require('./report-notifications').reportLifecycleNotifications;

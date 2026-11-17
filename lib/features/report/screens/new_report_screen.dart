@@ -18,7 +18,6 @@ import '../../../core/widgets/municipality_autocomplete.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/reports_repository.dart';
 import '../report_flow.dart';
-import '../report_insight.dart';
 import '../../../data/services/georef_service.dart';
 
 /// Photo -> confirmed location -> optional detail -> server confirmation.
@@ -57,7 +56,6 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
   int _municipalityCenterRequest = 0;
   String? _missingField, _defaultProfileKey;
   String? _error, _sentId;
-  bool _sentWithAi = false;
   Future<Uint8List>? _preview;
   GoogleMapController? _map;
   GeoRefService get _geoRef => ref.read(reportGeoRefProvider);
@@ -609,13 +607,11 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
     try {
       if (!await _identify() || !mounted) return;
       if (!await _confirmPointMatchesMunicipality() || !mounted) return;
-      final wantsAi = _draft.aiRequested;
       final id = await ref.read(reportSubmitProvider).submit(_draft);
       await ref.read(reportDraftProvider.notifier).clear();
       if (mounted) {
         setState(() {
           _sentId = id;
-          _sentWithAi = wantsAi;
         });
       }
     } on MunicipalityRequired {
@@ -1251,16 +1247,6 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
             hintText: 'Agregá un detalle si querés',
           ),
         ),
-        SwitchListTile.adaptive(
-          key: const Key('ai-consent'),
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Ayuda de IA de ConDi'),
-          subtitle: const Text(
-            'Google Gemini interpreta la foto y el comentario para resumir el problema y responderte. Es opcional y puede equivocarse. Tu reporte se envía igual si lo desactivás.',
-          ),
-          value: draft.aiRequested,
-          onChanged: (value) => _update(draft.copyWith(aiRequested: value)),
-        ),
       ];
   Widget _success(BuildContext context) => ListView(
         padding: const EdgeInsets.all(24),
@@ -1283,8 +1269,6 @@ class _NewReportScreenState extends ConsumerState<NewReportScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          if (_sentWithAi)
-            ReportInsightCard(reportId: _sentId!, expected: true),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: _newPhoto,

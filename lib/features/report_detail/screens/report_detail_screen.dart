@@ -13,7 +13,6 @@ import '../../../data/services/auth_service.dart';
 import '../widgets/before_after_slider_widget.dart';
 import '../widgets/report_rating_sheet.dart';
 import '../../../core/utils/error_text.dart';
-import '../../report/report_insight.dart';
 
 class ReportDetailScreen extends ConsumerStatefulWidget {
   final String reportId;
@@ -298,7 +297,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
           // Descripción
           Text(report.description, style: const TextStyle(fontSize: 15)),
-          ReportInsightCard(reportId: report.id, expected: report.aiRequested),
           const SizedBox(height: 16),
 
           // �"?�"? SLIDER ANTES/DESPU�?S �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
