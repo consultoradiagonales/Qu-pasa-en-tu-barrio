@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-16T22:13:20Z",
+ "generated_at": "2026-11-17T04:37:11Z",
  "tablas": [
   {
    "tabla": "lluvia_era5_diaria.csv",
@@ -8,10 +8,10 @@
    ],
    "descripcion": "Lluvia diaria observada por el reanálisis ERA5 en un punto por sección electoral, desde 1981.",
    "fuente": "ERA5 · Copernicus Climate Change Service / ECMWF, vía Open-Meteo (CC BY 4.0)",
-   "registros": 16780,
+   "registros": 16781,
    "desde": "1980-12-01",
-   "hasta": "2026-11-09",
-   "bytes": 748801
+   "hasta": "2026-11-10",
+   "bytes": 748845
   },
   {
    "tabla": "verificacion_modelos.csv",
@@ -20,10 +20,10 @@
    ],
    "descripcion": "Lluvia diaria pronosticada por cada modelo con 1, 2 y 3 días de anticipación, y la observada (ERA5).",
    "fuente": "Corridas anteriores de los modelos vía Open-Meteo (CC BY 4.0); observación ERA5",
-   "registros": 9888,
+   "registros": 9912,
    "desde": "2025-09-30",
-   "hasta": "2026-11-15",
-   "bytes": 641204
+   "hasta": "2026-11-16",
+   "bytes": 642768
   },
   {
    "tabla": "alertas_smn.csv",
@@ -32,10 +32,10 @@
    ],
    "descripcion": "Alertas oficiales del SMN leídas en cada actualización (fenómeno, nivel, vigencia, zonas).",
    "fuente": "Servicio Meteorológico Nacional, API CAP oficial",
-   "registros": 634,
+   "registros": 666,
    "desde": "2026-11-04",
    "hasta": "2026-11-18",
-   "bytes": 75733
+   "bytes": 80622
   },
   {
    "tabla": "smn_horarios_*.csv",
@@ -69,10 +69,10 @@
    ],
    "descripcion": "Alturas de los ríos observadas en escalas de la provincia, con los niveles oficiales de alerta y evacuación.",
    "fuente": "Prefectura Naval Argentina y Red Hidrológica Nacional, vía API pública del INA",
-   "registros": 5047,
+   "registros": 5095,
    "desde": "2026-10-05",
-   "hasta": "2026-11-16",
-   "bytes": 412162
+   "hasta": "2026-11-17",
+   "bytes": 416194
   },
   {
    "tabla": "climatologia_lluvia.json",
@@ -96,7 +96,7 @@
    "registros": null,
    "desde": null,
    "hasta": null,
-   "bytes": 21441
+   "bytes": 21438
   }
  ],
  "nota": "Datos de uso público. ERA5 es un reanálisis (no un pluviómetro): sirve de referencia común para comparar modelos. Las tablas que se acumulan (alertas, horarios, pronósticos) crecen con cada actualización desde el 4/11/2026."
