@@ -35,11 +35,9 @@ make run    # datos reales (si una fuente falla, cae a simulado y lo avisa en pa
 
 ---
 
-## Marca y cliente
+## Marca
 
-El sistema se presenta como **ConDi · inteligencia territorial** (logo tomado del sitio publicado del repo).
-El logo del cliente (Cámara de Diputados de la Provincia de Buenos Aires, provisto por ConDi) está en
-`app/site/img/cliente.png`. Para cambiarlo, reemplazar ese archivo (PNG con fondo transparente).
+El sistema se presenta sólo como **ConDi · inteligencia territorial** (logo tomado del sitio publicado del repo).
 
 ## Dashboard público (sin instalar nada)
 
