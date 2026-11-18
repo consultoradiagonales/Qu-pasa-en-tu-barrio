@@ -1,4 +1,12 @@
 {
+  "play_1_0_35_2026_11_17": {
+    "estado": "Android 1.0.35+36 publicado en prueba interna de Play (status completed, verificado). Incluye: Clima y predicciones con ARGWX, correcciones de QA, sin IA en la app.",
+    "aab_sha256": "31899c4c1e9f3343163e1350a6f7f4659f1fd25b072e9f7b56d2b54341d0ff8d (jar verified)",
+    "link_play": "https://play.google.com/apps/internaltest/4701647237677047143",
+    "aviso": "custom_release_1_0_35_build_36 con link de Play visible en el texto y como actionUrl, enviado solo a despuesnodiganque@gmail.com (push, verificado). yanisolanna@gmail.com sigue sin cuenta en ConDi. No se avisó a otros usuarios activos.",
+    "scripts": "tools/publicar-play-1.0.35.cjs, tools/send-release-1.0.35-validadores.cjs",
+    "sesiones_ia": "Ramas sin merge ni push: claude/panel-ia-zonas-calientes (01b06cc9, analyzeReportHotspots en el panel) y claude/argwx-evaluacion-ia (ac27e67f, evaluación de riesgo por partido). Falta probar con Gemini real."
+  },
   "sin_ia_app_2026_11_17": {
     "decision": "El titular no quiere IA en la app ciudadana (no aporta y por privacidad). Quiere IA en el panel de gestión (zonas calientes, análisis de reportes) y en el motor meteorológico ARGWX (ríos, arroyos, hidrografía, vientos, tormentas con las APIs gratuitas integradas).",
     "hecho": "Commit ecd104b3 (push): sin interruptor de IA ni tarjetas de interpretación; aiRequested siempre false; interpretCitizenReport no se exporta. Hosting republicado y verificado sin el texto de IA. Android: entra en la próxima versión.",
