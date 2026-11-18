@@ -2208,7 +2208,7 @@ function renderReports() {
     const tr = element('tr');
     const name = element('div', { className: 'report-name' });
     name.append(element('b', { text: reportName(report) }), element('small', { text: `${categoryLabel(report.category)} · ${reportLocation(report)}` }));
-    if (report.photoUploadStatus === 'pending') name.append(element('small', { className: 'evidence-pending', text: 'Evidencia subiendo…' }));
+    if (report.photoUploadStatus === 'pending') name.append(element('small', { className: 'evidence-pending', text: 'Evidencia pendiente' }));
     const team = state.teams.find((item) => item.id === report.assignedTeamId);
     const actions = element('div', { className: 'table-actions' });
     if (['pending', 'assigned'].includes(report.status)) {
@@ -3112,7 +3112,7 @@ function renderDrawer() {
   const evidence = element('section', { className: 'photo-section' });
   evidence.append(element('h3', { text: 'Evidencia fotográfica' }));
   evidence.append(photoGroup('Reporte del vecino', report.photosReport), photoGroup('Llegada de la cuadrilla', report.photosBefore), photoGroup('Avances de trabajo', report.photosProgress), photoGroup('Trabajo finalizado', report.photosAfter));
-  if (report.photoUploadStatus === 'pending') evidence.append(element('p', { className: 'status-note', text: 'El reporte ya fue recibido. La foto continúa subiendo desde el dispositivo del vecino.' }));
+  if (report.photoUploadStatus === 'pending') evidence.append(element('p', { className: 'status-note', text: 'El reporte ya fue recibido, pero la foto todavía no llegó. El vecino debe abrir el borrador en la app actualizada y tocar “Reintentar foto”.' }));
   content.push(evidence);
 
   if (['pending', 'assigned'].includes(report.status)) {

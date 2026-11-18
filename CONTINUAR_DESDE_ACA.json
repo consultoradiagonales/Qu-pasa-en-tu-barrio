@@ -1,4 +1,12 @@
 {
+  "diagnostico_fotos_2026_11_18": {
+    "estado": "La infraestructura de Storage ya está corregida y el rol roles/firebaserules.firestoreServiceAgent fue verificado en IAM del proyecto productivo project-5fc9024a-e961-42b7-9ee.",
+    "capturas": "Las capturas corresponden a la interfaz anterior a 1.0.35: todavía muestran Ayuda de IA y el botón Enviar reporte en lugar de Reintentar foto.",
+    "reportes_pendientes": "Los reportes pendientes no tienen objeto en Storage; la imagen sólo puede recuperarse desde el borrador del dispositivo que la tomó.",
+    "panel": "Se cambió el texto engañoso Evidencia subiendo por Evidencia pendiente y se indica actualizar la app y usar Reintentar foto. Hosting publicado y verificado el 2026-11-18.",
+    "aviso": "pending_photo_retry_2026_11_18 enviado a los 3 titulares activos de los 4 reportes con foto pendiente: 2 push y 1 aviso en bandeja; entrega verificada.",
+    "pendiente": "Las fotos faltantes deben reintentarse desde el borrador guardado en cada dispositivo; no existe una copia recuperable en Storage."
+  },
   "release_1_0_36_y_fotos_2026_11_17": {
     "play": "1.0.36+37 publicada en prueba interna (completed), AAB SHA-256 904a05c8aafed7dc3e7903823f5afd3ca8978c1f4df8674e4350a04ceafc3caf. Inicio limpio con cámara grande; Clima y predicciones abre el motor ARGWX completo; Perfil > Invitar a otros a usar ConDi (WhatsApp o copiar link https://project-5fc9024a-e961-42b7-9ee.web.app/).",
     "aviso": "custom_release_1_0_36_build_37 con link de Play y link de invitación, enviado solo a despuesnodiganque@gmail.com y yanisolanna@gmail.com (ya tiene cuenta), push verificado.",
