@@ -11,12 +11,15 @@ typedef NotificationActionLookup = Future<Map<String, dynamic>?> Function(
 typedef NotificationActionLauncher = Future<bool> Function(Uri uri);
 
 String? trustedNotificationInternalRoute(Map<String, dynamic> data) {
-  if (data['type'] == 'weather_alert' || data['type'] == 'weatherAlert') {
-    final notificationId = data['notificationId'];
-    if (notificationId is String &&
-        RegExp(r'^[A-Za-z0-9_-]{1,240}$').hasMatch(notificationId)) {
-      return '/notifications?open=$notificationId';
-    }
+  final notificationId = data['notificationId'];
+  if (notificationId is String &&
+      RegExp(r'^[A-Za-z0-9_-]{1,240}$').hasMatch(notificationId)) {
+    final type = data['type'];
+    final actionUrl = data['actionUrl'];
+    final fieldAlert = type == 'field_assignment' ||
+        (actionUrl is String && actionUrl.startsWith('/field/task/'));
+    final base = fieldAlert ? '/field/notifications' : '/notifications';
+    return '$base?open=$notificationId';
   }
   final value = data['actionUrl'];
   if (value is! String) return null;
@@ -34,18 +37,27 @@ Future<String?> resolveNotificationInternalRoute(
   Map<String, dynamic> data, {
   NotificationActionLookup? lookupById,
 }) async {
-  var route = trustedNotificationInternalRoute(data);
+  final hasRoutingMetadata =
+      data['type'] is String || data['actionUrl'] is String;
+  var route =
+      hasRoutingMetadata ? trustedNotificationInternalRoute(data) : null;
   if (route == null && data['notificationId'] is String && lookupById != null) {
     final notificationId = data['notificationId'] as String;
     if (RegExp(r'^[A-Za-z0-9_-]{1,240}$').hasMatch(notificationId)) {
       try {
         final stored = await lookupById(notificationId);
-        if (stored?['type'] == 'weather_alert') {
-          return '/notifications?open=$notificationId';
+        if (stored != null) {
+          return trustedNotificationInternalRoute({
+            ...stored,
+            'notificationId': notificationId,
+          });
         }
-      } catch (_) {}
+      } catch (_) {
+        return trustedNotificationInternalRoute(data);
+      }
     }
   }
+  route ??= trustedNotificationInternalRoute(data);
   if (route != null || lookupById == null) return route;
   final notificationId = data['notificationId'];
   if (notificationId is! String ||
@@ -54,7 +66,12 @@ Future<String?> resolveNotificationInternalRoute(
   }
   try {
     final stored = await lookupById(notificationId);
-    if (stored != null) route = trustedNotificationInternalRoute(stored);
+    if (stored != null) {
+      route = trustedNotificationInternalRoute({
+        ...stored,
+        'notificationId': notificationId,
+      });
+    }
   } catch (_) {
     return null;
   }

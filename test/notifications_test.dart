@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:que_pasa_en_tu_barrio/data/models/notification_model.dart';
 import 'package:que_pasa_en_tu_barrio/data/repositories/notifications_repository.dart';
 import 'package:que_pasa_en_tu_barrio/data/services/auth_service.dart';
@@ -206,7 +207,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('un enlace profundo recupera una alerta antigua y la marca leída',
+    testWidgets(
+        'un enlace profundo recupera una alerta antigua y la marca leída',
         (tester) async {
       final repo = await pump(
         tester,
@@ -321,6 +323,39 @@ void main() {
         find.byKey(const Key('notification-link-play.google.com')),
         findsOneWidget,
       );
+    });
+
+    testWidgets('cerrar una alerta abierta por push deja la bandeja de alertas',
+        (tester) async {
+      final router = GoRouter(
+        initialLocation: '/notifications/open',
+        routes: [
+          GoRoute(
+            path: '/notifications',
+            builder: (_, __) =>
+                const Scaffold(body: Text('Bandeja de alertas')),
+            routes: [
+              GoRoute(
+                path: 'open',
+                builder: (_, __) => NotificationMessageDetailScreen(
+                  notification: _n('push', NotificationType.weatherAlert),
+                  forFieldWorker: false,
+                  returnToAlertsOnly: true,
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Bandeja de alertas'), findsOneWidget);
+      expect(router.routeInformationProvider.value.uri.path, '/notifications');
     });
   });
 }

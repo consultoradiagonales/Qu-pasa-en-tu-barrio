@@ -134,8 +134,7 @@ class _DirectNotification extends ConsumerStatefulWidget {
       _DirectNotificationState();
 }
 
-class _DirectNotificationState
-    extends ConsumerState<_DirectNotification> {
+class _DirectNotificationState extends ConsumerState<_DirectNotification> {
   @override
   void initState() {
     super.initState();
@@ -161,6 +160,7 @@ class _DirectNotificationState
   Widget build(BuildContext context) => NotificationMessageDetailScreen(
         notification: widget.notification,
         forFieldWorker: widget.forFieldWorker,
+        returnToAlertsOnly: true,
       );
 }
 

@@ -1,4 +1,11 @@
 {
+  "apertura_push_2026_11_18": {
+    "estado": "Implementado localmente: al tocar cualquier push desde la pantalla bloqueada, Android/iOS esperan el desbloqueo y abren el detalle de esa alerta en ConDi.",
+    "navegacion": "Las asignaciones abren /field/notifications?open=ID; el resto abre /notifications?open=ID. Al cerrar o usar Atrás desde una alerta abierta por push, queda la bandeja de alertas correspondiente.",
+    "pruebas": "flutter test completo: 151 aprobadas y 1 web omitida por requerir Chrome; pruebas específicas de apertura/cierre push aprobadas. Análisis focalizado sin errores (9 avisos deprecados preexistentes).",
+    "compilacion": "El APK debug no completó por el problema preexistente de rutas Unicode del workspace en Gradle/JNI; no hubo error Dart ni de las pruebas.",
+    "pendiente": "Publicar una nueva versión Android/iOS con autorización explícita y validar el desbloqueo en un dispositivo físico."
+  },
   "diagnostico_fotos_2026_11_18": {
     "estado": "La infraestructura de Storage ya está corregida y el rol roles/firebaserules.firestoreServiceAgent fue verificado en IAM del proyecto productivo project-5fc9024a-e961-42b7-9ee.",
     "capturas": "Las capturas corresponden a la interfaz anterior a 1.0.35: todavía muestran Ayuda de IA y el botón Enviar reporte en lugar de Reintentar foto.",

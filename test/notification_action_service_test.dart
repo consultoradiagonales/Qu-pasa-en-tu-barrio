@@ -4,12 +4,25 @@ import 'package:que_pasa_en_tu_barrio/core/services/notification_action_service.
 
 void main() {
   group('notification action', () {
-    test('alerta meteorológica abre su detalle y rechaza IDs inseguros',
-        () async {
+    test('cualquier push abre su alerta y rechaza IDs inseguros', () async {
       expect(
           trustedNotificationInternalRoute(
               {'type': 'weather_alert', 'notificationId': 'weather_123_u1'}),
           '/notifications?open=weather_123_u1');
+      expect(
+          trustedNotificationInternalRoute({
+            'type': 'municipality_message',
+            'notificationId': 'municipality_123_u1',
+            'actionUrl': androidInternalTestUrl,
+          }),
+          '/notifications?open=municipality_123_u1');
+      expect(
+          trustedNotificationInternalRoute({
+            'type': 'field_assignment',
+            'notificationId': 'field_123_u1',
+            'actionUrl': '/field/task/report_123',
+          }),
+          '/field/notifications?open=field_123_u1');
       expect(
           trustedNotificationInternalRoute(
               {'type': 'weather_alert', 'notificationId': '../bad'}),
@@ -49,7 +62,8 @@ void main() {
       }
     });
 
-    test('acepta sólo rutas internas operativas seguras', () async {
+    test('sin id de alerta acepta sólo rutas internas operativas seguras',
+        () async {
       expect(
         trustedNotificationInternalRoute(
           {'actionUrl': '/field/task/report_123'},
@@ -77,7 +91,7 @@ void main() {
           {'notificationId': 'field_assignment_123_u1'},
           lookupById: (_) async => {'actionUrl': '/field/task/report_123'},
         ),
-        '/field/task/report_123',
+        '/field/notifications?open=field_assignment_123_u1',
       );
     });
 
