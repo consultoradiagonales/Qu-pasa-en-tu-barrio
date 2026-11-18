@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ConDi en la Ruta</string>
+    <string name="no_alerts">Sin alertas</string>
+    <string name="storm_alert">⚠️ Lluvia intensa en la ruta</string>
+    <string name="loading">Cargando mapa…</string>
+</resources>

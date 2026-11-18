@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="position_blue">#0064DC</color>
+    <color name="radar_tint">#9BFF5500</color>
+    <color name="alert_bg">#CC1A1A</color>
+</resources>

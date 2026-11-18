@@ -33,6 +33,7 @@ exports.getUsageSummary = usageAnalytics.getUsageSummary;
 const appRelease = require('./app-release');
 exports.getAppRelease = appRelease.getAppRelease;
 exports.saveAppRelease = appRelease.saveAppRelease;
+exports.blockForeignReports = require('./geo-security').blockForeignReports;
 
 const ROLES_GESTION = ['coordinator', 'admin', 'moderator', 'field_manager'];
 const { assignReportTeamHandler } = require('./report-assignment');

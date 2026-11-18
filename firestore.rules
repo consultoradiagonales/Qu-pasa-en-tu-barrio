@@ -127,8 +127,8 @@ service cloud.firestore {
             (data.photosReport.size() < 4 || validPhotoReference(data.photosReport[3])) &&
             (data.photosReport.size() < 5 || validPhotoReference(data.photosReport[4])))) &&
         data.location is map && data.location.keys().hasOnly(['lat', 'lng', 'geohash', 'address', 'isManualAddress']) &&
-        data.location.lat is number && data.location.lat >= -90 && data.location.lat <= 90 &&
-        data.location.lng is number && data.location.lng >= -180 && data.location.lng <= 180 &&
+        data.location.lat is number && data.location.lat >= -55.1 && data.location.lat <= -21.8 &&
+        data.location.lng is number && data.location.lng >= -73.6 && data.location.lng <= -53.6 &&
         data.location.geohash is string && data.location.geohash.matches('^[0123456789bcdefghjkmnpqrstuvwxyz]{1,12}$') &&
         data.location.isManualAddress is bool && nullableText(data.location.get('address', null), 500) &&
         nullableText(data.get('municipalityName', null), 160) &&
