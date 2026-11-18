@@ -13,6 +13,7 @@ import '../../../data/models/user_model.dart';
 import '../../../data/repositories/user_repository.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../core/utils/error_text.dart';
+import '../invite_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -118,6 +119,13 @@ class ProfileScreen extends ConsumerWidget {
                 label: 'Municipio habitual y alertas climáticas',
                 onTap: () => context.go('/auth/municipio?next=profile'),
               ),
+            _MenuItem(
+              key: const Key('profile-invite'),
+              icon: Icons.share_outlined,
+              label: 'Invitar a otros a usar ConDi',
+              color: AppColors.brandBlue,
+              onTap: () => showInviteSheet(context),
+            ),
             _MenuItem(
               icon: Icons.lock_outline,
               label: 'Cambiar contraseña',
