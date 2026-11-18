@@ -63,14 +63,14 @@ service firebase.storage {
     // No se verifica photoStoragePath: resource == null ya garantiza inmutabilidad
     // y el patrón del path restringe la fase. Leer ese campo extra inmediatamente
     // después de createReport puede fallar si el doc aún no propagó al evaluador.
-    function citizenPhotoPending(reportId, phase, file) {
+    function citizenPhotoPending(reportId, phase) {
       return phase == 'citizen' && active() &&
         report(reportId).userId == request.auth.uid &&
         report(reportId).get('photoUploadStatus', '') == 'pending';
     }
 
     function mayCreateReportPhoto(reportId, phase, file) {
-      return citizenPhotoPending(reportId, phase, file) ||
+      return citizenPhotoPending(reportId, phase) ||
         (phase in ['before', 'progress', 'after'] && workerFor(reportId) &&
           workerPhaseOpen(reportId, phase));
     }
