@@ -1,0 +1,126 @@
+rules_version = '2';
+
+// Las fotos de los reportes. Sin este archivo el bucket queda con las reglas
+// por defecto y toda subida falla, igual que pasó con Firestore.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function report(reportId) {
+      return firestore.get(/databases/(default)/documents/reports/$(reportId)).data;
+    }
+
+    function sameMunicipality(left, right) {
+      return left is string && right is string && left.size() > 0 && right.size() > 0 &&
+        (left == right || left == 'georef_' + right || 'georef_' + left == right);
+    }
+
+    function fieldManager() {
+      return signedIn() && profile().disabled != true &&
+        profile().role == 'field_manager' &&
+        profile().get('organizationId', '') == 'diagonales';
+    }
+
+    function active() {
+      return signedIn() && profile().disabled != true;
+    }
+
+    function workerFor(reportId) {
+      return fieldManager() || (active() &&
+        profile().role == 'field_worker' &&
+        profile().teamId is string && profile().teamId.size() > 0 &&
+        profile().teamId == report(reportId).assignedTeamId &&
+        sameMunicipality(profile().municipalityId, report(reportId).municipalityId));
+    }
+
+    // Gestión del municipio del reporte, o administración/gerencia central.
+    function staffFor(reportId) {
+      return active() && (fieldManager() ||
+        (profile().role == 'admin' && profile().get('organizationId', '') == 'diagonales') ||
+        (profile().role in ['coordinator', 'admin', 'moderator'] &&
+          sameMunicipality(profile().municipalityId, report(reportId).municipalityId)));
+    }
+
+    // La cuadrilla sólo carga evidencia mientras el trabajo está abierto:
+    // la llegada ("before") en un caso asignado, y el avance o el cierre
+    // sólo quien tomó el caso y mientras sigue en curso.
+    function workerPhaseOpen(reportId, phase) {
+      return (phase == 'before' && (report(reportId).status == 'assigned' ||
+          (report(reportId).status == 'in_progress' &&
+            report(reportId).get('assignedWorkerId', null) == request.auth.uid))) ||
+        (phase in ['progress', 'after'] && report(reportId).status == 'in_progress' &&
+          report(reportId).get('assignedWorkerId', null) == request.auth.uid);
+    }
+
+    // El vecino sube una única foto mientras el alta está pendiente de evidencia.
+    // No se verifica photoStoragePath: resource == null ya garantiza inmutabilidad
+    // y el patrón del path restringe la fase. Leer ese campo extra inmediatamente
+    // después de createReport puede fallar si el doc aún no propagó al evaluador.
+    function citizenPhotoPending(reportId, phase) {
+      return phase == 'citizen' && active() &&
+        report(reportId).userId == request.auth.uid &&
+        report(reportId).get('photoUploadStatus', '') == 'pending';
+    }
+
+    function mayCreateReportPhoto(reportId, phase, file) {
+      return citizenPhotoPending(reportId, phase) ||
+        (phase in ['before', 'progress', 'after'] && workerFor(reportId) &&
+          workerPhaseOpen(reportId, phase));
+    }
+
+    // Una foto de reporte: hasta 8 MB y sólo los formatos que generan la
+    // app y el panel. SVG queda fuera (puede ejecutar código al abrirse).
+    function fotoValida() {
+      return request.resource.size < 8 * 1024 * 1024 &&
+             request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)');
+    }
+
+    // Misma visibilidad que el reporte en Firestore: titular, gestión del
+    // municipio, cuadrilla asignada o vecinos del municipio si es público.
+    match /reports/{reportId}/{fase}/{archivo} {
+      allow read: if active() && (report(reportId).userId == request.auth.uid ||
+        staffFor(reportId) || workerFor(reportId) ||
+        (report(reportId).hidden == false &&
+          sameMunicipality(profile().municipalityId, report(reportId).municipalityId)));
+
+      // Las fotos son la evidencia del estado del reclamo, así que una vez
+      // subidas no se tocan.
+      //
+      // OJO: en Storage, volver a subir sobre un path existente se evalúa
+      // como 'create', no como 'update'. Sin el `resource == null` cualquiera
+      // podría reemplazar la foto del antes después de hecho el trabajo.
+      allow create: if signedIn() && fotoValida() && resource == null &&
+        mayCreateReportPhoto(reportId, fase, archivo);
+      allow update: if false;
+      // Única excepción: si falla la actualización en Firestore, quien tomó
+      // el caso puede retirar el avance o cierre que acaba de subir (15 min),
+      // mientras el caso sigue en curso. Nunca fotos del vecino ni de llegada.
+      allow delete: if fase in ['progress', 'after'] && workerFor(reportId) &&
+        workerPhaseOpen(reportId, fase) &&
+        request.time < resource.timeCreated + duration.value(15, 'm');
+    }
+
+    match /advertising/{municipalityId}/{file} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.organizationId == 'diagonales' &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.disabled != true &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(jpeg|png|webp)') && resource == null;
+      allow update, delete: if false;
+    }
+
+    // Todo lo que no esté contemplado arriba queda cerrado.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

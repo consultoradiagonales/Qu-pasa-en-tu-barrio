@@ -1,0 +1,610 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:timeago/timeago.dart' as timeago;
+
+import '../../../core/theme/app_theme.dart';
+import '../../../data/models/report_model.dart';
+import '../../../data/repositories/reports_repository.dart';
+import '../../../data/services/auth_service.dart';
+import '../widgets/before_after_slider_widget.dart';
+import '../widgets/report_rating_sheet.dart';
+import '../../../core/utils/error_text.dart';
+
+class ReportDetailScreen extends ConsumerStatefulWidget {
+  final String reportId;
+  const ReportDetailScreen({super.key, required this.reportId});
+
+  @override
+  ConsumerState<ReportDetailScreen> createState() => _ReportDetailScreenState();
+}
+
+class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
+  bool _voting = false;
+  bool _flagging = false;
+  bool _rating = false;
+  late Stream<ReportModel?> _reportStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _reportStream =
+        ref.read(reportsRepositoryProvider).watchReport(widget.reportId);
+  }
+
+  Future<void> _toggleSupport(ReportModel report) async {
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
+    if (uid == null) return;
+
+    setState(() => _voting = true);
+    try {
+      await ref.read(reportsRepositoryProvider).addSupportVote(report.id, uid);
+    } finally {
+      if (mounted) setState(() => _voting = false);
+    }
+  }
+
+  Future<void> _flagReport(ReportModel report) async {
+    final uid = ref.read(authStateProvider).valueOrNull?.uid;
+    if (uid == null) return;
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => _FlagDialog(),
+    );
+    if (reason == null || !mounted) return;
+
+    setState(() => _flagging = true);
+    try {
+      await ref.read(reportsRepositoryProvider).flagContent(
+            reportedBy: uid,
+            targetType: 'report',
+            targetId: report.id,
+            reportId: report.id,
+            reason: reason,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reporte enviado al moderador.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _flagging = false);
+    }
+  }
+
+  Future<void> _rateReport(ReportModel report) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      if (mounted) context.go('/auth/login');
+      return;
+    }
+    if (report.status != ReportStatus.resolved &&
+        report.status != ReportStatus.closed) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Podés calificar cuando el reporte esté resuelto.'),
+        ));
+      }
+      return;
+    }
+
+    final result = await showModalBottomSheet<({int rating, String? comment})>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => ReportRatingSheet(
+        onSubmit: (rating, comment) {
+          Navigator.pop(sheetContext, (rating: rating, comment: comment));
+        },
+      ),
+    );
+
+    if (result == null || !mounted) return;
+    setState(() => _rating = true);
+    try {
+      await ref.read(reportsRepositoryProvider).updateReport(report.id, {
+        'rating': result.rating,
+        'ratingComment': result.comment,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Gracias por tu calificación.'),
+      ));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensajeDeError(error))),
+      );
+    } finally {
+      if (mounted) setState(() => _rating = false);
+    }
+  }
+
+  String _fallbackRoute(String? role) {
+    if (role == 'field_worker' || role == 'field_manager') return '/field';
+    if (role == 'admin' || role == 'coordinator' || role == 'moderator') {
+      return '/coordinator';
+    }
+    return '/home';
+  }
+
+  void _goBack(String? role) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go(_fallbackRoute(role));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = ref.watch(authStateProvider).valueOrNull?.uid ?? '';
+    final role = ref.watch(currentUserRoleProvider);
+    final isStaff = role == 'admin' ||
+        role == 'coordinator' ||
+        role == 'moderator' ||
+        role == 'field_manager';
+
+    final canPop = Navigator.of(context).canPop();
+    return PopScope(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goBack(role);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            key: const Key('report-detail-back'),
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Volver',
+            onPressed: () => _goBack(role),
+          ),
+          title: const Text('Detalle del reporte'),
+          actions: [
+            if (isStaff)
+              PopupMenuButton<String>(
+                tooltip: 'Navegación de gestión',
+                icon: const Icon(Icons.menu),
+                onSelected: (route) => context.go(route),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: '/admin',
+                    child: ListTile(
+                      leading: Icon(Icons.dashboard_outlined),
+                      title: Text('Centro de gestión'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: '/coordinator',
+                    child: ListTile(
+                      leading: Icon(Icons.assignment_outlined),
+                      title: Text('Reportes'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: '/profile',
+                    child: ListTile(
+                      leading: Icon(Icons.person_outline),
+                      title: Text('Perfil y contraseña'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+            StreamBuilder<ReportModel?>(
+              stream: _reportStream,
+              builder: (_, snapshot) {
+                final report = snapshot.data;
+                if (report == null) return const SizedBox.shrink();
+                return IconButton(
+                  icon: _flagging
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.flag_outlined),
+                  tooltip: 'Reportar contenido',
+                  onPressed: () => _flagReport(report),
+                );
+              },
+            ),
+          ],
+        ),
+        body: StreamBuilder<ReportModel?>(
+          stream: _reportStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text(mensajeDeError(snapshot.error!)));
+            }
+            final report = snapshot.data;
+            if (report == null) {
+              return const Center(child: Text('Reporte no encontrado.'));
+            }
+            return _buildBody(report, uid);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(ReportModel report, String uid) {
+    final hasBeforeAfter =
+        report.photosBefore.isNotEmpty && report.photosAfter.isNotEmpty;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Chips de estado y categoría
+          Wrap(
+            spacing: 8,
+            children: [
+              _Chip(
+                label: statusLabel(report.status.value),
+                color: statusColor(report.status.value),
+              ),
+              _Chip(
+                label: categoryLabel(report.category.value),
+                color: categoryColor(report.category.value),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Título
+          Text(
+            report.title,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+
+          // Dirección y tiempo
+          Row(
+            children: [
+              const Icon(Icons.place_outlined,
+                  size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  report.location.address ?? 'Ubicación en el mapa',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                timeago.format(report.createdAt, locale: 'es'),
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Descripción
+          Text(report.description, style: const TextStyle(fontSize: 15)),
+          const SizedBox(height: 16),
+
+          // �"?�"? SLIDER ANTES/DESPU�?S �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+          if (hasBeforeAfter) ...[
+            const _SectionTitle(text: 'Evolución del problema'),
+            const SizedBox(height: 8),
+            BeforeAfterSliderWidget(
+              urlBefore: report.photosBefore.first,
+              urlAfter: report.photosAfter.first,
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Indicador cuando la foto aún no llegó al servidor
+          if (report.photosReport.isEmpty &&
+              report.photoUploadStatus == 'pending') ...[
+            const _SectionTitle(text: 'Fotos del reporte'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              ),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'La foto del reporte está siendo procesada…',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Fotos del ciudadano
+          if (report.photosReport.isNotEmpty) ...[
+            const _SectionTitle(text: 'Fotos del reporte'),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 120,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: report.photosReport.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: report.photosReport[i],
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Mini mapa
+          if (report.photosProgress.isNotEmpty) ...[
+            const _SectionTitle(text: 'Fotos del proceso'),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 120,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: report.photosProgress.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: report.photosProgress[i],
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          const _SectionTitle(text: 'Ubicación'),
+          const SizedBox(height: 8),
+          if (report.location.isManualAddress)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.edit_location_alt_outlined),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      report.location.address ??
+                          'Dirección escrita por la persona que reportó.',
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              height: 160,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(report.location.lat, report.location.lng),
+                    zoom: 16,
+                  ),
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('r'),
+                      position:
+                          LatLng(report.location.lat, report.location.lng),
+                    ),
+                  },
+                  zoomControlsEnabled: false,
+                  scrollGesturesEnabled: false,
+                  rotateGesturesEnabled: false,
+                  tiltGesturesEnabled: false,
+                  zoomGesturesEnabled: false,
+                  myLocationButtonEnabled: false,
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
+
+          // Nota del técnico
+          if (report.workerNotes != null && report.workerNotes!.isNotEmpty) ...[
+            const _SectionTitle(text: 'Respuesta oficial'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.verified_outlined,
+                      size: 18, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(report.workerNotes!,
+                        style: const TextStyle(fontSize: 14)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Acciones: apoyo y calificación
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _voting ? null : () => _toggleSupport(report),
+                  icon: _voting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.thumb_up_outlined),
+                  label: Text('${report.supportCount} apoyos'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (uid == report.userId &&
+                  (report.status == ReportStatus.resolved ||
+                      report.status == ReportStatus.closed))
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent),
+                    onPressed: _rating ? null : () => _rateReport(report),
+                    icon: _rating
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.star_outline),
+                    label: Text(report.rating != null
+                        ? '${report.rating}/5'
+                        : 'Calificar'),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Volver al mapa
+          TextButton.icon(
+            onPressed: () => context.go('/map'),
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Ver en el mapa'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// �"?�"?�"? Widgets auxiliares �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
+          letterSpacing: 0.3),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Chip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style:
+            TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _FlagDialog extends StatefulWidget {
+  @override
+  State<_FlagDialog> createState() => _FlagDialogState();
+}
+
+class _FlagDialogState extends State<_FlagDialog> {
+  String _reason = 'Contenido inapropiado';
+
+  @override
+  Widget build(BuildContext context) {
+    const options = [
+      'Contenido inapropiado',
+      'Información falsa',
+      'Spam',
+      'Otro',
+    ];
+    return AlertDialog(
+      title: const Text('Reportar contenido'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: options
+            .map((o) => RadioListTile<String>(
+                  title: Text(o),
+                  value: o,
+                  groupValue: _reason,
+                  onChanged: (v) => setState(() => _reason = v!),
+                  dense: true,
+                ))
+            .toList(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, _reason),
+          child: const Text('Enviar'),
+        ),
+      ],
+    );
+  }
+}
