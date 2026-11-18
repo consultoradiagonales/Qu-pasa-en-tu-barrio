@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 // QA de brechas en firestore.rules / storage.rules. Solo emuladores locales
 // y proyecto demo. Cada caso afirma el comportamiento de las reglas
@@ -198,7 +198,7 @@ test('S1 Storage: operario sobre reportes cerrados/resueltos o sin equipo', asyn
 
 test('S2 Storage: fotos de vecino', async () => {
   await check('S2a', 'dueno sube foto extra con photoUploadStatus=ready', 403, 403, () => upload('citizenA', 'reports/g-ready-a/citizen/extra.jpg'), 'storage.rules:40');
-  await check('S2b', 'dueno sube nombre alternativo con estado pending (permitido: resource==null garantiza inmutabilidad)', 200, 200, () => upload('citizenA', 'reports/g-pendphoto-a/citizen/otra.jpg'), 'storage.rules:citizenPhotoPending');
+  await check('S2b', 'dueno sube nombre distinto a photoStoragePath (pending)', 403, 403, () => upload('citizenA', 'reports/g-pendphoto-a/citizen/otra.jpg'), 'storage.rules:40');
   await check('S2c', 'dueno sube a su reporte resuelto', 403, 403, () => upload('citizenA', 'reports/g-resolved-a/citizen/late.jpg'), 'storage.rules:40');
   await check('S2d', 'citizenB sube a reporte de citizenA', 403, 403, () => upload('citizenB', 'reports/g-pending-a/citizen/x.jpg'), 'storage.rules:40');
   await check('S2e', 'dueno deshabilitado sube foto', 403, 403, () => upload('disabledOwner', 'reports/g-disabled-owner/citizen/x.jpg'), 'storage.rules:40 (sin disabled)');

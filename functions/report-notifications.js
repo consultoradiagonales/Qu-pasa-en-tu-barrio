@@ -5,7 +5,6 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { createHash } = require('node:crypto');
 const { deliverToUsers } = require('./push-delivery');
-const { notifyAssignedWorker } = require('./worker-assignment-notification');
 
 const REGION = 'southamerica-east1';
 
@@ -219,7 +218,6 @@ async function notifyReportChange(event) {
   await Promise.all([
     notifyReportOwner(event),
     notifyAssignedWorkers(event),
-    notifyAssignedWorker(event),
   ]);
   return null;
 }
@@ -235,7 +233,6 @@ module.exports = {
   isInvalidToken,
   notifyReportOwner,
   notifyAssignedWorkers,
-  notifyAssignedWorker,
   notifyReportChange,
   assignmentChange,
   assignmentKey,
