@@ -55,8 +55,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/home',
-          builder: (_, __) => const CitizenHomeScreen(
-              weatherMapPreview: ColoredBox(color: Colors.blue)),
+          builder: (_, __) => const CitizenHomeScreen(),
         ),
         GoRoute(
           path: '/clima',
@@ -90,32 +89,27 @@ void main() {
         canOpenOperations('/field', 'field_manager', enabled: false), isFalse);
   });
 
-  testWidgets('el inicio muestra mapa meteorológico, cámara y cuenta',
+  testWidgets('el inicio queda limpio: cámara grande y cuenta, sin mapa',
       (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         authStateProvider.overrideWith((_) => Stream.value(null)),
       ],
-      child: const MaterialApp(
-        home: CitizenHomeScreen(
-            weatherMapPreview: ColoredBox(color: Colors.blue)),
-      ),
+      child: const MaterialApp(home: CitizenHomeScreen()),
     ));
     await tester.pumpAndSettle();
 
     final camera = find.byKey(const Key('home-camera-quick'));
     final profile = find.byKey(const Key('home-profile-panel'));
-    final weatherMap = find.byKey(const Key('home-weather-map'));
-    expect(weatherMap, findsOneWidget);
-    expect(find.byKey(const Key('home-weather-full')), findsOneWidget);
+    // El motor ARGWX solo se abre desde Clima y predicciones.
+    expect(find.byKey(const Key('home-weather-map')), findsNothing);
+    expect(find.byKey(const Key('home-weather-full')), findsNothing);
     expect(camera, findsOneWidget);
     expect(profile, findsOneWidget);
     expect(find.text('Reportar con la cámara'), findsOneWidget);
     expect(find.byKey(const Key('home-login')), findsOneWidget);
     expect(find.byKey(const Key('home-register')), findsOneWidget);
 
-    expect(tester.getRect(weatherMap).center.dy,
-        lessThan(tester.getRect(camera).center.dy));
     expect(tester.getRect(camera).center.dy,
         lessThan(tester.getRect(profile).center.dy));
     expect(tester.takeException(), isNull);
@@ -129,10 +123,7 @@ void main() {
         currentUserProfileProvider('u1')
             .overrideWith((_) => Stream.value(_profile())),
       ],
-      child: const MaterialApp(
-        home: CitizenHomeScreen(
-            weatherMapPreview: ColoredBox(color: Colors.blue)),
-      ),
+      child: const MaterialApp(home: CitizenHomeScreen()),
     ));
     await tester.pumpAndSettle();
 

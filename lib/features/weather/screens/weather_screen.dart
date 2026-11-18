@@ -42,9 +42,13 @@ class WeatherScreen extends ConsumerWidget {
           tooltip: 'Volver al inicio',
           onPressed: () => context.go('/home'),
         ),
-        title: const Text('Clima y prevención'),
+        title: Text(openMap ? 'Clima y predicciones' : 'Clima y prevención'),
       ),
-      body: profile == null
+      // Clima y predicciones (Inicio) abre siempre el motor ARGWX completo,
+      // aunque el perfil no haya cargado o el municipio no tenga pronóstico.
+      body: openMap
+          ? const ArgwxDashboard(key: Key('argwx-map'))
+          : profile == null
           ? const Center(child: CircularProgressIndicator())
           : argwxId == null
               ? const _NotCovered()
