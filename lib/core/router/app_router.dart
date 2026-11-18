@@ -13,6 +13,7 @@ import '../../features/auth/screens/welcome_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/forgot_password_screen.dart';
+import '../../features/auth/screens/pending_approval_screen.dart';
 import '../../features/auth/screens/select_municipality_screen.dart';
 import '../../features/map/screens/map_screen.dart';
 import '../../features/home/screens/citizen_home_screen.dart';
@@ -28,7 +29,6 @@ import '../../features/profile/screens/profile_screen.dart';
 import '../../features/weather/screens/weather_screen.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/advertising/local_ads_banner.dart';
-import '../../data/repositories/notifications_repository.dart';
 import '../services/device_profile_service.dart';
 
 class _AuthChangeNotifier extends ChangeNotifier {
@@ -63,6 +63,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   ref.listen(currentUserRoleProvider, (_, __) => notifier.notifyListeners());
   ref.listen(
       currentUserMunicipalityProvider, (_, __) => notifier.notifyListeners());
+  // Re-evaluar el redirect cuando cambia el status (pending → active)
+  ref.listen(currentUserStatusProvider, (_, __) => notifier.notifyListeners());
 
   return GoRouter(
     initialLocation: '/splash',
@@ -79,6 +81,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Si está en splash, no redirigir (el splash decide)
       if (isOnSplash) return null;
+
+      // Usuario pendiente de aprobación — sólo puede ver /auth/pending
+      final isOnPending = state.matchedLocation == '/auth/pending';
+      if (isLoggedIn && !isOnPending && !isOnAuth) {
+        final userStatus = ref.read(currentUserStatusProvider);
+        if (userStatus == 'pending') return '/auth/pending';
+      }
+      // Si ya fue aprobado pero sigue en /auth/pending, redirigir a home
+      if (isLoggedIn && isOnPending) {
+        final userStatus = ref.read(currentUserStatusProvider);
+        if (userStatus != null && userStatus != 'pending') {
+          return signedInDestination(null);
+        }
+        return null;
+      }
 
       final target = state.matchedLocation;
       final isReport = target == '/report/new';
@@ -147,6 +164,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/auth/pending',
+        builder: (context, state) => const PendingApprovalScreen(),
       ),
 
       // Ciudadano — mapa principal con shell de navegación
@@ -308,10 +329,6 @@ class _CitizenShellState extends ConsumerState<_CitizenShell> {
     final location = GoRouterState.of(context).matchedLocation;
     final index = _indexFromLocation(location);
     final municipalityId = ref.watch(currentUserMunicipalityProvider) ?? '';
-    final uid = ref.watch(authStateProvider).valueOrNull?.uid ?? '';
-    final unreadCount = uid.isNotEmpty
-        ? (ref.watch(unreadCountProvider(uid)).valueOrNull ?? 0)
-        : 0;
 
     return PopScope<Object?>(
       // En móvil el retroceso primero vuelve a Inicio; desde Inicio pide
@@ -329,31 +346,23 @@ class _CitizenShellState extends ConsumerState<_CitizenShell> {
             NavigationBar(
               selectedIndex: index,
               onDestinationSelected: (i) => _navigate(context, i),
-              destinations: [
-                const NavigationDestination(
+              destinations: const [
+                NavigationDestination(
                   icon: Icon(Icons.home_outlined),
                   selectedIcon: Icon(Icons.home),
                   label: 'Inicio',
                 ),
-                const NavigationDestination(
+                NavigationDestination(
                   icon: Icon(Icons.list_alt_outlined),
                   selectedIcon: Icon(Icons.list_alt),
                   label: 'Mis reportes',
                 ),
                 NavigationDestination(
-                  icon: Badge(
-                    isLabelVisible: unreadCount > 0,
-                    label: Text(unreadCount > 9 ? '9+' : '$unreadCount'),
-                    child: const Icon(Icons.notifications_outlined),
-                  ),
-                  selectedIcon: Badge(
-                    isLabelVisible: unreadCount > 0,
-                    label: Text(unreadCount > 9 ? '9+' : '$unreadCount'),
-                    child: const Icon(Icons.notifications),
-                  ),
+                  icon: Icon(Icons.notifications_outlined),
+                  selectedIcon: Icon(Icons.notifications),
                   label: 'Alertas',
                 ),
-                const NavigationDestination(
+                NavigationDestination(
                   icon: Icon(Icons.person_outline),
                   selectedIcon: Icon(Icons.person),
                   label: 'Perfil',
