@@ -1,4 +1,11 @@
 {
+  "release_1_0_36_y_fotos_2026_11_17": {
+    "play": "1.0.36+37 publicada en prueba interna (completed), AAB SHA-256 904a05c8aafed7dc3e7903823f5afd3ca8978c1f4df8674e4350a04ceafc3caf. Inicio limpio con cámara grande; Clima y predicciones abre el motor ARGWX completo; Perfil > Invitar a otros a usar ConDi (WhatsApp o copiar link https://project-5fc9024a-e961-42b7-9ee.web.app/).",
+    "aviso": "custom_release_1_0_36_build_37 con link de Play y link de invitación, enviado solo a despuesnodiganque@gmail.com y yanisolanna@gmail.com (ya tiene cuenta), push verificado.",
+    "hosting": "Web republicada y verificada.",
+    "fotos": "Causa del error persistente de foto: desde el 13/11 storage.rules usa firestore.get y faltaba roles/firebaserules.firestoreServiceAgent al agente service-949079641355@gcp-sa-firebasestorage. El titular lo otorgó el 17/11; verificado en IAM. 5 reportes quedaron con foto pendiente desde el 15/11; falta que reintenten y verificar.",
+    "argwx": "Rama claude/argwx-evaluacion-ia (df9cb8b9, sin push): 4 ensembles gratuitos + AIGFS; La Plata 17/11 daría aviso amarillo preventivo. Fuente Open-Meteo aprobada para uso no comercial."
+  },
   "play_1_0_35_2026_11_17": {
     "estado": "Android 1.0.35+36 publicado en prueba interna de Play (status completed, verificado). Incluye: Clima y predicciones con ARGWX, correcciones de QA, sin IA en la app.",
     "aab_sha256": "31899c4c1e9f3343163e1350a6f7f4659f1fd25b072e9f7b56d2b54341d0ff8d (jar verified)",
