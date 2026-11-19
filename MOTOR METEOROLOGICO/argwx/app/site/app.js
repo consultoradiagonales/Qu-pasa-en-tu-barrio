@@ -904,15 +904,25 @@
     map.flyTo([p.lat, p.lon], Math.max(map.getZoom(), 7));
     window.scrollTo({top: 0, behavior: "smooth"});
   });
+  function setDeviceLocation(lat, lng) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+    const ll = [lat, lng];
+    G.me.clearLayers();
+    L.marker(ll, {icon: L.divIcon({className: "me", iconSize: [16, 16]})}).addTo(G.me);
+    map.flyTo(ll, Math.max(map.getZoom(), 8));
+    setTimeout(() => map.fire("click", {latlng: L.latLng(ll)}), 350);
+    return true;
+  }
+  // El WebView de Android delega el GPS a ConDi: evita el permiso web aislado
+  // y permite ubicar al usuario aun cuando el navegador embebido lo rechace.
+  window.ARGWX = Object.assign(window.ARGWX || {}, {setDeviceLocation});
   $("locate").addEventListener("click", () => {
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
-      const ll = [pos.coords.latitude, pos.coords.longitude];
-      G.me.clearLayers();
-      L.marker(ll, {icon: L.divIcon({className: "me", iconSize: [16, 16]})}).addTo(G.me);
-      map.flyTo(ll, 8);
-      setTimeout(() => map.fire("click", {latlng: L.latLng(ll)}), 900);
-    }, () => alert("No se pudo obtener tu ubicación."), {enableHighAccuracy: false, timeout: 10000});
+    navigator.geolocation.getCurrentPosition(
+      pos => setDeviceLocation(pos.coords.latitude, pos.coords.longitude),
+      () => { /* ConDi intenta la ubicación nativa; no mostrar alertas bloqueantes. */ },
+      {enableHighAccuracy: true, maximumAge: 30_000, timeout: 15_000},
+    );
   });
 
   // ------------------------------------------------------------------ celular: barra compacta y panel de detalle
