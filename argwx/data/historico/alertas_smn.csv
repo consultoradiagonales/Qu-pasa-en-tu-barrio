@@ -888,3 +888,34 @@ visto,desde,hasta,fenomeno,nivel,titulo,provincias,partidos_pba
 2026-11-20T13:00:37Z,2026-11-20T14:11:03Z,2026-11-20T17:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Formosa|Santiago del Estero,
 2026-11-20T13:00:37Z,2026-11-20T14:11:03Z,2026-11-20T17:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Corrientes,
 2026-11-20T13:00:37Z,2026-11-20T14:11:03Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes,
+2026-11-20T21:12:39Z,2026-11-20T23:54:00Z,2026-11-21T01:54:00Z,tormenta,ORANGE,AVISO NARANJA POR TORMENTAS FUERTES CON LLUVIAS INTENSAS Y RAFAGAS,Buenos Aires,Ayacucho|Balcarce|General Juan Madariaga|Maipú|Mar Chiquita|Villa Gesell
+2026-11-20T21:12:39Z,2026-11-20T22:43:00Z,2026-11-21T00:43:00Z,granizo,ORANGE,"AVISO NARANJA POR TORMENTAS FUERTES CON LLUVIAS INTENSAS, RAFAGAS Y OCASIONAL CAIDA DE GRANIZO",Formosa,
+2026-11-20T21:12:39Z,2026-11-20T21:26:00Z,2026-11-21T00:26:00Z,granizo,ORANGE,"AVISO NARANJA POR TORMENTAS FUERTES CON LLUVIAS INTENSAS, RAFAGAS Y OCASIONAL CAIDA DE GRANIZO",Buenos Aires,Berisso|Ensenada|La Plata|Magdalena|Punta Indio
+2026-11-20T21:12:39Z,2026-11-20T22:37:00Z,2026-11-21T00:37:00Z,granizo,ORANGE,AVISO NARANJA POR TORMENTAS SEVERAS CON RAFAGAS Y OCASIONAL CAIDA DE GRANIZO,Buenos Aires,Balcarce|General Alvarado|General Pueyrredón
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,ORANGE,Tormentas,Misiones,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,ORANGE,Tormentas,Corrientes|Misiones,
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,ORANGE,Tormentas,Misiones,
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,ORANGE,Tormentas,Corrientes|Misiones,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Córdoba|Santa Fe,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Córdoba,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Corrientes|Santa Fe,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Formosa,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes|Entre Ríos|Santa Fe,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Corrientes,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Formosa|Santiago del Estero,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Santa Fe,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes|Entre Ríos,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires,Adolfo Gonzales Chaves|Coronel Dorrego|Lobería|Necochea|San Cayetano|Tres Arroyos
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires|Córdoba|Santa Fe,
+2026-11-20T21:12:39Z,2026-11-20T18:45:23Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires|Santa Fe,Arrecifes|Capitán Sarmiento|Carmen de Areco|Chacabuco|Colón|General Arenales|General Pinto|Junín|Leandro N. Alem|Lincoln|Pergamino|Rojas|Salto
+2026-11-20T21:12:39Z,2026-11-21T06:00:00Z,2026-11-21T11:59:59Z,tormenta,YELLOW,Tormentas,Jujuy|Salta,
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires,Azul|Benito Juárez|Rauch|Tandil|Tapalqué
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires|Santa Fe,Arrecifes|Capitán Sarmiento|Carmen de Areco|Chacabuco|Colón|General Arenales|General Pinto|Junín|Leandro N. Alem|Lincoln|Pergamino|Rojas|Salto
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Formosa,
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Corrientes,
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Corrientes|Santa Fe,
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes|Entre Ríos|Santa Fe,
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Córdoba,
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Córdoba|Santa Fe,
+2026-11-20T21:12:39Z,2026-11-20T18:45:22Z,2026-11-20T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Formosa|Santiago del Estero,
