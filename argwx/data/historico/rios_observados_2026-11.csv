@@ -6470,6 +6470,7 @@ fecha,estacion,rio,altura_m,alerta_m,evacuacion_m,red
 2026-11-21T15:50,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
 2026-11-21T15:55,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
 2026-11-21T16:00,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T16:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.99,2,2.2,RHN - SAT
 2026-11-21T16:05,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
 2026-11-21T16:10,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.77,,,red INA Delta y AMBA
 2026-11-21T16:15,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
@@ -6489,3 +6490,119 @@ fecha,estacion,rio,altura_m,alerta_m,evacuacion_m,red
 2026-11-21T16:50,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
 2026-11-21T16:55,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
 2026-11-21T17:00,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T17:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.95,2,2.2,RHN - SAT
+2026-11-21T17:05,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T17:10,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T17:15,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T17:20,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T17:25,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T17:30,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T17:35,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T17:40,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T17:45,Arroyo Carapachay,Arroyo Carapachay,1.77,,,red INA Delta y AMBA
+2026-11-21T17:45,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T17:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-21T17:45,Buenos Aires,RIODELAPLATA,0.7,3.3,3.9,escalas Prefectura Nacional
+2026-11-21T17:45,Canal Seoane,Canal Seoane,2.07,,,red INA Delta y AMBA
+2026-11-21T17:45,INTA Delta,Paraná de las Palmas,1.51,,,red INA Delta y AMBA
+2026-11-21T17:45,Puerto Belgrano,,4.0,,,Mareógrafos SHN
+2026-11-21T17:45,San Fernando,LUJAN,0.63,3,3.5,escalas Prefectura Nacional
+2026-11-21T17:50,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.8,,,red INA Delta y AMBA
+2026-11-21T17:55,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.8,,,red INA Delta y AMBA
+2026-11-21T18:00,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.8,,,red INA Delta y AMBA
+2026-11-21T18:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.91,2,2.2,RHN - SAT
+2026-11-21T18:05,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.8,,,red INA Delta y AMBA
+2026-11-21T18:10,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.8,,,red INA Delta y AMBA
+2026-11-21T18:15,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T18:20,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.8,,,red INA Delta y AMBA
+2026-11-21T18:25,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T18:30,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T18:35,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T18:40,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T18:45,Arroyo Carapachay,Arroyo Carapachay,1.72,,,red INA Delta y AMBA
+2026-11-21T18:45,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T18:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-21T18:45,Buenos Aires,RIODELAPLATA,0.75,3.3,3.9,escalas Prefectura Nacional
+2026-11-21T18:45,Canal Seoane,Canal Seoane,2.04,,,red INA Delta y AMBA
+2026-11-21T18:45,INTA Delta,Paraná de las Palmas,1.48,,,red INA Delta y AMBA
+2026-11-21T18:45,Puerto Belgrano,,4.0,,,Mareógrafos SHN
+2026-11-21T18:45,San Fernando,LUJAN,0.69,3,3.5,escalas Prefectura Nacional
+2026-11-21T18:50,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T18:55,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.8,,,red INA Delta y AMBA
+2026-11-21T19:00,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.8,,,red INA Delta y AMBA
+2026-11-21T19:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.84,2,2.2,RHN - SAT
+2026-11-21T19:05,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:10,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:15,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:20,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:25,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:30,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:35,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:40,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:45,Arroyo Carapachay,Arroyo Carapachay,1.7,,,red INA Delta y AMBA
+2026-11-21T19:45,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-21T19:45,Buenos Aires,RIODELAPLATA,0.8,3.3,3.9,escalas Prefectura Nacional
+2026-11-21T19:45,Canal Seoane,Canal Seoane,2.02,,,red INA Delta y AMBA
+2026-11-21T19:45,INTA Delta,Paraná de las Palmas,1.45,,,red INA Delta y AMBA
+2026-11-21T19:45,Puerto Belgrano,,3.72,,,Mareógrafos SHN
+2026-11-21T19:45,San Fernando,LUJAN,0.76,3,3.5,escalas Prefectura Nacional
+2026-11-21T19:50,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T19:55,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:00,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.84,2,2.2,RHN - SAT
+2026-11-21T20:05,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:10,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:15,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:20,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:25,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:30,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:35,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:40,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T20:45,Arroyo Carapachay,Arroyo Carapachay,1.74,,,red INA Delta y AMBA
+2026-11-21T20:45,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T20:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-21T20:45,Buenos Aires,RIODELAPLATA,0.7,3.3,3.9,escalas Prefectura Nacional
+2026-11-21T20:45,Canal Seoane,Canal Seoane,2.02,,,red INA Delta y AMBA
+2026-11-21T20:45,INTA Delta,Paraná de las Palmas,1.49,,,red INA Delta y AMBA
+2026-11-21T20:45,Puerto Belgrano,,3.26,,,Mareógrafos SHN
+2026-11-21T20:45,San Fernando,LUJAN,0.8,3,3.5,escalas Prefectura Nacional
+2026-11-21T20:50,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T20:55,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T21:00,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.77,,,red INA Delta y AMBA
+2026-11-21T21:00,Paraná Las Palmas - Zárate,Paraná de las Palmas,0.84,2,2.2,RHN - SAT
+2026-11-21T21:05,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T21:10,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T21:15,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T21:20,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.77,,,red INA Delta y AMBA
+2026-11-21T21:25,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T21:30,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T21:35,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T21:40,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T21:45,Arroyo Carapachay,Arroyo Carapachay,1.77,,,red INA Delta y AMBA
+2026-11-21T21:45,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T21:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-21T21:45,Buenos Aires,RIODELAPLATA,0.66,3.3,3.9,escalas Prefectura Nacional
+2026-11-21T21:45,Canal Seoane,Canal Seoane,2.03,,,red INA Delta y AMBA
+2026-11-21T21:45,INTA Delta,Paraná de las Palmas,1.47,,,red INA Delta y AMBA
+2026-11-21T21:45,Puerto Belgrano,,2.51,,,Mareógrafos SHN
+2026-11-21T21:45,San Fernando,LUJAN,0.7,3,3.5,escalas Prefectura Nacional
+2026-11-21T21:50,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T21:55,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.76,,,red INA Delta y AMBA
+2026-11-21T22:00,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.77,,,red INA Delta y AMBA
+2026-11-21T22:05,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.77,,,red INA Delta y AMBA
+2026-11-21T22:10,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.77,,,red INA Delta y AMBA
+2026-11-21T22:15,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T22:20,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T22:25,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.78,,,red INA Delta y AMBA
+2026-11-21T22:30,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T22:35,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T22:40,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T22:45,Arroyo Carapachay,Arroyo Carapachay,1.75,,,red INA Delta y AMBA
+2026-11-21T22:45,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T22:45,Arroyo San Francisco,Cuenca Sarandí-Santo Domingo,2.19,,,red INA Delta y AMBA
+2026-11-21T22:45,Canal Seoane,Canal Seoane,2.03,,,red INA Delta y AMBA
+2026-11-21T22:45,INTA Delta,Paraná de las Palmas,1.49,,,red INA Delta y AMBA
+2026-11-21T22:50,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T22:55,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.79,,,red INA Delta y AMBA
+2026-11-21T23:00,Arroyo Las Piedras - Rep. del Líbano,Cuenca Sarandí-Santo Domingo,1.8,,,red INA Delta y AMBA
