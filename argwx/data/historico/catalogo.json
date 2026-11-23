@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-23T02:50:59Z",
+ "generated_at": "2026-11-23T12:58:19Z",
  "tablas": [
   {
    "tabla": "lluvia_era5_diaria.csv",
@@ -8,10 +8,10 @@
    ],
    "descripcion": "Lluvia diaria observada por el reanálisis ERA5 en un punto por sección electoral, desde 1981.",
    "fuente": "ERA5 · Copernicus Climate Change Service / ECMWF, vía Open-Meteo (CC BY 4.0)",
-   "registros": 16786,
+   "registros": 16787,
    "desde": "1980-12-01",
-   "hasta": "2026-11-15",
-   "bytes": 749067
+   "hasta": "2026-11-16",
+   "bytes": 749111
   },
   {
    "tabla": "verificacion_modelos.csv",
@@ -20,10 +20,10 @@
    ],
    "descripcion": "Lluvia diaria pronosticada por cada modelo con 1, 2 y 3 días de anticipación, y la observada (ERA5).",
    "fuente": "Corridas anteriores de los modelos vía Open-Meteo (CC BY 4.0); observación ERA5",
-   "registros": 10032,
+   "registros": 10056,
    "desde": "2025-09-30",
-   "hasta": "2026-11-21",
-   "bytes": 650671
+   "hasta": "2026-11-22",
+   "bytes": 652229
   },
   {
    "tabla": "alertas_smn.csv",
@@ -32,10 +32,10 @@
    ],
    "descripcion": "Alertas oficiales del SMN leídas en cada actualización (fenómeno, nivel, vigencia, zonas).",
    "fuente": "Servicio Meteorológico Nacional, API CAP oficial",
-   "registros": 1029,
+   "registros": 1052,
    "desde": "2026-11-04",
    "hasta": "2026-11-25",
-   "bytes": 123119
+   "bytes": 125664
   },
   {
    "tabla": "smn_horarios_*.csv",
@@ -44,10 +44,10 @@
    ],
    "descripcion": "Datos horarios de las estaciones del SMN en la provincia y CABA: temperatura, humedad, presión y viento (el SMN no publica la lluvia en este archivo).",
    "fuente": "Servicio Meteorológico Nacional, datos abiertos",
-   "registros": 7890,
+   "registros": 8295,
    "desde": "2026-11-03",
-   "hasta": "2026-11-21",
-   "bytes": 452024
+   "hasta": "2026-11-22",
+   "bytes": 475339
   },
   {
    "tabla": "pronosticos_condi_*.csv",
@@ -56,10 +56,10 @@
    ],
    "descripcion": "Lo que pronosticó ConDi para cada partido, una vez por día, para verificarlo después.",
    "fuente": "ConDi · ARGWX (consenso de 9 modelos)",
-   "registros": 6885,
+   "registros": 7290,
    "desde": "2026-11-04",
-   "hasta": "2026-11-22",
-   "bytes": 549624
+   "hasta": "2026-11-23",
+   "bytes": 582395
   },
   {
    "tabla": "rios_observados_*.csv",
@@ -69,10 +69,10 @@
    ],
    "descripcion": "Alturas de los ríos observadas en escalas de la provincia, con los niveles oficiales de alerta y evacuación.",
    "fuente": "Prefectura Naval Argentina y Red Hidrológica Nacional, vía API pública del INA",
-   "registros": 7814,
+   "registros": 7998,
    "desde": "2026-10-05",
    "hasta": "2026-11-23",
-   "bytes": 680449
+   "bytes": 698824
   },
   {
    "tabla": "climatologia_lluvia.json",
@@ -96,7 +96,7 @@
    "registros": null,
    "desde": null,
    "hasta": null,
-   "bytes": 21443
+   "bytes": 21446
   }
  ],
  "nota": "Datos de uso público. ERA5 es un reanálisis (no un pluviómetro): sirve de referencia común para comparar modelos. Las tablas que se acumulan (alertas, horarios, pronósticos) crecen con cada actualización desde el 4/11/2026."
