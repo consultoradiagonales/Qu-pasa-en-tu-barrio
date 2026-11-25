@@ -1096,3 +1096,9 @@ visto,desde,hasta,fenomeno,nivel,titulo,provincias,partidos_pba
 2026-11-24T21:18:35Z,2026-11-26T06:00:00Z,2026-11-26T23:59:59Z,viento,YELLOW,Viento,Tierra del Fuego,
 2026-11-24T21:18:35Z,2026-11-25T00:00:00Z,2026-11-25T11:59:59Z,viento,YELLOW,Viento,Tierra del Fuego,
 2026-11-24T21:18:35Z,2026-11-24T23:29:48Z,2026-11-24T23:59:59Z,viento,YELLOW,Viento,Buenos Aires,General Juan Madariaga|Pinamar|Villa Gesell
+2026-11-25T15:43:37Z,2026-11-25T18:00:00Z,2026-11-25T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes|Misiones,
+2026-11-25T15:43:37Z,2026-11-25T18:00:00Z,2026-11-25T23:59:59Z,tormenta,YELLOW,Tormentas,Misiones,
+2026-11-25T15:43:37Z,2026-11-25T12:59:56Z,2026-11-25T17:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Formosa,
+2026-11-25T15:43:37Z,2026-11-25T12:59:55Z,2026-11-25T23:59:59Z,tormenta,YELLOW,Tormentas,Misiones,
+2026-11-25T15:43:37Z,2026-11-25T12:59:55Z,2026-11-25T17:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Formosa,
+2026-11-25T15:43:37Z,2026-11-25T12:59:56Z,2026-11-25T23:59:59Z,tormenta,YELLOW,Tormentas,Misiones,
