@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-24T21:20:35Z",
+ "generated_at": "2026-11-25T04:23:09Z",
  "tablas": [
   {
    "tabla": "lluvia_era5_diaria.csv",
@@ -8,10 +8,10 @@
    ],
    "descripcion": "Lluvia diaria observada por el reanálisis ERA5 en un punto por sección electoral, desde 1981.",
    "fuente": "ERA5 · Copernicus Climate Change Service / ECMWF, vía Open-Meteo (CC BY 4.0)",
-   "registros": 16788,
+   "registros": 16789,
    "desde": "1980-12-01",
-   "hasta": "2026-11-17",
-   "bytes": 749159
+   "hasta": "2026-11-18",
+   "bytes": 749203
   },
   {
    "tabla": "verificacion_modelos.csv",
@@ -20,10 +20,10 @@
    ],
    "descripcion": "Lluvia diaria pronosticada por cada modelo con 1, 2 y 3 días de anticipación, y la observada (ERA5).",
    "fuente": "Corridas anteriores de los modelos vía Open-Meteo (CC BY 4.0); observación ERA5",
-   "registros": 10080,
+   "registros": 10104,
    "desde": "2025-09-30",
-   "hasta": "2026-11-23",
-   "bytes": 653799
+   "hasta": "2026-11-24",
+   "bytes": 655356
   },
   {
    "tabla": "alertas_smn.csv",
@@ -69,10 +69,10 @@
    ],
    "descripcion": "Alturas de los ríos observadas en escalas de la provincia, con los niveles oficiales de alerta y evacuación.",
    "fuente": "Prefectura Naval Argentina y Red Hidrológica Nacional, vía API pública del INA",
-   "registros": 8651,
+   "registros": 8771,
    "desde": "2026-10-05",
-   "hasta": "2026-11-24",
-   "bytes": 763255
+   "hasta": "2026-11-25",
+   "bytes": 775297
   },
   {
    "tabla": "climatologia_lluvia.json",
