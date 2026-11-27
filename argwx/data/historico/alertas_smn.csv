@@ -1107,3 +1107,28 @@ visto,desde,hasta,fenomeno,nivel,titulo,provincias,partidos_pba
 2026-11-27T02:55:49Z,2026-11-27T18:00:00Z,2026-11-27T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes|Misiones,
 2026-11-27T02:55:49Z,2026-11-26T12:01:45Z,2026-11-26T23:59:59Z,viento,YELLOW,Viento,Santa Cruz,
 2026-11-27T02:55:49Z,2026-11-26T12:01:45Z,2026-11-26T23:59:59Z,viento,YELLOW,Viento,Tierra del Fuego,
+2026-11-27T22:03:20Z,2026-11-28T00:00:00Z,2026-11-28T05:59:59Z,tormenta,ORANGE,Tormentas,Misiones,
+2026-11-27T22:03:20Z,2026-11-28T00:00:00Z,2026-11-28T05:59:59Z,tormenta,ORANGE,Tormentas,Corrientes|Misiones,
+2026-11-27T22:03:20Z,2026-11-27T23:44:00Z,2026-11-28T23:44:00Z,calor,YELLOW,ALERTA AMARILLA POR TEMPERATURAS EXTREMAS CALOR,Buenos Aires,25 de Mayo|9 de Julio|Alberti|Bragado|Chivilcoy|General Viamonte
+2026-11-27T22:03:20Z,2026-11-27T23:44:00Z,2026-11-28T23:44:00Z,calor,YELLOW,ALERTA AMARILLA POR TEMPERATURAS EXTREMAS CALOR,Buenos Aires|Santa Fe,Arrecifes|Capitán Sarmiento|Carmen de Areco|Chacabuco|Colón|General Arenales|General Pinto|Junín|Leandro N. Alem|Lincoln|Pergamino|Rojas|Salto
+2026-11-27T22:03:20Z,2026-11-27T23:44:00Z,2026-11-28T23:44:00Z,calor,YELLOW,ALERTA AMARILLA POR TEMPERATURAS EXTREMAS CALOR,Mendoza,
+2026-11-27T22:03:20Z,2026-11-27T23:44:00Z,2026-11-28T23:44:00Z,calor,YELLOW,ALERTA AMARILLA POR TEMPERATURAS EXTREMAS CALOR,Mendoza|San Juan|San Luis,
+2026-11-27T22:03:20Z,2026-11-27T23:44:00Z,2026-11-28T23:44:00Z,calor,YELLOW,ALERTA AMARILLA POR TEMPERATURAS EXTREMAS CALOR,Buenos Aires|Entre Ríos,Campana|Escobar|Exaltación de la Cruz|General Las Heras|General Rodríguez|General San Martín|Hurlingham|Ituzaingó|José C. Paz|Luján|Malvinas Argentinas|Marcos Paz|Mercedes|Moreno|Morón|Pilar|San Andrés de Giles|San Antonio de Areco|San Fernando|San Isidro|San Miguel|Suipacha|Tigre|Tres de Febrero|Vicente López|Zárate
+2026-11-27T22:03:20Z,2026-11-27T23:44:00Z,2026-11-28T23:44:00Z,calor,YELLOW,ALERTA AMARILLA POR TEMPERATURAS EXTREMAS CALOR,Buenos Aires|Ciudad Autónoma de Buenos Aires,Almirante Brown|Avellaneda|Berazategui|Brandsen|Cañuelas|Esteban Echeverría|Ezeiza|Florencio Varela|La Matanza|Lanús|Lomas de Zamora|Magdalena|Merlo|Presidente Perón|Quilmes|San Vicente
+2026-11-27T22:03:20Z,2026-11-27T23:44:00Z,2026-11-28T23:44:00Z,calor,YELLOW,ALERTA AMARILLA POR TEMPERATURAS EXTREMAS CALOR,,
+2026-11-27T22:03:20Z,2026-11-27T23:44:00Z,2026-11-28T23:44:00Z,calor,YELLOW,ALERTA AMARILLA POR TEMPERATURAS EXTREMAS CALOR,Buenos Aires|La Pampa,
+2026-11-27T22:03:20Z,2026-11-29T18:00:00Z,2026-11-30T11:59:59Z,tormenta,YELLOW,Tormentas,La Pampa,
+2026-11-27T22:03:20Z,2026-11-29T18:00:00Z,2026-11-30T11:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires|La Pampa,
+2026-11-27T22:03:20Z,2026-11-29T18:00:00Z,2026-11-30T11:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires|Río Negro,Bahía Blanca|Coronel Pringles|Coronel Suárez|Patagones|Puan|Saavedra|Tornquist|Villarino
+2026-11-27T22:03:20Z,2026-11-28T18:00:00Z,2026-11-29T05:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires|La Pampa,
+2026-11-27T22:03:20Z,2026-11-27T23:45:07Z,2026-11-27T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Corrientes,
+2026-11-27T22:03:20Z,2026-11-28T18:00:00Z,2026-11-29T05:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires,Adolfo Gonzales Chaves|Coronel Dorrego|Lobería|Necochea|San Cayetano|Tres Arroyos
+2026-11-27T22:03:20Z,2026-11-30T00:00:00Z,2026-11-30T11:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires,Bahía Blanca|Coronel Dorrego|Coronel Rosales|Monte Hermoso|Villarino
+2026-11-27T22:03:20Z,2026-11-29T18:00:00Z,2026-11-30T11:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires,Patagones
+2026-11-27T22:03:20Z,2026-11-27T23:45:07Z,2026-11-27T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes|Misiones,
+2026-11-27T22:03:20Z,2026-11-27T23:45:07Z,2026-11-27T23:59:59Z,tormenta,YELLOW,Tormentas,Misiones,
+2026-11-27T22:03:20Z,2026-11-28T06:00:00Z,2026-11-28T11:59:59Z,tormenta,YELLOW,Tormentas,Misiones,
+2026-11-27T22:03:20Z,2026-11-27T23:45:07Z,2026-11-27T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes,
+2026-11-27T22:03:20Z,2026-11-27T23:45:07Z,2026-11-27T23:59:59Z,tormenta,YELLOW,Tormentas,Corrientes|Entre Ríos,
+2026-11-27T22:03:20Z,2026-11-27T23:45:07Z,2026-11-27T23:59:59Z,tormenta,YELLOW,Tormentas,Chaco|Corrientes|Santa Fe,
+2026-11-27T22:03:20Z,2026-11-28T18:00:00Z,2026-11-29T05:59:59Z,tormenta,YELLOW,Tormentas,Buenos Aires|Río Negro,Bahía Blanca|Coronel Pringles|Coronel Suárez|Patagones|Puan|Saavedra|Tornquist|Villarino
