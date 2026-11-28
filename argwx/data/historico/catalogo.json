@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-28T03:58:05Z",
+ "generated_at": "2026-11-28T13:09:14Z",
  "tablas": [
   {
    "tabla": "lluvia_era5_diaria.csv",
@@ -44,10 +44,10 @@
    ],
    "descripcion": "Datos horarios de las estaciones del SMN en la provincia y CABA: temperatura, humedad, presión y viento (el SMN no publica la lluvia en este archivo).",
    "fuente": "Servicio Meteorológico Nacional, datos abiertos",
-   "registros": 9913,
+   "registros": 10308,
    "desde": "2026-11-03",
-   "hasta": "2026-11-26",
-   "bytes": 568437
+   "hasta": "2026-11-27",
+   "bytes": 591113
   },
   {
    "tabla": "pronosticos_condi_*.csv",
@@ -56,10 +56,10 @@
    ],
    "descripcion": "Lo que pronosticó ConDi para cada partido, una vez por día, para verificarlo después.",
    "fuente": "ConDi · ARGWX (consenso de 9 modelos)",
-   "registros": 8910,
+   "registros": 9315,
    "desde": "2026-11-04",
-   "hasta": "2026-11-27",
-   "bytes": 713117
+   "hasta": "2026-11-28",
+   "bytes": 746518
   },
   {
    "tabla": "rios_observados_*.csv",
@@ -69,10 +69,10 @@
    ],
    "descripcion": "Alturas de los ríos observadas en escalas de la provincia, con los niveles oficiales de alerta y evacuación.",
    "fuente": "Prefectura Naval Argentina y Red Hidrológica Nacional, vía API pública del INA",
-   "registros": 10239,
+   "registros": 10423,
    "desde": "2026-10-05",
    "hasta": "2026-11-28",
-   "bytes": 921141
+   "bytes": 939459
   },
   {
    "tabla": "climatologia_lluvia.json",
